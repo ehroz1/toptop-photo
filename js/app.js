@@ -38,7 +38,7 @@
 
   const state = {
     query: "",
-    activeSources: new Set(["pixabay", "pexels", "unsplash"]),
+    activeSources: new Set(),
     orientation: "any",
     sort: "popular",
     quality: "any",
@@ -49,7 +49,30 @@
     lightboxIndex: -1,
   };
 
-  const PROVIDER_LABELS = { pixabay: "Pixabay", pexels: "Pexels", unsplash: "Unsplash" };
+  const PROVIDER_LABELS = {
+    pixabay: "Pixabay",
+    pexels: "Pexels",
+    unsplash: "Unsplash",
+    wikimedia: "Wikimedia Commons",
+    openverse: "Openverse",
+    flickr: "Flickr",
+  };
+
+  // Чипы источников без ключа в config.js делаем неактивными и объясняем почему.
+  (function initSourceChips() {
+    const byId = {};
+    (window.PROVIDERS || []).forEach((p) => { byId[p.id] = p; });
+    el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
+      const provider = byId[chip.dataset.source];
+      if (provider && provider.enabled()) {
+        state.activeSources.add(provider.id);
+      } else {
+        chip.setAttribute("aria-pressed", "false");
+        chip.disabled = true;
+        chip.title = "Нужен свой API-ключ в js/config.js (см. README)";
+      }
+    });
+  })();
 
   // ---------- Theme ----------
   function initTheme() {

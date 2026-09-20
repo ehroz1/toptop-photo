@@ -4,4 +4,5 @@ window.APP_CONFIG = {
   PIXABAY_KEY: "",
   PEXELS_KEY: "",
   UNSPLASH_ACCESS_KEY: "",
+  FLICKR_API_KEY: "",
 };

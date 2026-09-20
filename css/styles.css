@@ -19,6 +19,9 @@
   --pixabay: #2ecc71;
   --pexels: #05a081;
   --unsplash: #17181c;
+  --wikimedia: #3366cc;
+  --openverse: #ff6428;
+  --flickr: #ff0084;
   color-scheme: light;
 
   --icon-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
@@ -278,6 +281,9 @@ body {
 .dot-pixabay { background: var(--pixabay); }
 .dot-pexels { background: var(--pexels); }
 .dot-unsplash { background: var(--unsplash); }
+.dot-wikimedia { background: var(--wikimedia); }
+.dot-openverse { background: var(--openverse); }
+.dot-flickr { background: var(--flickr); }
 .source-chip[aria-pressed="true"] {
   color: var(--text);
   border-color: var(--accent);
@@ -289,6 +295,12 @@ body {
   border-style: dashed;
 }
 .source-chip-external:hover { color: var(--text); border-color: var(--border-strong); }
+
+.source-chip:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.source-chip:disabled:hover { border-color: var(--border); background: var(--bg-elevated); }
 .source-chip-external .icon { width: 14px; height: 14px; background-color: currentColor; -webkit-mask: var(--icon-external) center / contain no-repeat; mask: var(--icon-external) center / contain no-repeat; }
 
 .filters {

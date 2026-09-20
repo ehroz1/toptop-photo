@@ -4,11 +4,14 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PhotoSeek — поиск фото сразу везде</title>
-<meta name="description" content="Универсальный поиск фото по Pixabay, Pexels и Unsplash одновременно, с быстрым переходом в Яндекс и Google Картинки.">
+<meta name="description" content="Универсальный поиск фото по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr одновременно, с быстрым переходом в Яндекс и Google Картинки.">
 <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖼️</text></svg>">
 <link rel="preconnect" href="https://pixabay.com">
 <link rel="preconnect" href="https://api.pexels.com">
 <link rel="preconnect" href="https://api.unsplash.com">
+<link rel="preconnect" href="https://commons.wikimedia.org">
+<link rel="preconnect" href="https://api.openverse.org">
+<link rel="preconnect" href="https://api.flickr.com">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -56,6 +59,15 @@
         </button>
         <button type="button" class="source-chip" data-source="unsplash" aria-pressed="true">
           <span class="dot dot-unsplash"></span>Unsplash
+        </button>
+        <button type="button" class="source-chip" data-source="wikimedia" aria-pressed="true">
+          <span class="dot dot-wikimedia"></span>Wikimedia
+        </button>
+        <button type="button" class="source-chip" data-source="openverse" aria-pressed="true">
+          <span class="dot dot-openverse"></span>Openverse
+        </button>
+        <button type="button" class="source-chip" data-source="flickr" aria-pressed="false">
+          <span class="dot dot-flickr"></span>Flickr
         </button>
 
         <span class="sources-sep" aria-hidden="true"></span>
@@ -116,7 +128,7 @@
     <div id="emptyState" class="empty-state">
       <div class="empty-illustration" aria-hidden="true"></div>
       <h1>Ищите фото сразу во всех источниках</h1>
-      <p>Введите запрос — PhotoSeek одновременно спросит Pixabay, Pexels и Unsplash и соберёт всё в одну ленту.</p>
+      <p>Введите запрос — PhotoSeek одновременно спросит Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr и соберёт всё в одну ленту.</p>
       <div class="suggestions" id="suggestions">
         <span class="suggestions-label">Попробуйте:</span>
       </div>
