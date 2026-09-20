@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhotoSeek — поиск фото сразу везде</title>
+<meta name="description" content="Универсальный поиск фото по Pixabay, Pexels и Unsplash одновременно, с быстрым переходом в Яндекс и Google Картинки.">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖼️</text></svg>">
+<link rel="preconnect" href="https://pixabay.com">
+<link rel="preconnect" href="https://api.pexels.com">
+<link rel="preconnect" href="https://api.unsplash.com">
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div class="app">
+
+  <header class="topbar">
+    <div class="brand">
+      <span class="brand-mark" aria-hidden="true"></span>
+      <span class="brand-name">PhotoSeek</span>
+    </div>
+
+    <form class="searchbar" id="searchForm" role="search">
+      <span class="searchbar-icon" aria-hidden="true"></span>
+      <input
+        id="searchInput"
+        type="text"
+        class="searchbar-input"
+        placeholder="Например: закат над океаном, кот, город ночью…"
+        autocomplete="off"
+        spellcheck="false"
+      >
+      <button type="button" id="clearBtn" class="searchbar-clear" title="Очистить" hidden></button>
+      <button type="submit" class="searchbar-submit" title="Искать">
+        <span class="icon icon-search" aria-hidden="true"></span>
+      </button>
+    </form>
+
+    <div class="topbar-actions">
+      <button id="themeToggle" class="icon-btn" title="Сменить тему">
+        <span class="icon icon-sun" data-theme-icon="light" aria-hidden="true"></span>
+        <span class="icon icon-moon" data-theme-icon="dark" aria-hidden="true"></span>
+      </button>
+    </div>
+  </header>
+
+  <div class="toolbar">
+    <div class="toolbar-row">
+      <div class="sources" id="sources">
+        <button type="button" class="source-chip" data-source="pixabay" aria-pressed="true">
+          <span class="dot dot-pixabay"></span>Pixabay
+        </button>
+        <button type="button" class="source-chip" data-source="pexels" aria-pressed="true">
+          <span class="dot dot-pexels"></span>Pexels
+        </button>
+        <button type="button" class="source-chip" data-source="unsplash" aria-pressed="true">
+          <span class="dot dot-unsplash"></span>Unsplash
+        </button>
+
+        <span class="sources-sep" aria-hidden="true"></span>
+
+        <button type="button" class="source-chip source-chip-external" id="yandexBtn" title="Открыть этот запрос в Яндекс.Картинках">
+          <span class="icon icon-external" aria-hidden="true"></span>Яндекс.Картинки
+        </button>
+        <button type="button" class="source-chip source-chip-external" id="googleBtn" title="Открыть этот запрос в Google Картинках">
+          <span class="icon icon-external" aria-hidden="true"></span>Google Картинки
+        </button>
+      </div>
+
+      <div class="filters">
+        <div class="dropdown" data-dropdown="quality">
+          <button type="button" class="dropdown-btn">
+            Качество <span class="dropdown-value" data-value>Любое</span>
+            <span class="icon icon-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="dropdown-menu">
+            <button type="button" class="dropdown-item is-active" data-val="any">Любое</button>
+            <button type="button" class="dropdown-item" data-val="hd">Высокое (Full HD+)</button>
+          </div>
+        </div>
+
+        <div class="dropdown" data-dropdown="orientation">
+          <button type="button" class="dropdown-btn">
+            Ориентация <span class="dropdown-value" data-value>Любая</span>
+            <span class="icon icon-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="dropdown-menu">
+            <button type="button" class="dropdown-item is-active" data-val="any">Любая</button>
+            <button type="button" class="dropdown-item" data-val="horizontal">Горизонтальная</button>
+            <button type="button" class="dropdown-item" data-val="vertical">Вертикальная</button>
+            <button type="button" class="dropdown-item" data-val="square">Квадрат</button>
+          </div>
+        </div>
+
+        <div class="dropdown" data-dropdown="sort">
+          <button type="button" class="dropdown-btn">
+            Сортировка <span class="dropdown-value" data-value>Популярное</span>
+            <span class="icon icon-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="dropdown-menu">
+            <button type="button" class="dropdown-item is-active" data-val="popular">Популярное</button>
+            <button type="button" class="dropdown-item" data-val="newest">Новое</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar-row toolbar-status">
+      <span id="resultsCount" class="results-count"></span>
+      <span id="providerWarnings" class="provider-warnings"></span>
+    </div>
+  </div>
+
+  <main class="content">
+    <div id="emptyState" class="empty-state">
+      <div class="empty-illustration" aria-hidden="true"></div>
+      <h1>Ищите фото сразу во всех источниках</h1>
+      <p>Введите запрос — PhotoSeek одновременно спросит Pixabay, Pexels и Unsplash и соберёт всё в одну ленту.</p>
+      <div class="suggestions" id="suggestions">
+        <span class="suggestions-label">Попробуйте:</span>
+      </div>
+    </div>
+
+    <div id="grid" class="grid" hidden></div>
+
+    <div id="loadMoreWrap" class="load-more-wrap" hidden>
+      <button id="loadMoreBtn" class="btn btn-secondary">Показать ещё</button>
+    </div>
+
+    <div id="noResults" class="empty-state" hidden>
+      <div class="empty-illustration empty-illustration-sad" aria-hidden="true"></div>
+      <h1>Ничего не найдено</h1>
+      <p>Попробуйте другой запрос или снимите часть фильтров.</p>
+    </div>
+  </main>
+
+</div>
+
+<div id="lightbox" class="lightbox" hidden>
+  <div class="lightbox-backdrop" data-close></div>
+  <div class="lightbox-dialog">
+    <button class="lightbox-close icon-btn" data-close title="Закрыть (Esc)">
+      <span class="icon icon-close" aria-hidden="true"></span>
+    </button>
+    <button class="lightbox-nav lightbox-prev icon-btn" id="lbPrev" title="Предыдущее (←)">
+      <span class="icon icon-arrow-left" aria-hidden="true"></span>
+    </button>
+    <button class="lightbox-nav lightbox-next icon-btn" id="lbNext" title="Следующее (→)">
+      <span class="icon icon-arrow-right" aria-hidden="true"></span>
+    </button>
+
+    <div class="lightbox-image-wrap">
+      <img id="lbImage" class="lightbox-image" alt="">
+      <div class="lightbox-spinner" id="lbSpinner" aria-hidden="true"></div>
+    </div>
+
+    <aside class="lightbox-panel">
+      <div class="lightbox-panel-top">
+        <span class="source-badge" id="lbSourceBadge"></span>
+        <div class="lightbox-actions">
+          <button class="btn btn-ghost" id="lbCopy" title="Скопировать ссылку на изображение">
+            <span class="icon icon-link" aria-hidden="true"></span>Скопировать ссылку
+          </button>
+          <button class="btn btn-primary" id="lbDownload" title="Скачать изображение">
+            <span class="icon icon-download" aria-hidden="true"></span>Скачать
+          </button>
+        </div>
+      </div>
+
+      <h2 id="lbTitle" class="lightbox-title"></h2>
+      <p id="lbDescription" class="lightbox-description"></p>
+
+      <div id="lbTags" class="lightbox-tags"></div>
+
+      <div class="lightbox-meta">
+        <a id="lbAuthor" class="lightbox-author" target="_blank" rel="noopener noreferrer"></a>
+        <a id="lbSourceLink" class="lightbox-source-link" target="_blank" rel="noopener noreferrer">
+          Открыть источник <span class="icon icon-external" aria-hidden="true"></span>
+        </a>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script src="js/config.js"></script>
+<script src="js/providers.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
