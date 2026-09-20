@@ -19,6 +19,26 @@
     return (str || "").replace(/<[^>]*>/g, "").trim();
   }
 
+  // Единая обёртка над fetch с понятными сообщениями об ошибках —
+  // чтобы в интерфейсе было видно не просто "ошибка", а что именно случилось
+  // (HTTP-код, текст ответа сервера или сетевой/CORS-сбой).
+  async function fetchJson(url, opts) {
+    let res;
+    try {
+      res = await fetch(url, opts);
+    } catch (err) {
+      throw new Error(`сеть/CORS недоступны (${err.message})`);
+    }
+    if (!res.ok) {
+      let detail = "";
+      try {
+        detail = (await res.text()).slice(0, 200);
+      } catch { /* тело недоступно — не критично */ }
+      throw new Error(`HTTP ${res.status} ${res.statusText}${detail ? " — " + detail : ""}`);
+    }
+    return res.json();
+  }
+
   // Ориентация не поддерживается API напрямую — фильтруем то, что уже получили.
   function filterByOrientation(items, orientation) {
     if (orientation === "any") return items;
@@ -49,9 +69,7 @@
         orientation: orientationMap[orientation] || "all",
         order: orderMap[sort] || "popular",
       });
-      const res = await fetch(`https://pixabay.com/api/?${qs}`);
-      if (!res.ok) throw new Error(`Pixabay: ${res.status}`);
-      const data = await res.json();
+      const data = await fetchJson(`https://pixabay.com/api/?${qs}`);
       let items = (data.hits || []).map((hit) => ({
         id: `pixabay-${hit.id}`,
         provider: "pixabay",
@@ -86,11 +104,9 @@
         page,
         orientation: orientationMap[orientation],
       });
-      const res = await fetch(`https://api.pexels.com/v1/search?${qs}`, {
+      const data = await fetchJson(`https://api.pexels.com/v1/search?${qs}`, {
         headers: { Authorization: CONFIG.PEXELS_KEY },
       });
-      if (!res.ok) throw new Error(`Pexels: ${res.status}`);
-      const data = await res.json();
       const items = (data.photos || []).map((p) => ({
         id: `pexels-${p.id}`,
         provider: "pexels",
@@ -124,11 +140,9 @@
         orientation: orientationMap[orientation],
         order_by: orderMap[sort] || "relevant",
       });
-      const res = await fetch(`https://api.unsplash.com/search/photos?${qs}`, {
+      const data = await fetchJson(`https://api.unsplash.com/search/photos?${qs}`, {
         headers: { Authorization: `Client-ID ${CONFIG.UNSPLASH_ACCESS_KEY}` },
       });
-      if (!res.ok) throw new Error(`Unsplash: ${res.status}`);
-      const data = await res.json();
       const items = (data.results || []).map((p) => ({
         id: `unsplash-${p.id}`,
         provider: "unsplash",
@@ -167,9 +181,7 @@
         format: "json",
         origin: "*",
       });
-      const res = await fetch(`https://commons.wikimedia.org/w/api.php?${qs}`);
-      if (!res.ok) throw new Error(`Wikimedia: ${res.status}`);
-      const data = await res.json();
+      const data = await fetchJson(`https://commons.wikimedia.org/w/api.php?${qs}`);
       const pages = Object.values(data.query?.pages || {});
       let items = pages
         .filter((p) => p.imageinfo?.[0]?.mime?.startsWith("image/") && !p.imageinfo[0].mime.includes("svg"))
@@ -212,9 +224,7 @@
         page_size: 20,
         aspect_ratio: aspectMap[orientation],
       });
-      const res = await fetch(`https://api.openverse.org/v1/images/?${qs}`);
-      if (!res.ok) throw new Error(`Openverse: ${res.status}`);
-      const data = await res.json();
+      const data = await fetchJson(`https://api.openverse.org/v1/images/?${qs}`);
       const items = (data.results || []).map((p) => ({
         id: `openverse-${p.id}`,
         provider: "openverse",
@@ -256,10 +266,8 @@
         format: "json",
         nojsoncallback: 1,
       });
-      const res = await fetch(`https://api.flickr.com/services/rest/?${qs}`);
-      if (!res.ok) throw new Error(`Flickr: ${res.status}`);
-      const data = await res.json();
-      if (data.stat !== "ok") throw new Error(`Flickr: ${data.message || "error"}`);
+      const data = await fetchJson(`https://api.flickr.com/services/rest/?${qs}`);
+      if (data.stat !== "ok") throw new Error(data.message || "error");
       let items = (data.photos?.photo || []).map((p) => {
         const width = p.o_width ? Number(p.o_width) : undefined;
         const height = p.o_height ? Number(p.o_height) : undefined;

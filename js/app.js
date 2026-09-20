@@ -252,8 +252,8 @@
           totals[p.id] = total;
           return items;
         } catch (err) {
-          console.error(err);
-          warnings.push(`${p.label}: ошибка запроса`);
+          console.error(`[${p.label}]`, err);
+          warnings.push(`${p.label}: ${err.message || "ошибка запроса"}`);
           state.hasMore[p.id] = false;
           return [];
         }
