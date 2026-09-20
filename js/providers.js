@@ -207,7 +207,9 @@
       const qs = buildQuery({
         q: query,
         page,
-        page_size: 24,
+        // Анонимные (без ключа) запросы Openverse разрешают максимум 20 на страницу —
+        // больше отдаёт 401 Unauthorized.
+        page_size: 20,
         aspect_ratio: aspectMap[orientation],
       });
       const res = await fetch(`https://api.openverse.org/v1/images/?${qs}`);

@@ -58,7 +58,8 @@
     flickr: "Flickr",
   };
 
-  // Чипы источников без ключа в config.js делаем неактивными и объясняем почему.
+  // Источники без ключа в config.js просто скрываем — они появятся сами,
+  // как только в config.js добавят соответствующий ключ.
   (function initSourceChips() {
     const byId = {};
     (window.PROVIDERS || []).forEach((p) => { byId[p.id] = p; });
@@ -67,9 +68,7 @@
       if (provider && provider.enabled()) {
         state.activeSources.add(provider.id);
       } else {
-        chip.setAttribute("aria-pressed", "false");
-        chip.disabled = true;
-        chip.title = "Нужен свой API-ключ в js/config.js (см. README)";
+        chip.hidden = true;
       }
     });
   })();

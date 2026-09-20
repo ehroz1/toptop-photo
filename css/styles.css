@@ -271,6 +271,7 @@ body {
   cursor: pointer;
   transition: all 0.15s ease;
 }
+.source-chip[hidden] { display: none; }
 .source-chip .dot {
   width: 8px;
   height: 8px;
@@ -295,12 +296,6 @@ body {
   border-style: dashed;
 }
 .source-chip-external:hover { color: var(--text); border-color: var(--border-strong); }
-
-.source-chip:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-.source-chip:disabled:hover { border-color: var(--border); background: var(--bg-elevated); }
 .source-chip-external .icon { width: 14px; height: 14px; background-color: currentColor; -webkit-mask: var(--icon-external) center / contain no-repeat; mask: var(--icon-external) center / contain no-repeat; }
 
 .filters {
