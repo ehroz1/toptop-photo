@@ -12,6 +12,7 @@
     sources: document.getElementById("sources"),
     yandexBtn: document.getElementById("yandexBtn"),
     googleBtn: document.getElementById("googleBtn"),
+    pinterestBtn: document.getElementById("pinterestBtn"),
     resultsCount: document.getElementById("resultsCount"),
     providerWarnings: document.getElementById("providerWarnings"),
     emptyState: document.getElementById("emptyState"),
@@ -138,7 +139,13 @@
 
   el.yandexBtn.addEventListener("click", () => openExternalSearch("yandex"));
   el.googleBtn.addEventListener("click", () => openExternalSearch("google"));
+  el.pinterestBtn.addEventListener("click", () => openExternalSearch("pinterest"));
 
+  const EXTERNAL_SEARCH_URLS = {
+    yandex: (q) => `https://yandex.ru/images/search?text=${encodeURIComponent(q)}`,
+    google: (q) => `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`,
+    pinterest: (q) => `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(q)}`,
+  };
   function openExternalSearch(engine) {
     const q = el.input.value.trim();
     if (!q) {
@@ -146,10 +153,7 @@
       el.input.focus();
       return;
     }
-    const url = engine === "yandex"
-      ? `https://yandex.ru/images/search?text=${encodeURIComponent(q)}`
-      : `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`;
-    window.open(url, "_blank", "noopener,noreferrer");
+    window.open(EXTERNAL_SEARCH_URLS[engine](q), "_blank", "noopener,noreferrer");
   }
 
   // ---------- Dropdown filters ----------
