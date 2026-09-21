@@ -40,7 +40,11 @@
         placeholder="Например: закат над океаном, кот, город ночью…"
         autocomplete="off"
         spellcheck="false"
+        title='Поддерживается: -слово (исключить), "точная фраза", слово1 ИЛИ слово2'
       >
+      <button type="button" id="micBtn" class="searchbar-mic" title="Голосовой поиск" hidden>
+        <span class="icon icon-mic" aria-hidden="true"></span>
+      </button>
       <button type="button" id="clearBtn" class="searchbar-clear" title="Очистить (Esc)" hidden></button>
       <button type="submit" class="searchbar-submit" title="Искать">
         <span class="icon icon-search" aria-hidden="true"></span>
@@ -54,6 +58,12 @@
       <button id="selectModeToggle" class="icon-btn" title="Выбрать несколько фото" aria-pressed="false">
         <span class="icon icon-check-square" aria-hidden="true"></span>
       </button>
+      <div class="insights-wrap">
+        <button id="insightsToggle" class="icon-btn" title="Статистика и лимиты">
+          <span class="icon icon-chart" aria-hidden="true"></span>
+        </button>
+        <div id="insightsPanel" class="insights-panel" hidden></div>
+      </div>
       <button id="themeToggle" class="icon-btn" title="Сменить тему">
         <span class="icon icon-sun" data-theme-icon="light" aria-hidden="true"></span>
         <span class="icon icon-moon" data-theme-icon="dark" aria-hidden="true"></span>
@@ -64,6 +74,10 @@
   <div id="translatedHint" class="translated-hint" hidden>
     Ищем как: <strong id="translatedHintText"></strong>
     <button type="button" id="translatedHintUndo">искать как есть</button>
+  </div>
+  <div id="spellHint" class="translated-hint" hidden>
+    Возможно, вы имели в виду: <strong id="spellHintText"></strong>
+    <button type="button" id="spellHintApply">исправить</button>
   </div>
 
   <div class="toolbar">
@@ -114,7 +128,9 @@
           </button>
           <div class="dropdown-menu">
             <button type="button" class="dropdown-item is-active" data-val="any">Любое</button>
-            <button type="button" class="dropdown-item" data-val="hd">Высокое (Full HD+)</button>
+            <button type="button" class="dropdown-item" data-val="2k">От 2K (2048px+)</button>
+            <button type="button" class="dropdown-item" data-val="4k">От 4K (3840px+)</button>
+            <button type="button" class="dropdown-item" data-val="8k">От 8K (7680px+)</button>
           </div>
         </div>
 
@@ -177,6 +193,7 @@
       <span class="eyebrow">Photoseek</span>
       <h1>Найдите фото сразу <span class="underline-accent">везде</span></h1>
       <p>Один запрос — и PhotoSeek одновременно спрашивает Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr, собирая всё в одну ленту.</p>
+      <div class="suggestions" id="recentSearches" hidden></div>
       <div class="suggestions" id="suggestions">
         <span class="suggestions-label">Попробуйте:</span>
       </div>
@@ -272,6 +289,9 @@
 <script src="js/config.js"></script>
 <script src="js/providers.js"></script>
 <script src="js/translate.js"></script>
+<script src="js/queryLogic.js"></script>
+<script src="js/spellcheck.js"></script>
+<script src="js/dedupe.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>

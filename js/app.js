@@ -4,7 +4,18 @@
   const SUGGESTIONS = ["природа", "город ночью", "кофе", "океан", "горы", "космос", "еда", "животные"];
   const FAVORITES_KEY = "photoseek-favorites";
   const FILTERS_KEY = "photoseek-filters";
+  const HISTORY_KEY = "photoseek-history";
+  const STATS_KEY = "photoseek-stats";
+  const THEME_KEY = "photoseek-theme";
+  const UNSPLASH_LOG_KEY = "photoseek-unsplash-log";
   const MAX_FAVORITES = 300;
+  const MAX_HISTORY = 8;
+  const UNSPLASH_HOURLY_LIMIT = 50;
+  const COOLDOWN_MS = 10 * 60 * 1000; // 10 минут паузы для источника при 429
+  const QUALITY_THRESHOLDS = { any: 0, "2k": 2048, "4k": 3840, "8k": 7680 };
+  // Условный вес "качества" источника для более умного чередования в ленте —
+  // не более чем эвристика, не претендует на объективность.
+  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1 };
 
   const el = {
     topbar: document.getElementById("topbar"),
@@ -17,6 +28,13 @@
     translatedHint: document.getElementById("translatedHint"),
     translatedHintText: document.getElementById("translatedHintText"),
     translatedHintUndo: document.getElementById("translatedHintUndo"),
+    spellHint: document.getElementById("spellHint"),
+    spellHintText: document.getElementById("spellHintText"),
+    spellHintApply: document.getElementById("spellHintApply"),
+    micBtn: document.getElementById("micBtn"),
+    insightsToggle: document.getElementById("insightsToggle"),
+    insightsPanel: document.getElementById("insightsPanel"),
+    recentSearches: document.getElementById("recentSearches"),
     sources: document.getElementById("sources"),
     yandexBtn: document.getElementById("yandexBtn"),
     googleBtn: document.getElementById("googleBtn"),
@@ -74,6 +92,9 @@
     selected: new Set(),
     loading: false,
     lightboxIndex: -1,
+    queryMatcher: null,
+    dedupeHashes: [],
+    cooldownUntil: {}, // providerId -> timestamp до которого источник пропускаем
   };
 
   const PROVIDER_LABELS = {
@@ -89,9 +110,15 @@
     return state.view === "favorites" ? state.favoritesList : state.items;
   }
 
+  function vibrate(ms) {
+    if (navigator.vibrate) {
+      try { navigator.vibrate(ms); } catch { /* некоторые браузеры блокируют без жеста — не критично */ }
+    }
+  }
+
   // ---------- Theme ----------
   function initTheme() {
-    const saved = localStorage.getItem("photoseek-theme");
+    const saved = localStorage.getItem(THEME_KEY);
     if (saved === "light" || saved === "dark") {
       document.documentElement.setAttribute("data-theme", saved);
     }
@@ -101,7 +128,14 @@
       (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
     const next = current === "dark" ? "light" : "dark";
     document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem("photoseek-theme", next);
+    localStorage.setItem(THEME_KEY, next);
+  });
+  // Пока пользователь ни разу не переключал тему вручную — живо следуем
+  // за системной темой (например, автоночь по расписанию ОС).
+  const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  systemThemeQuery.addEventListener("change", (e) => {
+    if (localStorage.getItem(THEME_KEY)) return;
+    document.documentElement.setAttribute("data-theme", e.matches ? "dark" : "light");
   });
 
   // ---------- Sticky header on scroll ----------
@@ -121,6 +155,40 @@
     });
     el.suggestions.appendChild(chip);
   });
+
+  // ---------- Search history ----------
+  function loadHistory() {
+    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch { return []; }
+  }
+  function addToHistory(q) {
+    let hist = loadHistory().filter((h) => h.toLowerCase() !== q.toLowerCase());
+    hist.unshift(q);
+    hist = hist.slice(0, MAX_HISTORY);
+    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(hist)); } catch { /* localStorage недоступен */ }
+    renderHistory();
+  }
+  function renderHistory() {
+    const hist = loadHistory();
+    el.recentSearches.innerHTML = "";
+    if (hist.length === 0) { el.recentSearches.hidden = true; return; }
+    el.recentSearches.hidden = false;
+    const label = document.createElement("span");
+    label.className = "suggestions-label";
+    label.textContent = "Недавние:";
+    el.recentSearches.appendChild(label);
+    hist.forEach((term) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "suggestion-chip";
+      chip.textContent = term;
+      chip.addEventListener("click", () => {
+        el.input.value = term;
+        runSearch();
+      });
+      el.recentSearches.appendChild(chip);
+    });
+  }
+  renderHistory();
 
   // ---------- Color filter: populate swatches ----------
   (window.COLOR_OPTIONS || []).forEach((c) => {
@@ -200,6 +268,73 @@
 
   loadPersistedFilters();
 
+  // ---------- Stats & rate-limit tracking ----------
+  const stats = (function loadStats() {
+    try { return Object.assign({ searches: 0, downloads: 0, byProvider: {} }, JSON.parse(localStorage.getItem(STATS_KEY) || "{}")); }
+    catch { return { searches: 0, downloads: 0, byProvider: {} }; }
+  })();
+  function saveStats() {
+    try { localStorage.setItem(STATS_KEY, JSON.stringify(stats)); } catch { /* не критично */ }
+  }
+  function recordSearch() {
+    stats.searches = (stats.searches || 0) + 1;
+    saveStats();
+  }
+  function recordDownload(provider) {
+    stats.downloads = (stats.downloads || 0) + 1;
+    stats.byProvider = stats.byProvider || {};
+    stats.byProvider[provider] = (stats.byProvider[provider] || 0) + 1;
+    saveStats();
+  }
+
+  function readUnsplashLog() {
+    let log = [];
+    try { log = JSON.parse(localStorage.getItem(UNSPLASH_LOG_KEY) || "[]"); } catch { /* игнорируем */ }
+    const now = Date.now();
+    return log.filter((t) => now - t < 3600_000);
+  }
+  function logUnsplashRequest() {
+    const log = readUnsplashLog();
+    log.push(Date.now());
+    try { localStorage.setItem(UNSPLASH_LOG_KEY, JSON.stringify(log)); } catch { /* игнорируем */ }
+  }
+  function getUnsplashRemaining() {
+    return Math.max(0, UNSPLASH_HOURLY_LIMIT - readUnsplashLog().length);
+  }
+
+  function renderInsights() {
+    const remaining = getUnsplashRemaining();
+    const topEntry = Object.entries(stats.byProvider || {}).sort((a, b) => b[1] - a[1])[0];
+    const topLine = topEntry ? `${PROVIDER_LABELS[topEntry[0]] || topEntry[0]} (${topEntry[1]})` : "—";
+    const cooldownLines = Object.entries(state.cooldownUntil)
+      .filter(([, until]) => until > Date.now())
+      .map(([id, until]) => {
+        const mins = Math.max(1, Math.round((until - Date.now()) / 60000));
+        return `<div class="insights-row"><span>${PROVIDER_LABELS[id] || id}</span><strong>пауза ~${mins} мин</strong></div>`;
+      }).join("");
+    el.insightsPanel.innerHTML = `
+      <div class="insights-row"><span>Скачано фото</span><strong>${stats.downloads || 0}</strong></div>
+      <div class="insights-row"><span>Поисков выполнено</span><strong>${stats.searches || 0}</strong></div>
+      <div class="insights-row"><span>Любимый источник</span><strong>${topLine}</strong></div>
+      <div class="insights-sep"></div>
+      <div class="insights-row"><span>Лимит Unsplash (в час)</span><strong>${remaining} из ${UNSPLASH_HOURLY_LIMIT}</strong></div>
+      ${cooldownLines}
+    `;
+  }
+  el.insightsToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const isOpen = !el.insightsPanel.hidden;
+    document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+    if (isOpen) { el.insightsPanel.hidden = true; return; }
+    renderInsights();
+    el.insightsPanel.hidden = false;
+  });
+  document.addEventListener("click", (e) => {
+    if (!el.insightsPanel.hidden && e.target !== el.insightsToggle && !el.insightsToggle.contains(e.target)) {
+      el.insightsPanel.hidden = true;
+    }
+  });
+
   // ---------- Search input ----------
   let debounceTimer = null;
   el.input.addEventListener("input", () => {
@@ -218,6 +353,41 @@
     clearTimeout(debounceTimer);
     runSearch();
   });
+
+  // ---------- Voice search ----------
+  const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (SpeechRecognitionCtor) {
+    el.micBtn.hidden = false;
+    const recognizer = new SpeechRecognitionCtor();
+    recognizer.lang = "ru-RU";
+    recognizer.interimResults = false;
+    recognizer.maxAlternatives = 1;
+    let listening = false;
+    el.micBtn.addEventListener("click", () => {
+      if (listening) { recognizer.stop(); return; }
+      try {
+        recognizer.start();
+        listening = true;
+        el.micBtn.classList.add("is-listening");
+      } catch (err) { console.warn("Не удалось запустить распознавание речи:", err); }
+    });
+    recognizer.addEventListener("result", (e) => {
+      const text = e.results[0]?.[0]?.transcript;
+      if (text) {
+        el.input.value = text;
+        el.clearBtn.hidden = false;
+        runSearch();
+      }
+    });
+    recognizer.addEventListener("end", () => {
+      listening = false;
+      el.micBtn.classList.remove("is-listening");
+    });
+    recognizer.addEventListener("error", () => {
+      listening = false;
+      el.micBtn.classList.remove("is-listening");
+    });
+  }
 
   // ---------- Source chips ----------
   el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
@@ -289,24 +459,57 @@
     document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
   });
 
+  // ---------- URL query param (?q=) ----------
+  function updateUrlQuery(q) {
+    try {
+      const url = new URL(location.href);
+      if (q) url.searchParams.set("q", q);
+      else url.searchParams.delete("q");
+      history.replaceState(null, "", url.pathname + url.search);
+    } catch { /* недоступно (например, в песочнице без истории) — не критично */ }
+  }
+
   // ---------- Search orchestration ----------
+  // Токен поколения поиска: если пока шёл перевод/спеллчек одного поиска
+  // (fill + debounce) успел стартовать другой (Enter сразу следом), результат
+  // устаревшего вызова не должен дописаться поверх нового.
+  let searchGeneration = 0;
   async function runSearch(opts = {}) {
-    const q = el.input.value.trim();
-    if (!q) {
+    const raw = el.input.value.trim();
+    if (!raw) {
       resetToEmpty();
       return;
     }
+    const myGeneration = ++searchGeneration;
     state.view = "search";
     exitSelectMode();
-    state.query = q;
+    state.query = raw;
+    addToHistory(raw);
+    recordSearch();
+    updateUrlQuery(raw);
+
+    // Спеллчекер — только для обычного текста без наших операторов (-слово/"фраза"/ИЛИ).
+    if (!opts.skipSpellcheck && !opts.forceOriginal && !/[-"]|\bOR\b/i.test(raw) && window.checkSpelling) {
+      window.checkSpelling(raw).then((suggestion) => {
+        if (suggestion && el.input.value.trim() === raw) {
+          el.spellHintText.textContent = suggestion;
+          el.spellHint.dataset.suggestion = suggestion;
+          el.spellHint.hidden = false;
+        }
+      });
+    }
+    el.spellHint.hidden = true;
+
+    const parsed = window.parseSearchQuery(raw);
 
     if (opts.keepTranslation && state.searchQuery && !opts.forceOriginal) {
       // фильтр поменяли на уже переведённом запросе — не переводим второй раз
     } else if (opts.forceOriginal) {
-      state.searchQuery = q;
+      state.searchQuery = parsed.apiQuery;
       el.translatedHint.hidden = true;
+      state.queryMatcher = window.buildQueryMatcher(parsed, new Map());
     } else {
-      const result = await window.translateQuery(q);
+      const result = await window.translateQuery(parsed.apiQuery);
       state.searchQuery = result.translated;
       if (result.wasTranslated) {
         el.translatedHintText.textContent = result.translated;
@@ -314,11 +517,22 @@
       } else {
         el.translatedHint.hidden = true;
       }
+
+      const operatorTerms = [...parsed.mustPhrases, ...parsed.mustNot, ...parsed.orGroups.flat()];
+      const translatedTermsMap = new Map();
+      await Promise.all(operatorTerms.map(async (term) => {
+        const r = await window.translateQuery(term);
+        translatedTermsMap.set(term.toLowerCase(), r.translated.toLowerCase());
+      }));
+      state.queryMatcher = window.buildQueryMatcher(parsed, translatedTermsMap);
     }
+
+    if (myGeneration !== searchGeneration) return; // отменено более новым поиском, пока мы переводили
 
     state.items = [];
     state.pages = {};
     state.hasMore = {};
+    state.dedupeHashes = [];
     el.grid.innerHTML = "";
     el.grid.hidden = false;
     el.emptyState.hidden = true;
@@ -326,18 +540,28 @@
     el.noResults.hidden = true;
     el.providerWarnings.textContent = "";
     renderSkeletons(12);
-    await loadPage(true);
+    await loadPage(true, myGeneration);
   }
 
   el.translatedHintUndo.addEventListener("click", () => {
     runSearch({ forceOriginal: true });
   });
+  el.spellHintApply.addEventListener("click", () => {
+    const suggestion = el.spellHint.dataset.suggestion;
+    if (!suggestion) return;
+    el.input.value = suggestion;
+    el.spellHint.hidden = true;
+    runSearch({ skipSpellcheck: true });
+  });
 
   function resetToEmpty() {
+    searchGeneration++; // отменяем любой поиск, который мог быть в процессе
     state.query = "";
     state.searchQuery = "";
     state.items = [];
+    updateUrlQuery("");
     el.translatedHint.hidden = true;
+    el.spellHint.hidden = true;
     el.grid.hidden = true;
     el.grid.innerHTML = "";
     el.loadMoreWrap.hidden = true;
@@ -362,16 +586,27 @@
     el.grid.querySelectorAll('[data-skeleton="1"]').forEach((s) => s.remove());
   }
 
-  async function loadPage(isFirst) {
+  async function loadPage(isFirst, generation = searchGeneration) {
     if (state.loading) return;
     state.loading = true;
     el.loadMoreBtn.disabled = true;
     el.loadMoreBtn.textContent = "Загрузка…";
 
+    const now = Date.now();
+    // Проактивно не дёргаем Unsplash, если сами видим, что лимит на этот час исчерпан.
+    if (getUnsplashRemaining() <= 0 && !(state.cooldownUntil.unsplash > now)) {
+      state.cooldownUntil.unsplash = now + 5 * 60 * 1000;
+    }
     const activeProviders = window.PROVIDERS.filter(
-      (p) => state.activeSources.has(p.id) && p.enabled()
+      (p) => state.activeSources.has(p.id) && p.enabled() && !(state.cooldownUntil[p.id] > now)
     );
-    const warnings = [];
+    const skippedForCooldown = window.PROVIDERS.filter(
+      (p) => state.activeSources.has(p.id) && p.enabled() && state.cooldownUntil[p.id] > now
+    );
+    const warnings = skippedForCooldown.map((p) => {
+      const mins = Math.max(1, Math.round((state.cooldownUntil[p.id] - now) / 60000));
+      return `${p.label}: пауза ~${mins} мин (лимит запросов)`;
+    });
     const totals = {};
 
     const results = await Promise.all(
@@ -385,25 +620,49 @@
             color: state.color,
             people: state.people,
           });
+          if (p.id === "unsplash") logUnsplashRequest();
           state.pages[p.id] = page;
           state.hasMore[p.id] = items.length > 0;
           totals[p.id] = total;
-          return items;
+          return { id: p.id, items };
         } catch (err) {
           console.error(`[${p.label}]`, err);
-          warnings.push(`${p.label}: ${err.message || "ошибка запроса"}`);
+          if (/HTTP 429/.test(err.message)) {
+            state.cooldownUntil[p.id] = Date.now() + COOLDOWN_MS;
+            warnings.push(`${p.label}: превышен лимит запросов, пауза 10 минут`);
+          } else {
+            warnings.push(`${p.label}: ${err.message || "ошибка запроса"}`);
+          }
           state.hasMore[p.id] = false;
-          return [];
+          return { id: p.id, items: [] };
         }
       })
     );
 
-    let batch = interleave(results);
-    if (state.quality === "hd") {
-      batch = batch.filter((it) => Math.max(it.width || 0, it.height || 0) >= 1920);
+    if (generation !== searchGeneration) {
+      // Пока грузили эту страницу, пользователь запустил новый поиск —
+      // не показываем устаревшие результаты и не трогаем его состояние.
+      state.loading = false;
+      el.loadMoreBtn.disabled = false;
+      el.loadMoreBtn.textContent = "Показать ещё";
+      return;
+    }
+
+    let batch = weightedInterleave(results);
+    const minPx = QUALITY_THRESHOLDS[state.quality] || 0;
+    if (minPx > 0) {
+      batch = batch.filter((it) => Math.max(it.width || 0, it.height || 0) >= minPx);
     }
     if (state.people !== "any" && window.matchesPeopleFilter) {
       batch = batch.filter((it) => window.matchesPeopleFilter(it, state.people));
+    }
+    if (state.queryMatcher) {
+      batch = batch.filter(state.queryMatcher);
+    }
+    if (window.dedupeItems && batch.length > 0) {
+      const { kept, hashes } = await window.dedupeItems(batch, state.dedupeHashes);
+      batch = kept;
+      state.dedupeHashes.push(...hashes);
     }
 
     if (isFirst) clearSkeletons();
@@ -434,18 +693,37 @@
     el.loadMoreBtn.textContent = "Показать ещё";
   }
 
-  function interleave(arrays) {
+  // Взвешенное чередование источников (smooth weighted round-robin) вместо
+  // простого "по очереди" — источники с большим весом появляются чуть чаще.
+  function weightedInterleave(providerBatches) {
+    const sources = providerBatches
+      .map((p) => ({ id: p.id, items: p.items, idx: 0, credit: 0 }))
+      .filter((p) => p.items.length > 0);
     const result = [];
-    const max = Math.max(0, ...arrays.map((a) => a.length));
-    for (let i = 0; i < max; i++) {
-      for (const arr of arrays) {
-        if (arr[i]) result.push(arr[i]);
-      }
+    let remaining = sources.reduce((s, p) => s + p.items.length, 0);
+    while (remaining > 0) {
+      const active = sources.filter((p) => p.idx < p.items.length);
+      const totalWeight = active.reduce((s, p) => s + (SOURCE_WEIGHTS[p.id] ?? 1), 0);
+      active.forEach((p) => { p.credit += SOURCE_WEIGHTS[p.id] ?? 1; });
+      let pick = active[0];
+      for (const p of active) if (p.credit > pick.credit) pick = p;
+      result.push(pick.items[pick.idx]);
+      pick.idx++;
+      pick.credit -= totalWeight;
+      remaining--;
     }
     return result;
   }
 
   el.loadMoreBtn.addEventListener("click", () => loadPage(false));
+
+  // ---------- Infinite scroll ----------
+  const infiniteScrollObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !state.loading && !el.loadMoreWrap.hidden) {
+      loadPage(false);
+    }
+  }, { rootMargin: "800px" });
+  infiniteScrollObserver.observe(el.loadMoreWrap);
 
   // ---------- Favorites ----------
   function loadFavorites() {
@@ -467,6 +745,7 @@
     if (state.favorites.has(item.id)) state.favorites.delete(item.id);
     else state.favorites.set(item.id, item);
     persistFavorites();
+    vibrate(15);
     document.querySelectorAll(`.card-heart[data-id="${cssEscape(item.id)}"]`).forEach((btn) => {
       btn.classList.toggle("is-active", isFavorited(item.id));
     });
@@ -539,7 +818,7 @@
 
   function buildCard(item, index) {
     const card = document.createElement("div");
-    card.className = "card";
+    card.className = "card is-img-loading";
     card.dataset.index = String(index);
 
     const img = document.createElement("img");
@@ -550,6 +829,18 @@
     if (item.width && item.height) {
       img.style.aspectRatio = `${item.width} / ${item.height}`;
     }
+    const stopLoading = () => card.classList.remove("is-img-loading");
+    img.addEventListener("load", stopLoading, { once: true });
+    img.addEventListener("error", stopLoading, { once: true });
+    img.draggable = true;
+    img.addEventListener("dragstart", (e) => {
+      // В Chrome/Edge это заставляет перетащить настоящий файл (не превью)
+      // прямо на рабочий стол или в другое приложение.
+      try {
+        const url = item.download?.url || item.full;
+        e.dataTransfer.setData("DownloadURL", `image/jpeg:${filenameFor(item)}:${url}`);
+      } catch { /* браузер не поддерживает — сработает обычное перетаскивание картинки */ }
+    });
     card.appendChild(img);
 
     const selectBtn = document.createElement("button");
@@ -674,6 +965,7 @@
         // eslint-disable-next-line no-await-in-loop
         const blob = await res.blob();
         zip.file(filenameFor(item), blob);
+        recordDownload(item.provider);
         ok++;
       } catch (err) {
         console.warn("Пропущено при архивации:", item.id, err);
@@ -684,6 +976,7 @@
       el.bulkDownload.disabled = false;
       return;
     }
+    vibrate(20);
     showToast("Собираю архив…");
     const zipBlob = await zip.generateAsync({ type: "blob" });
     const objectUrl = URL.createObjectURL(zipBlob);
@@ -749,6 +1042,13 @@
     const list = getActiveList();
     el.lbPrev.disabled = state.lightboxIndex <= 0;
     el.lbNext.disabled = state.lightboxIndex >= list.length - 1;
+
+    // Предзагружаем соседние полноразмерные фото — переход вперёд/назад
+    // ощущается мгновенным.
+    [state.lightboxIndex - 1, state.lightboxIndex + 1].forEach((i) => {
+      const neighbor = list[i];
+      if (neighbor) { const preload = new Image(); preload.src = neighbor.full; }
+    });
   }
 
   document.querySelectorAll("[data-close]").forEach((n) => n.addEventListener("click", closeLightbox));
@@ -758,6 +1058,24 @@
   el.lbNext.addEventListener("click", () => {
     if (state.lightboxIndex < getActiveList().length - 1) { state.lightboxIndex++; renderLightbox(); }
   });
+
+  // ---------- Свайпы на телефоне ----------
+  const lightboxImageWrap = document.querySelector(".lightbox-image-wrap");
+  let touchStartX = 0;
+  let touchStartY = 0;
+  lightboxImageWrap.addEventListener("touchstart", (e) => {
+    touchStartX = e.touches[0].clientX;
+    touchStartY = e.touches[0].clientY;
+  }, { passive: true });
+  lightboxImageWrap.addEventListener("touchend", (e) => {
+    const dx = e.changedTouches[0].clientX - touchStartX;
+    const dy = e.changedTouches[0].clientY - touchStartY;
+    if (Math.abs(dx) > 50 && Math.abs(dx) > Math.abs(dy) * 1.5) {
+      vibrate(10);
+      if (dx < 0) el.lbNext.click();
+      else el.lbPrev.click();
+    }
+  }, { passive: true });
   document.addEventListener("keydown", (e) => {
     if (el.lightbox.hidden) return;
     if (e.key === "Escape") closeLightbox();
@@ -868,6 +1186,8 @@
     try {
       const url = await resolveDownloadUrl(item);
       await forceDownload(url, filenameFor(item));
+      recordDownload(item.provider);
+      vibrate(20);
       showToast("Готово!");
     } catch (err) {
       console.error(err);
@@ -925,4 +1245,12 @@
 
   loadFavorites();
   initTheme();
+
+  // ---------- Открытие по ссылке ?q=... ----------
+  const initialQuery = new URLSearchParams(location.search).get("q");
+  if (initialQuery) {
+    el.input.value = initialQuery;
+    el.clearBtn.hidden = false;
+    runSearch({ skipSpellcheck: true });
+  }
 })();
