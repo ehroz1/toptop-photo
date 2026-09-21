@@ -2,11 +2,15 @@
   "use strict";
 
   const SUGGESTIONS = I18N.t("suggestions");
+  const ICON_SUGGESTIONS = I18N.t("suggestions_icons");
   const FAVORITES_KEY = "photoseek-favorites";
   const FILTERS_KEY = "photoseek-filters";
   const HISTORY_KEY = "photoseek-history";
+  const ICON_HISTORY_KEY = "photoseek-icon-history";
   const STATS_KEY = "photoseek-stats";
   const THEME_KEY = "photoseek-theme";
+  const MODE_KEY = "photoseek-mode";
+  const ICON_COLORS = ["#e5484d", "#f5a623", "#2fb344", "#2e7bf6", "#8b5cf6", "#ec4899"];
   const UNSPLASH_LOG_KEY = "photoseek-unsplash-log";
   const MAX_FAVORITES = 300;
   const MAX_HISTORY = 8;
@@ -75,9 +79,32 @@
     lbLicense: document.getElementById("lbLicense"),
     lbPrev: document.getElementById("lbPrev"),
     lbNext: document.getElementById("lbNext"),
+    modeSwitch: document.getElementById("modeSwitch"),
+    filtersRow: document.getElementById("filtersRow"),
+    heroH1Before: document.getElementById("heroH1Before"),
+    heroH1Underline: document.getElementById("heroH1Underline"),
+    heroP: document.getElementById("heroP"),
+    iconGrid: document.getElementById("iconGrid"),
+    iconLoadMoreWrap: document.getElementById("iconLoadMoreWrap"),
+    iconLoadMoreBtn: document.getElementById("iconLoadMoreBtn"),
+    iconNoResults: document.getElementById("iconNoResults"),
+    iconLightbox: document.getElementById("iconLightbox"),
+    ilPreview: document.getElementById("ilPreview"),
+    ilCollectionBadge: document.getElementById("ilCollectionBadge"),
+    ilCopyName: document.getElementById("ilCopyName"),
+    ilCopySvg: document.getElementById("ilCopySvg"),
+    ilDownloadSvg: document.getElementById("ilDownloadSvg"),
+    ilDownloadPng: document.getElementById("ilDownloadPng"),
+    ilTitle: document.getElementById("ilTitle"),
+    ilColorSwatches: document.getElementById("ilColorSwatches"),
+    ilLicense: document.getElementById("ilLicense"),
+    ilSourceLink: document.getElementById("ilSourceLink"),
+    ilPrev: document.getElementById("ilPrev"),
+    ilNext: document.getElementById("ilNext"),
   };
 
   const state = {
+    mode: "photos", // "photos" | "icons"
     query: "",
     searchQuery: "",
     view: "search", // "search" | "favorites"
@@ -100,6 +127,15 @@
     extraQueries: [], // переводы запроса на доп. языки (только для первой страницы)
     dedupeHashes: [],
     cooldownUntil: {}, // providerId -> timestamp до которого источник пропускаем
+    // ---- Иконки (отдельный от фото пайплайн, см. js/icons.js) ----
+    iconQuery: "",
+    iconSearchQuery: "",
+    iconItems: [],
+    iconPage: 0,
+    iconHasMore: false,
+    iconLoading: false,
+    iconLightboxIndex: -1,
+    iconColor: null, // null = цвет темы (currentColor), иначе выбранный hex
   };
 
   const PROVIDER_LABELS = {
@@ -171,28 +207,101 @@
     el.topbar.classList.toggle("is-scrolled", window.scrollY > 8);
   }, { passive: true });
 
-  // ---------- Suggestions ----------
-  SUGGESTIONS.forEach((term) => {
-    const chip = document.createElement("button");
-    chip.type = "button";
-    chip.className = "suggestion-chip";
-    chip.textContent = term;
-    chip.addEventListener("click", () => {
-      el.input.value = term;
-      runSearch();
+  // ---------- Mode switch (Фото / Иконки) ----------
+  // Иконки — принципиально другой поиск (Iconify вместо фотостоков, см.
+  // js/icons.js), поэтому у него своя сетка/лайтбокс/история и вместо
+  // фильтров по фото (ориентация/качество/люди/цвет) показывать нечего —
+  // просто прячем эти элементы, а не пытаемся их подстроить под иконки.
+  function applyModeUI(mode) {
+    state.mode = mode;
+    el.modeSwitch.querySelectorAll(".mode-tab").forEach((btn) => {
+      btn.classList.toggle("is-active", btn.dataset.mode === mode);
     });
-    el.suggestions.appendChild(chip);
+    const isIcons = mode === "icons";
+    el.sources.hidden = isIcons;
+    el.filtersRow.hidden = isIcons;
+    el.favoritesToggle.hidden = isIcons;
+    el.selectModeToggle.hidden = isIcons;
+    applyHeroForMode();
+    renderSuggestionChips();
+    renderHistory();
+  }
+  function setMode(mode) {
+    if (mode === state.mode) return;
+    try { localStorage.setItem(MODE_KEY, mode); } catch { /* не критично */ }
+    if (mode === "icons" && state.view === "favorites") {
+      state.view = "search";
+      el.favoritesToggle.setAttribute("aria-pressed", "false");
+    }
+    exitSelectMode();
+    closeLightbox();
+    closeIconLightbox();
+    const wasIcons = state.mode === "icons";
+    applyModeUI(mode);
+    if (wasIcons && mode !== "icons") {
+      el.iconGrid.hidden = true;
+      el.iconGrid.innerHTML = "";
+      el.iconLoadMoreWrap.hidden = true;
+      el.iconNoResults.hidden = true;
+    }
+    if (!wasIcons && mode === "icons") {
+      el.grid.hidden = true;
+      el.grid.innerHTML = "";
+      el.loadMoreWrap.hidden = true;
+      el.noResults.hidden = true;
+    }
+    const q = el.input.value.trim();
+    if (mode === "icons") {
+      if (q) runIconSearch(); else resetIconToEmpty();
+    } else if (q) {
+      runSearch();
+    } else {
+      resetToEmpty();
+    }
+  }
+  el.modeSwitch.querySelectorAll(".mode-tab").forEach((btn) => {
+    btn.addEventListener("click", () => setMode(btn.dataset.mode));
   });
+  function applyHeroForMode() {
+    const icons = state.mode === "icons";
+    el.heroH1Before.textContent = I18N.t(icons ? "hero_h1_before_icons" : "hero_h1_before");
+    el.heroH1Underline.textContent = I18N.t(icons ? "hero_h1_underline_icons" : "hero_h1_underline");
+    el.heroP.textContent = I18N.t(icons ? "hero_p_icons" : "hero_p");
+  }
+
+  // ---------- Suggestions ----------
+  function renderSuggestionChips() {
+    el.suggestions.querySelectorAll(".suggestion-chip").forEach((c) => c.remove());
+    const list = state.mode === "icons" ? ICON_SUGGESTIONS : SUGGESTIONS;
+    list.forEach((term) => {
+      const chip = document.createElement("button");
+      chip.type = "button";
+      chip.className = "suggestion-chip";
+      chip.textContent = term;
+      chip.addEventListener("click", () => {
+        el.input.value = term;
+        el.clearBtn.hidden = false;
+        if (state.mode === "icons") runIconSearch(); else runSearch();
+      });
+      el.suggestions.appendChild(chip);
+    });
+  }
+  renderSuggestionChips();
 
   // ---------- Search history ----------
+  // У иконок своя история (photoseek-icon-history) — короткие технические
+  // запросы вроде "home"/"user" не должны мешаться с историей поиска фото.
+  function historyKeyForMode() {
+    return state.mode === "icons" ? ICON_HISTORY_KEY : HISTORY_KEY;
+  }
   function loadHistory() {
-    try { return JSON.parse(localStorage.getItem(HISTORY_KEY) || "[]"); } catch { return []; }
+    try { return JSON.parse(localStorage.getItem(historyKeyForMode()) || "[]"); } catch { return []; }
   }
   function addToHistory(q) {
     let hist = loadHistory().filter((h) => h.toLowerCase() !== q.toLowerCase());
     hist.unshift(q);
     hist = hist.slice(0, MAX_HISTORY);
-    try { localStorage.setItem(HISTORY_KEY, JSON.stringify(hist)); } catch { /* localStorage недоступен */ }
+    try { localStorage.setItem(historyKeyForMode(), JSON.stringify(hist)); } catch { /* localStorage недоступен */ }
     renderHistory();
   }
   function renderHistory() {
@@ -211,7 +320,7 @@
       chip.textContent = term;
       chip.addEventListener("click", () => {
         el.input.value = term;
-        runSearch();
+        if (state.mode === "icons") runIconSearch(); else runSearch();
       });
       el.recentSearches.appendChild(chip);
     });
@@ -369,18 +478,18 @@
   el.input.addEventListener("input", () => {
     el.clearBtn.hidden = el.input.value.length === 0;
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => runSearch(), 550);
+    debounceTimer = setTimeout(() => { if (state.mode === "icons") runIconSearch(); else runSearch(); }, 550);
   });
   el.clearBtn.addEventListener("click", () => {
     el.input.value = "";
     el.clearBtn.hidden = true;
     el.input.focus();
-    resetToEmpty();
+    if (state.mode === "icons") resetIconToEmpty(); else resetToEmpty();
   });
   el.form.addEventListener("submit", (e) => {
     e.preventDefault();
     clearTimeout(debounceTimer);
-    runSearch();
+    if (state.mode === "icons") runIconSearch(); else runSearch();
   });
 
   // ---------- Voice search ----------
@@ -409,7 +518,7 @@
       if (text) {
         el.input.value = text;
         el.clearBtn.hidden = false;
-        runSearch();
+        if (state.mode === "icons") runIconSearch(); else runSearch();
       }
     });
     recognizer.addEventListener("end", () => {
@@ -494,12 +603,14 @@
     document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
   });
 
-  // ---------- URL query param (?q=) ----------
+  // ---------- URL query param (?q=&mode=icons) ----------
   function updateUrlQuery(q) {
     try {
       const url = new URL(location.href);
       if (q) url.searchParams.set("q", q);
       else url.searchParams.delete("q");
+      if (state.mode === "icons") url.searchParams.set("mode", "icons");
+      else url.searchParams.delete("mode");
       history.replaceState(null, "", url.pathname + url.search);
     } catch { /* недоступно (например, в песочнице без истории) — не критично */ }
   }
@@ -589,7 +700,8 @@
   }
 
   el.translatedHintUndo.addEventListener("click", () => {
-    runSearch({ forceOriginal: true });
+    if (state.mode === "icons") runIconSearch({ forceOriginal: true });
+    else runSearch({ forceOriginal: true });
   });
   el.spellHintApply.addEventListener("click", () => {
     const suggestion = el.spellHint.dataset.suggestion;
@@ -791,6 +903,322 @@
     }
   }, { rootMargin: "800px" });
   infiniteScrollObserver.observe(el.loadMoreWrap);
+
+  // ---------- Icon search (Iconify, см. js/icons.js) ----------
+  // Отдельный от фото пайплайн: своя генерация поиска (чтобы устаревший
+  // ответ не дописался поверх нового), своя пагинация и свой infinite
+  // scroll — но никаких операторов запроса (-слово/"фраза"/ИЛИ),
+  // спеллчекера и многоязычного расширения: Iconify ищет по английским
+  // ключевым словам и такие усложнения дали бы немного пользы.
+  let iconSearchGeneration = 0;
+  async function runIconSearch(opts = {}) {
+    const raw = el.input.value.trim();
+    if (!raw) { resetIconToEmpty(); return; }
+    const myGeneration = ++iconSearchGeneration;
+    exitSelectMode();
+    state.iconQuery = raw;
+    addToHistory(raw);
+    recordSearch();
+    updateUrlQuery(raw);
+    el.spellHint.hidden = true;
+
+    if (opts.forceOriginal) {
+      state.iconSearchQuery = raw;
+      el.translatedHint.hidden = true;
+    } else {
+      const result = await window.translateQuery(raw);
+      state.iconSearchQuery = result.translated;
+      if (result.wasTranslated) {
+        el.translatedHintText.textContent = result.translated;
+        el.translatedHint.hidden = false;
+      } else {
+        el.translatedHint.hidden = true;
+      }
+    }
+
+    if (myGeneration !== iconSearchGeneration) return; // отменено более новым поиском
+
+    state.iconItems = [];
+    state.iconPage = 0;
+    state.iconHasMore = false;
+    el.iconGrid.innerHTML = "";
+    el.iconGrid.hidden = false;
+    el.emptyState.hidden = true;
+    el.iconNoResults.hidden = true;
+    el.providerWarnings.textContent = "";
+    renderIconSkeletons(18);
+    await loadIconPage(true, myGeneration);
+  }
+
+  function renderIconSkeletons(count) {
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement("div");
+      s.className = "icon-card-skeleton";
+      s.dataset.skeleton = "1";
+      el.iconGrid.appendChild(s);
+    }
+  }
+  function clearIconSkeletons() {
+    el.iconGrid.querySelectorAll('[data-skeleton="1"]').forEach((s) => s.remove());
+  }
+
+  async function loadIconPage(isFirst, generation = iconSearchGeneration) {
+    if (state.iconLoading) return;
+    state.iconLoading = true;
+    el.iconLoadMoreBtn.disabled = true;
+    el.iconLoadMoreBtn.textContent = I18N.t("loading");
+
+    const page = state.iconPage + 1;
+    let items = [];
+    let total = null;
+    try {
+      const r = await window.IconSearch.search(state.iconSearchQuery, { page });
+      items = r.items;
+      total = r.total;
+      await window.IconSearch.fetchIconBodies(items);
+    } catch (err) {
+      console.error("[Iconify]", err);
+      el.providerWarnings.textContent = I18N.t("warn_with_message", { label: "Iconify", message: err.message || I18N.t("warn_generic_error") });
+    }
+
+    if (generation !== iconSearchGeneration) {
+      // Пока грузили страницу, запустили новый поиск — не показываем устаревшее.
+      state.iconLoading = false;
+      el.iconLoadMoreBtn.disabled = false;
+      el.iconLoadMoreBtn.textContent = I18N.t("load_more");
+      return;
+    }
+
+    state.iconPage = page;
+    state.iconHasMore = items.length > 0;
+    // Иконки, для которых не удалось получить тело SVG (например, сеть
+    // моргнула на конкретном наборе) — отбрасываем, показывать пустую
+    // плитку смысла нет.
+    const renderable = items.filter((it) => window.IconSearch.getIconBody(it.prefix, it.name));
+
+    if (isFirst) clearIconSkeletons();
+
+    if (renderable.length === 0 && state.iconItems.length === 0) {
+      el.iconGrid.hidden = true;
+      el.iconLoadMoreWrap.hidden = true;
+      el.iconNoResults.hidden = false;
+    } else {
+      el.iconNoResults.hidden = true;
+      appendIconCards(renderable);
+      state.iconItems = state.iconItems.concat(renderable);
+      el.iconLoadMoreWrap.hidden = !state.iconHasMore;
+    }
+
+    if (isFirst) {
+      const n = typeof total === "number" ? total.toLocaleString(I18N.t("locale")) : state.iconItems.length;
+      el.resultsCount.textContent = state.iconItems.length ? I18N.t("results_icons_found", { n }) : "";
+    }
+
+    state.iconLoading = false;
+    el.iconLoadMoreBtn.disabled = false;
+    el.iconLoadMoreBtn.textContent = I18N.t("load_more");
+  }
+
+  function resetIconToEmpty() {
+    iconSearchGeneration++; // отменяем любой поиск, который мог быть в процессе
+    state.iconQuery = "";
+    state.iconSearchQuery = "";
+    state.iconItems = [];
+    updateUrlQuery("");
+    el.translatedHint.hidden = true;
+    el.iconGrid.hidden = true;
+    el.iconGrid.innerHTML = "";
+    el.iconLoadMoreWrap.hidden = true;
+    el.iconNoResults.hidden = true;
+    el.emptyState.hidden = false;
+    el.resultsCount.textContent = "";
+    el.providerWarnings.textContent = "";
+  }
+
+  el.iconLoadMoreBtn.addEventListener("click", () => loadIconPage(false));
+
+  const iconInfiniteScrollObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !state.iconLoading && !el.iconLoadMoreWrap.hidden) {
+      loadIconPage(false);
+    }
+  }, { rootMargin: "800px" });
+  iconInfiniteScrollObserver.observe(el.iconLoadMoreWrap);
+
+  // ---------- Icon card rendering ----------
+  function appendIconCards(items) {
+    const startIndex = state.iconItems.length;
+    const frag = document.createDocumentFragment();
+    items.forEach((item, i) => frag.appendChild(buildIconCard(item, startIndex + i)));
+    el.iconGrid.appendChild(frag);
+  }
+
+  function buildIconCard(item, index) {
+    const card = document.createElement("div");
+    card.className = "icon-card";
+    card.title = item.id;
+
+    const svgWrap = document.createElement("div");
+    svgWrap.className = "icon-card-svg";
+    svgWrap.innerHTML = window.IconSearch.buildSvgMarkup(item.prefix, item.name) || "";
+    card.appendChild(svgWrap);
+
+    const label = document.createElement("span");
+    label.className = "icon-card-label";
+    label.textContent = item.name;
+    card.appendChild(label);
+
+    const badge = document.createElement("span");
+    badge.className = "icon-card-source-badge";
+    badge.textContent = item.prefix;
+    card.appendChild(badge);
+
+    card.addEventListener("click", () => openIconLightbox(index));
+    return card;
+  }
+
+  // ---------- Icon lightbox ----------
+  function openIconLightbox(index) {
+    state.iconLightboxIndex = index;
+    state.iconColor = null;
+    renderIconLightbox();
+    el.iconLightbox.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeIconLightbox() {
+    el.iconLightbox.hidden = true;
+    document.body.style.overflow = "";
+  }
+
+  function renderIconColorSwatches() {
+    el.ilColorSwatches.innerHTML = "";
+    const autoBtn = document.createElement("button");
+    autoBtn.type = "button";
+    autoBtn.className = "icon-color-swatch icon-color-swatch-auto" + (state.iconColor === null ? " is-active" : "");
+    autoBtn.title = I18N.t("icon_color_auto_title");
+    autoBtn.addEventListener("click", () => { state.iconColor = null; renderIconLightbox(); });
+    el.ilColorSwatches.appendChild(autoBtn);
+    ICON_COLORS.forEach((hex) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "icon-color-swatch" + (state.iconColor === hex ? " is-active" : "");
+      btn.style.background = hex;
+      btn.addEventListener("click", () => { state.iconColor = hex; renderIconLightbox(); });
+      el.ilColorSwatches.appendChild(btn);
+    });
+  }
+
+  function renderIconLightbox() {
+    const item = state.iconItems[state.iconLightboxIndex];
+    if (!item) return;
+
+    el.ilPreview.innerHTML = window.IconSearch.buildSvgMarkup(item.prefix, item.name) || "";
+    el.ilPreview.style.color = state.iconColor || "";
+
+    const collection = window.IconSearch.getCollectionInfo(item.prefix);
+    el.ilCollectionBadge.textContent = collection?.name || item.prefix;
+    el.ilTitle.textContent = item.name.replace(/-/g, " ");
+
+    renderIconColorSwatches();
+    renderLicenseBadge(el.ilLicense, window.IconSearch.classifyIconLicense(collection?.license));
+
+    el.ilSourceLink.href = window.IconSearch.iconPageUrl(item.prefix, item.name);
+
+    el.ilPrev.disabled = state.iconLightboxIndex <= 0;
+    el.ilNext.disabled = state.iconLightboxIndex >= state.iconItems.length - 1;
+  }
+
+  document.querySelectorAll("[data-icon-close]").forEach((n) => n.addEventListener("click", closeIconLightbox));
+  el.ilPrev.addEventListener("click", () => {
+    if (state.iconLightboxIndex > 0) { state.iconLightboxIndex--; state.iconColor = null; renderIconLightbox(); }
+  });
+  el.ilNext.addEventListener("click", () => {
+    if (state.iconLightboxIndex < state.iconItems.length - 1) { state.iconLightboxIndex++; state.iconColor = null; renderIconLightbox(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (el.iconLightbox.hidden) return;
+    if (e.key === "Escape") closeIconLightbox();
+    else if (e.key === "ArrowLeft") el.ilPrev.click();
+    else if (e.key === "ArrowRight") el.ilNext.click();
+  });
+
+  function currentIconSvgMarkup() {
+    const item = state.iconItems[state.iconLightboxIndex];
+    if (!item) return null;
+    const markup = window.IconSearch.buildSvgMarkup(item.prefix, item.name);
+    if (!markup) return null;
+    // Встраиваем выбранный цвет прямо в атрибут, чтобы скачанный/
+    // скопированный файл выглядел так же, как в предпросмотре (currentColor
+    // вне документа резолвится в чёрный, а не в цвет темы).
+    return state.iconColor ? markup.replace('fill="currentColor"', `fill="${state.iconColor}"`) : markup.replace('fill="currentColor"', 'fill="#101114"');
+  }
+
+  el.ilCopyName.addEventListener("click", async () => {
+    const item = state.iconItems[state.iconLightboxIndex];
+    if (!item) return;
+    try {
+      await navigator.clipboard.writeText(item.id);
+      showToast(I18N.t("toast_icon_id_copied"));
+    } catch {
+      showToast(I18N.t("toast_copy_failed"));
+    }
+  });
+
+  el.ilCopySvg.addEventListener("click", async () => {
+    const markup = currentIconSvgMarkup();
+    if (!markup) return;
+    try {
+      await navigator.clipboard.writeText(markup);
+      showToast(I18N.t("toast_svg_copied"));
+    } catch {
+      showToast(I18N.t("toast_copy_failed"));
+    }
+  });
+
+  el.ilDownloadSvg.addEventListener("click", () => {
+    const item = state.iconItems[state.iconLightboxIndex];
+    const markup = currentIconSvgMarkup();
+    if (!item || !markup) return;
+    const blob = new Blob([markup], { type: "image/svg+xml" });
+    downloadBlob(blob, `${item.prefix}-${item.name}.svg`);
+    showToast(I18N.t("toast_download_done"));
+  });
+
+  el.ilDownloadPng.addEventListener("click", async () => {
+    const item = state.iconItems[state.iconLightboxIndex];
+    const markup = currentIconSvgMarkup();
+    if (!item || !markup) return;
+    try {
+      const blob = await svgMarkupToPngBlob(markup, 512);
+      downloadBlob(blob, `${item.prefix}-${item.name}.png`);
+      showToast(I18N.t("toast_download_done"));
+    } catch (err) {
+      console.error(err);
+      showToast(I18N.t("toast_image_copy_failed"));
+    }
+  });
+
+  function svgMarkupToPngBlob(markup, maxSize) {
+    return new Promise((resolve, reject) => {
+      const svgBlob = new Blob([markup], { type: "image/svg+xml" });
+      const objectUrl = URL.createObjectURL(svgBlob);
+      const img = new Image();
+      img.onload = () => {
+        const ratio = img.naturalWidth && img.naturalHeight ? img.naturalWidth / img.naturalHeight : 1;
+        const w = ratio >= 1 ? maxSize : Math.round(maxSize * ratio);
+        const h = ratio >= 1 ? Math.round(maxSize / ratio) : maxSize;
+        const canvas = document.createElement("canvas");
+        canvas.width = w;
+        canvas.height = h;
+        canvas.getContext("2d").drawImage(img, 0, 0, w, h);
+        canvas.toBlob((b) => {
+          URL.revokeObjectURL(objectUrl);
+          b ? resolve(b) : reject(new Error("toBlob failed"));
+        }, "image/png");
+      };
+      img.onerror = () => { URL.revokeObjectURL(objectUrl); reject(new Error("svg load failed")); };
+      img.src = objectUrl;
+    });
+  }
 
   // ---------- Favorites ----------
   function loadFavorites() {
@@ -1077,13 +1505,15 @@
     el.lightbox.hidden = true;
     document.body.style.overflow = "";
   }
-  // Плашка лицензии: у Pixabay/Pexels/Unsplash лицензия одна на весь сток
-  // (задана статически в providers.js), у Wikimedia/Openverse/Flickr — своя
-  // у каждого фото, поэтому commercial/attribution там могут быть
-  // undefined, если разобрать конкретную лицензию не получилось.
-  function renderLicenseBadge(license) {
+  // Плашка лицензии (используется и в фото-лайтбоксе, и в лайтбоксе иконок,
+  // поэтому принимает целевой элемент, а не завязана на конкретный #lbLicense).
+  // У Pixabay/Pexels/Unsplash лицензия одна на весь сток (задана статически в
+  // providers.js), у Wikimedia/Openverse/Flickr/наборов иконок — своя у
+  // каждого файла, поэтому commercial/attribution там могут быть undefined,
+  // если разобрать конкретную лицензию не получилось.
+  function renderLicenseBadge(targetEl, license) {
     if (!license || !license.name) {
-      el.lbLicense.hidden = true;
+      targetEl.hidden = true;
       return;
     }
     const nameHtml = license.url
@@ -1101,8 +1531,8 @@
     if (license.commercial === undefined && license.attribution === undefined) {
       flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_unknown")}</span>`);
     }
-    el.lbLicense.innerHTML = `${nameHtml}${flags.join("")}`;
-    el.lbLicense.hidden = false;
+    targetEl.innerHTML = `${nameHtml}${flags.join("")}`;
+    targetEl.hidden = false;
   }
 
   function renderLightbox() {
@@ -1130,7 +1560,7 @@
     el.lbDescription.textContent = item.description && item.description !== item.title ? item.description : "";
     el.lbDescription.hidden = !el.lbDescription.textContent;
 
-    renderLicenseBadge(item.license);
+    renderLicenseBadge(el.lbLicense, item.license);
 
     el.lbTags.innerHTML = "";
     (item.tags || []).slice(0, 8).forEach((tag) => {
@@ -1327,7 +1757,10 @@
   async function forceDownload(url, filename) {
     const res = await fetch(url, { mode: "cors" });
     if (!res.ok) throw new Error("network");
-    const blob = await res.blob();
+    downloadBlob(await res.blob(), filename);
+  }
+
+  function downloadBlob(blob, filename) {
     const objectUrl = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = objectUrl;
@@ -1385,11 +1818,21 @@
   loadFavorites();
   initTheme();
 
-  // ---------- Открытие по ссылке ?q=... ----------
-  const initialQuery = new URLSearchParams(location.search).get("q");
+  // ---------- Сохранённый режим (Фото/Иконки) ----------
+  (function initSavedMode() {
+    let saved = null;
+    try { saved = localStorage.getItem(MODE_KEY); } catch { /* игнорируем */ }
+    if (saved === "icons") applyModeUI("icons");
+  })();
+
+  // ---------- Открытие по ссылке ?q=...&mode=icons ----------
+  const initialParams = new URLSearchParams(location.search);
+  const initialQuery = initialParams.get("q");
+  if (initialParams.get("mode") === "icons") applyModeUI("icons");
   if (initialQuery) {
     el.input.value = initialQuery;
     el.clearBtn.hidden = false;
-    runSearch({ skipSpellcheck: true });
+    if (state.mode === "icons") runIconSearch();
+    else runSearch({ skipSpellcheck: true });
   }
 })();

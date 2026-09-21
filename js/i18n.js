@@ -23,6 +23,9 @@
       insights_title: "Статистика и лимиты",
       theme_toggle_title: "Сменить тему",
 
+      mode_photos: "Фото",
+      mode_icons: "Иконки",
+
       translated_hint_prefix: "Ищем как:",
       translated_hint_undo: "искать как есть",
       spell_hint_prefix: "Возможно, вы имели в виду:",
@@ -78,6 +81,9 @@
       hero_h1_before: "Найдите фото сразу",
       hero_h1_underline: "везде",
       hero_p: "Один запрос — и PhotoSeek одновременно спрашивает Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr, собирая всё в одну ленту.",
+      hero_h1_before_icons: "Найдите иконку сразу",
+      hero_h1_underline_icons: "везде",
+      hero_p_icons: "Один запрос — и PhotoSeek ищет иконку сразу по открытым наборам (Material Design Icons, Tabler, Font Awesome и другим) через Iconify — с понятной лицензией у каждого набора.",
       try_label: "Попробуйте:",
       recent_label: "Недавние:",
 
@@ -89,6 +95,7 @@
 
       no_results_h1: "Ничего не найдено",
       no_results_p: "Попробуйте другой запрос или снимите часть фильтров.",
+      icon_no_results_p: "Попробуйте другое слово — обычно лучше всего работают короткие английские названия (home, user, settings…).",
 
       bulk_cancel: "Отмена",
       bulk_download: "Скачать zip",
@@ -117,6 +124,16 @@
       license_attribution_required: "Нужна атрибуция",
       license_unknown: "Условия лицензии не определены — уточните на странице источника",
 
+      icon_copy_name_title: "Скопировать идентификатор иконки (набор:имя)",
+      icon_copy_name_label: "ID",
+      icon_copy_svg_title: "Скопировать SVG-код иконки",
+      icon_copy_svg_label: "SVG",
+      icon_download_svg_title: "Скачать SVG-файл",
+      icon_download_svg_label: "SVG",
+      icon_download_png_title: "Скачать PNG (512×512)",
+      icon_download_png_label: "PNG",
+      icon_color_auto_title: "Цвет темы (по умолчанию)",
+
       insights_downloads: "Скачано фото",
       insights_searches: "Поисков выполнено",
       insights_top_source: "Любимый источник",
@@ -131,6 +148,7 @@
       warn_with_message: "{label}: {message}",
 
       results_found: "Найдено фото: {n}",
+      results_icons_found: "Найдено иконок: {n}",
       results_favorites: "В избранном: {n}",
 
       toast_archiver_missing: "Архиватор не загрузился — скачиваю по одному",
@@ -147,12 +165,15 @@
       toast_copying_image: "Копирую картинку…",
       toast_image_copied: "Картинка скопирована — вставьте Ctrl+V",
       toast_image_copy_failed: "Не удалось скопировать картинку",
+      toast_icon_id_copied: "Идентификатор скопирован",
+      toast_svg_copied: "SVG скопирован",
 
       zip_filename: "photoseek-{n}-фото.zip",
       share_title_fallback: "Фото из PhotoSeek",
       share_title_plain: "Фото",
 
       suggestions: ["природа", "город ночью", "кофе", "океан", "горы", "космос", "еда", "животные"],
+      suggestions_icons: ["home", "user", "settings", "search", "heart", "menu", "close", "arrow"],
       locale: "ru-RU",
     },
     en: {
@@ -172,6 +193,9 @@
       select_mode_title: "Select multiple photos",
       insights_title: "Stats & limits",
       theme_toggle_title: "Toggle theme",
+
+      mode_photos: "Photos",
+      mode_icons: "Icons",
 
       translated_hint_prefix: "Searching as:",
       translated_hint_undo: "search as typed",
@@ -228,6 +252,9 @@
       hero_h1_before: "Find photos",
       hero_h1_underline: "everywhere",
       hero_p: "One search — and PhotoSeek queries Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse and Flickr at the same time, gathering it all into one feed.",
+      hero_h1_before_icons: "Find an icon",
+      hero_h1_underline_icons: "everywhere",
+      hero_p_icons: "One search — and PhotoSeek looks for an icon across open icon sets (Material Design Icons, Tabler, Font Awesome and more) via Iconify, each with a clear license.",
       try_label: "Try:",
       recent_label: "Recent:",
 
@@ -239,6 +266,7 @@
 
       no_results_h1: "Nothing found",
       no_results_p: "Try a different search or remove some filters.",
+      icon_no_results_p: "Try a different word — short English names usually work best (home, user, settings…).",
 
       bulk_cancel: "Cancel",
       bulk_download: "Download zip",
@@ -267,6 +295,16 @@
       license_attribution_required: "Attribution required",
       license_unknown: "License terms unclear — check the source page",
 
+      icon_copy_name_title: "Copy the icon identifier (set:name)",
+      icon_copy_name_label: "ID",
+      icon_copy_svg_title: "Copy the icon's SVG code",
+      icon_copy_svg_label: "SVG",
+      icon_download_svg_title: "Download SVG file",
+      icon_download_svg_label: "SVG",
+      icon_download_png_title: "Download PNG (512×512)",
+      icon_download_png_label: "PNG",
+      icon_color_auto_title: "Theme color (default)",
+
       insights_downloads: "Photos downloaded",
       insights_searches: "Searches made",
       insights_top_source: "Top source",
@@ -281,6 +319,7 @@
       warn_with_message: "{label}: {message}",
 
       results_found: "Photos found: {n}",
+      results_icons_found: "Icons found: {n}",
       results_favorites: "In favorites: {n}",
 
       toast_archiver_missing: "Archiver failed to load — downloading one by one",
@@ -297,12 +336,15 @@
       toast_copying_image: "Copying the image…",
       toast_image_copied: "Image copied — paste with Ctrl+V",
       toast_image_copy_failed: "Couldn't copy the image",
+      toast_icon_id_copied: "Identifier copied",
+      toast_svg_copied: "SVG copied",
 
       zip_filename: "photoseek-{n}-photos.zip",
       share_title_fallback: "Photo from PhotoSeek",
       share_title_plain: "Photo",
 
       suggestions: ["nature", "city at night", "coffee", "ocean", "mountains", "space", "food", "animals"],
+      suggestions_icons: ["home", "user", "settings", "search", "heart", "menu", "close", "arrow"],
       locale: "en-US",
     },
   };

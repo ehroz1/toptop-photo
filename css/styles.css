@@ -388,6 +388,36 @@ body {
   gap: 8px;
   min-width: 0;
 }
+/* Явные [hidden]-переопределения — атрибут hidden сам по себе проигрывает
+   авторским правилам display, заданным на этих же классах (см. app.js:
+   переключение режима Фото/Иконки скрывает/показывает эти элементы через
+   .hidden = true/false). */
+.sources[hidden], .toolbar-row[hidden], .icon-btn[hidden] { display: none; }
+
+.mode-switch {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+.mode-tab {
+  padding: 7px 14px;
+  border: none;
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--text-muted);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+.mode-tab:hover { color: var(--text); }
+.mode-tab.is-active { background: var(--accent-soft); color: var(--text); font-weight: 600; }
 .sources-sep {
   width: 1px;
   height: 20px;
@@ -744,6 +774,105 @@ body {
   animation: shimmer 1.3s ease-in-out infinite;
 }
 @keyframes shimmer { 0% { background-position: 150% 0; } 100% { background-position: -50% 0; } }
+
+/* ---------- Icon grid (режим "Иконки") ----------
+   В отличие от фото-сетки (masonry-колонки под разную высоту фото), иконки
+   все примерно квадратные — обычная равномерная сетка подходит лучше. */
+.icon-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(112px, 1fr));
+  gap: 8px;
+  columns: unset;
+}
+.icon-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  aspect-ratio: 1;
+  padding: 12px 8px;
+  border-radius: var(--radius-md);
+  background: var(--bg-elevated);
+  box-shadow: var(--shadow-sm);
+  cursor: pointer;
+  position: relative;
+  overflow: hidden;
+  transition: transform 0.2s cubic-bezier(.2,.8,.2,1), box-shadow 0.2s ease;
+}
+.icon-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.icon-card-svg {
+  width: 40%;
+  height: 40%;
+  color: var(--text);
+  display: flex;
+}
+.icon-card-svg svg { width: 100%; height: 100%; display: block; }
+.icon-card-label {
+  font-size: 11px;
+  color: var(--text-muted);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 0 4px;
+}
+.icon-card-source-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  padding: 2px 6px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--text-muted);
+  font-size: 9px;
+  font-weight: 600;
+  text-transform: uppercase;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+.icon-card:hover .icon-card-source-badge { opacity: 1; }
+.icon-card-skeleton {
+  aspect-ratio: 1;
+  border-radius: var(--radius-md);
+  background: linear-gradient(100deg, var(--border) 30%, var(--border-strong) 50%, var(--border) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+
+/* ---------- Icon lightbox ---------- */
+.icon-lightbox-preview {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+.icon-lightbox-svg {
+  width: min(45vh, 220px);
+  height: min(45vh, 220px);
+  color: var(--text);
+}
+.icon-lightbox-svg svg { width: 100%; height: 100%; display: block; }
+.icon-color-swatches {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.icon-color-swatch {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  padding: 0;
+  transition: transform 0.15s ease;
+}
+.icon-color-swatch:hover { transform: scale(1.1); }
+.icon-color-swatch.is-active { border-color: var(--text); }
+.icon-color-swatch-auto {
+  background: linear-gradient(135deg, #fff 50%, #161616 50%);
+}
 
 .load-more-wrap { display: flex; justify-content: center; padding: 30px 0 10px; }
 .load-more-wrap[hidden] { display: none; }
