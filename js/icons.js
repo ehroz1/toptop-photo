@@ -109,6 +109,17 @@
     return iconBodyCache.get(`${prefix}:${name}`) || null;
   }
 
+  // Тело иконки вставляется прямо в DOM через innerHTML (см. app.js) — это
+  // нужно, чтобы currentColor подхватывал цвет темы, но значит и любой
+  // <script>/on*-обработчик внутри выполнился бы. Iconify — курируемый
+  // источник, но это дешёвая страховка на случай испорченных/подменённых
+  // данных набора, поэтому вырезаем такие конструкции перед сборкой markup.
+  function sanitizeSvgBody(body) {
+    return (body || "")
+      .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
+      .replace(/\son\w+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, "");
+  }
+
   // markup для конкретной иконки: <svg viewBox="0 0 W H" fill="currentColor">…</svg>.
   // fill на самой svg — это значение по умолчанию для одноцветных иконок;
   // многоцветные наборы (например, эмодзи-стиль) обычно задают цвета прямо
@@ -116,7 +127,7 @@
   function buildSvgMarkup(prefix, name) {
     const data = getIconBody(prefix, name);
     if (!data) return null;
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${data.width} ${data.height}" fill="currentColor">${data.body}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${data.width} ${data.height}" fill="currentColor">${sanitizeSvgBody(data.body)}</svg>`;
   }
 
   function iconPageUrl(prefix, name) {

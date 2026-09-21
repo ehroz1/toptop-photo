@@ -249,6 +249,8 @@
     }
     if (!wasIcons && mode === "icons") {
       el.grid.hidden = true;
+      masonryObserver.disconnect();
+      clearImageLoadQueue();
       el.grid.innerHTML = "";
       el.loadMoreWrap.hidden = true;
       el.noResults.hidden = true;
@@ -346,15 +348,21 @@
   });
 
   // ---------- Persisted filters ----------
+  // Список ИСКЛЮЧЁННЫХ источников, а не включённых — иначе каждый новый
+  // источник, добавленный позже (как Shutterstock/Pexafy/Doodl сейчас), не
+  // попадал бы в старый сохранённый список "включённых" и оказывался
+  // молча выключен у всех, кто уже сохранял фильтры раньше.
   function saveFilters() {
     try {
+      const visibleIds = Array.from(el.sources.querySelectorAll(".source-chip[data-source]:not([hidden])"))
+        .map((c) => c.dataset.source);
       localStorage.setItem(FILTERS_KEY, JSON.stringify({
         orientation: state.orientation,
         sort: state.sort,
         quality: state.quality,
         color: state.color,
         people: state.people,
-        activeSources: Array.from(state.activeSources),
+        disabledSources: visibleIds.filter((id) => !state.activeSources.has(id)),
       }));
     } catch { /* localStorage недоступен — не критично */ }
   }
@@ -369,6 +377,10 @@
     dropdown.querySelector(".dropdown-btn [data-value]").textContent = item.textContent.trim();
   }
 
+  // Источники, которые существовали до перехода на формат disabledSources —
+  // нужны только для миграции старых сохранённых фильтров (см. ниже).
+  const LEGACY_SOURCE_IDS = ["pixabay", "pexels", "unsplash", "wikimedia", "openverse", "flickr"];
+
   function loadPersistedFilters() {
     let saved = null;
     try {
@@ -381,19 +393,34 @@
         setDropdownUI(key, saved[key]);
       }
     });
-    if (Array.isArray(saved.activeSources)) {
-      el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
-        if (chip.hidden) return; // источник без ключа — недоступен, не трогаем
-        const want = saved.activeSources.includes(chip.dataset.source);
-        chip.setAttribute("aria-pressed", String(want));
-        if (want) state.activeSources.add(chip.dataset.source);
-        else state.activeSources.delete(chip.dataset.source);
-      });
+
+    let disabled;
+    if (Array.isArray(saved.disabledSources)) {
+      disabled = new Set(saved.disabledSources);
+    } else if (Array.isArray(saved.activeSources)) {
+      // Старый формат — список ВКЛЮЧЁННЫХ источников. Переносим только явные
+      // отключения среди источников, которые существовали на тот момент;
+      // источник, добавленный позже, в старом списке просто не было — это не
+      // значит, что пользователь его выключил, поэтому оставляем как есть.
+      disabled = new Set(LEGACY_SOURCE_IDS.filter((id) => !saved.activeSources.includes(id)));
+    } else {
+      disabled = new Set();
     }
+
+    el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
+      if (chip.hidden) return; // источник без ключа — недоступен, не трогаем
+      const want = !disabled.has(chip.dataset.source);
+      chip.setAttribute("aria-pressed", String(want));
+      if (want) state.activeSources.add(chip.dataset.source);
+      else state.activeSources.delete(chip.dataset.source);
+    });
   }
 
   // Источники без ключа в config.js просто скрываем — они появятся сами,
-  // как только в config.js добавят соответствующий ключ.
+  // как только в config.js добавят соответствующий ключ. Видимый источник
+  // включён по умолчанию — синхронизируем это и в state, и визуально на
+  // чипе (иначе, например, Flickr при FLICKR_ENABLED:true оказался бы
+  // фактически включён в поиск, но с виду выглядел бы выключенным).
   (function initSourceChips() {
     const byId = {};
     (window.PROVIDERS || []).forEach((p) => { byId[p.id] = p; });
@@ -401,6 +428,7 @@
       const provider = byId[chip.dataset.source];
       if (provider && provider.enabled()) {
         state.activeSources.add(provider.id);
+        chip.setAttribute("aria-pressed", "true");
       } else {
         chip.hidden = true;
       }
@@ -723,6 +751,8 @@
     state.pages = {};
     state.hasMore = {};
     state.dedupeHashes = [];
+    masonryObserver.disconnect();
+    clearImageLoadQueue();
     el.grid.innerHTML = "";
     el.grid.hidden = false;
     el.emptyState.hidden = true;
@@ -754,6 +784,8 @@
     el.translatedHint.hidden = true;
     el.spellHint.hidden = true;
     el.grid.hidden = true;
+    masonryObserver.disconnect();
+    clearImageLoadQueue();
     el.grid.innerHTML = "";
     el.loadMoreWrap.hidden = true;
     el.noResults.hidden = true;
@@ -1318,7 +1350,6 @@
     if (goingToFavorites) {
       renderFavoritesView();
     } else {
-      el.grid.innerHTML = "";
       if (state.query) {
         renderGridFromList(state.items);
         el.grid.hidden = state.items.length === 0;
@@ -1342,6 +1373,8 @@
       el.grid.hidden = true;
       el.emptyState.hidden = true;
       el.favoritesEmpty.hidden = false;
+      masonryObserver.disconnect();
+      clearImageLoadQueue();
       el.grid.innerHTML = "";
       return;
     }
@@ -1352,6 +1385,8 @@
   }
 
   function renderGridFromList(list) {
+    masonryObserver.disconnect();
+    clearImageLoadQueue();
     el.grid.innerHTML = "";
     const frag = document.createDocumentFragment();
     list.forEach((item, i) => frag.appendChild(buildCard(item, i)));
@@ -1381,6 +1416,13 @@
   function queueImageLoad(img, src) {
     imageLoadQueue.push({ img, src });
     pumpImageQueue();
+  }
+  // Вызывается при каждой очистке сетки (новый поиск, сброс, переключение
+  // вида) — превью старого поиска, которые ещё не успели встать в работу,
+  // никто уже не увидит, нет смысла тратить на них сеть. Уже начатые (в
+  // работе) загрузки долетят сами — они не в очереди, а в activeImageLoads.
+  function clearImageLoadQueue() {
+    imageLoadQueue.length = 0;
   }
 
   function appendCards(items) {
@@ -1570,7 +1612,11 @@
   }
 
   function filenameFor(item) {
-    return `${item.provider}-${item.id.split("-").pop()}.jpg`;
+    // item.id всегда "<provider>-<originalId>" (см. providers.js) — режем
+    // ровно префикс "provider-", а не берём последний "-"-сегмент: у
+    // Doodl/Pexafy originalId сам содержит дефисы (UUID), split("-").pop()
+    // обрезал бы его до последних 12 символов вместо полного идентификатора.
+    return `${item.provider}-${item.id.slice(item.provider.length + 1)}.jpg`;
   }
 
   // ---------- Lightbox ----------
@@ -1595,24 +1641,42 @@
       targetEl.hidden = true;
       return;
     }
-    const nameHtml = license.url
-      ? `<a href="${license.url}" target="_blank" rel="noopener noreferrer">${license.name}</a>`
-      : license.name;
-    const flags = [];
+    targetEl.innerHTML = "";
+    // license.name/license.url для Wikimedia/Openverse приходят из метаданных
+    // файла, которые может отредактировать любой участник — строим DOM через
+    // textContent/setAttribute, а не подстановкой в innerHTML, и пускаем в
+    // href только http(s)-ссылки (иначе, например, javascript:-схема в
+    // LicenseUrl была бы кликабельным XSS).
+    const safeUrl = /^https?:\/\//i.test(license.url || "") ? license.url : null;
+    if (safeUrl) {
+      const a = document.createElement("a");
+      a.href = safeUrl;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = license.name;
+      targetEl.appendChild(a);
+    } else {
+      targetEl.appendChild(document.createTextNode(license.name));
+    }
+    function addFlag(text, warn) {
+      const span = document.createElement("span");
+      span.className = warn ? "license-flag license-flag-warn" : "license-flag";
+      span.textContent = text;
+      targetEl.appendChild(span);
+    }
     if (license.requiresPurchase) {
-      flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_requires_purchase")}</span>`);
+      addFlag(I18N.t("license_requires_purchase"), true);
     } else if (license.commercial === true) {
-      flags.push(`<span class="license-flag">${I18N.t("license_commercial_ok")}</span>`);
+      addFlag(I18N.t("license_commercial_ok"), false);
     } else if (license.commercial === false) {
-      flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_commercial_no")}</span>`);
+      addFlag(I18N.t("license_commercial_no"), true);
     }
     if (!license.requiresPurchase && license.attribution === true) {
-      flags.push(`<span class="license-flag">${I18N.t("license_attribution_required")}</span>`);
+      addFlag(I18N.t("license_attribution_required"), false);
     }
     if (!license.requiresPurchase && license.commercial === undefined && license.attribution === undefined) {
-      flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_unknown")}</span>`);
+      addFlag(I18N.t("license_unknown"), true);
     }
-    targetEl.innerHTML = `${nameHtml}${flags.join("")}`;
     targetEl.hidden = false;
   }
 

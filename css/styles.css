@@ -739,6 +739,10 @@ body {
 }
 @media (max-width: 680px) {
   .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  /* На узких карточках рядом с плашкой источника — два круглых действия
+     (сердце/скачать), места мало; длинные имена вроде "Shutterstock" иначе
+     переносятся на вторую строку внутри пилюли. */
+  .card-source-badge { max-width: 76px; }
 }
 
 .card {
@@ -793,6 +797,10 @@ body {
   color: #101114;
   font-size: 11px;
   font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .card-source-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
 .card-actions-bottom { display: flex; gap: 6px; }
