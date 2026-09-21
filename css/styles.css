@@ -385,9 +385,29 @@ body {
 .sources {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 10px;
   min-width: 0;
 }
+/* Переключаемые источники (Pixabay…Flickr) сгруппированы в один сегментный
+   контрол — как #modeSwitch выше — вместо N отдельных плашек одного цвета:
+   так видно, что это один выбор с несколькими вариантами, а не россыпь
+   разрозненных кнопок. Внешние сервисы (Яндекс/Google/…) — не переключатели,
+   а разовые переходы, поэтому у них своя, более тихая "призрачная" плашка
+   без заливки в состоянии покоя (см. .source-chip-external ниже). */
+.source-toggles {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
+  flex-shrink: 0;
+}
+.source-toggles .source-chip {
+  background: transparent;
+  padding: 8px 14px;
+}
+.source-toggles .source-chip[aria-pressed="true"] { background: var(--accent-soft); }
 /* Явные [hidden]-переопределения — атрибут hidden сам по себе проигрывает
    авторским правилам display, заданным на этих же классах (см. app.js:
    переключение режима Фото/Иконки скрывает/показывает эти элементы через
@@ -462,15 +482,22 @@ body {
 }
 .source-chip[aria-pressed="true"] .dot { opacity: 1; }
 .source-chip-external {
+  background: transparent;
   color: var(--text-muted);
 }
 .source-chip-external:hover { color: var(--text); background: var(--accent-soft); }
 .source-chip-external .icon { width: 14px; height: 14px; background-color: currentColor; -webkit-mask: var(--icon-external) center / contain no-repeat; mask: var(--icon-external) center / contain no-repeat; }
 
+/* Пять фильтров сгруппированы в одну тихую панель — тот же приём, что и у
+   .source-toggles выше — вместо пяти отдельных плашек одного серого цвета,
+   которые прежде сливались в стену одинаковых прямоугольников. */
 .filters {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 1px;
+  padding: 3px;
+  border-radius: var(--radius-pill);
+  background: var(--bg-elevated);
   flex-wrap: wrap;
 }
 .dropdown { position: relative; flex-shrink: 0; }
@@ -478,10 +505,10 @@ body {
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 9px 13px;
-  border-radius: 5px;
+  padding: 8px 12px;
+  border-radius: var(--radius-sm);
   border: none;
-  background: var(--bg-elevated);
+  background: transparent;
   color: var(--text-muted);
   font: inherit;
   font-size: 13.5px;
@@ -490,6 +517,7 @@ body {
   white-space: nowrap;
 }
 .dropdown-btn:hover { background: var(--accent-soft); }
+.dropdown.is-open .dropdown-btn { background: var(--accent-soft); }
 .dropdown-value { color: var(--text); font-weight: 600; }
 .dropdown-btn .icon-chevron {
   width: 14px; height: 14px;
