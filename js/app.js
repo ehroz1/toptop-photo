@@ -857,6 +857,7 @@
       try {
         const url = item.download?.url || item.full;
         e.dataTransfer.setData("DownloadURL", `image/jpeg:${filenameFor(item)}:${url}`);
+        pingUnsplashDownload(item);
       } catch { /* браузер не поддерживает — сработает обычное перетаскивание картинки */ }
     });
     card.appendChild(img);
@@ -1132,6 +1133,7 @@
       let blob = await res.blob();
       if (blob.type !== "image/png") blob = await blobToPng(blob);
       await navigator.clipboard.write([new window.ClipboardItem({ [blob.type]: blob })]);
+      pingUnsplashDownload(item);
       showToast("Картинка скопирована — вставьте Ctrl+V");
     } catch (err) {
       console.error(err);
@@ -1172,6 +1174,7 @@
             const file = new File([blob], filenameFor(item), { type: blob.type || "image/jpeg" });
             if (navigator.canShare({ files: [file] })) {
               await navigator.share({ files: [file], title: item.title || "Фото из PhotoSeek" });
+              pingUnsplashDownload(item);
               return;
             }
           } catch { /* не вышло файлом — делимся ссылкой */ }
@@ -1184,11 +1187,23 @@
   }
 
   // ---------- Download ----------
+  // Unsplash API Guidelines требуют дёргать photo.links.download_location
+  // при любом действии, похожем на скачивание (сохранение, копирование
+  // картинки, шаринг файлом, перетаскивание на рабочий стол) — не только
+  // при явном клике на "Скачать".
+  function pingUnsplashDownload(item) {
+    if (item.download?.type === "unsplash" && item.download.locationUrl) {
+      fetch(item.download.locationUrl, {
+        headers: { Authorization: `Client-ID ${window.APP_CONFIG.UNSPLASH_ACCESS_KEY}` },
+      }).catch(() => { /* не критично — это просто отметка о скачивании */ });
+    }
+  }
+
   async function resolveDownloadUrl(item) {
     if (item.download.type === "unsplash" && item.download.locationUrl) {
       try {
         const res = await fetch(item.download.locationUrl, {
-          headers: { Authorization: `Client-ID ${window.UNSPLASH_CONFIG.UNSPLASH_ACCESS_KEY}` },
+          headers: { Authorization: `Client-ID ${window.APP_CONFIG.UNSPLASH_ACCESS_KEY}` },
         });
         if (res.ok) {
           const data = await res.json();
