@@ -17,9 +17,6 @@
   const UNSPLASH_HOURLY_LIMIT = 50;
   const COOLDOWN_MS = 10 * 60 * 1000; // 10 минут паузы для источника при 429
   const QUALITY_THRESHOLDS = { any: 0, "2k": 2048, "4k": 3840, "8k": 7680 };
-  // Доп. языки для многоязычного поиска (см. описание у loadPage) — только
-  // для источников с multiLang: true (Wikimedia/Openverse).
-  const MULTI_LANG_TARGETS = ["es", "de"];
   // Условный вес "качества" источника для более умного чередования в ленте —
   // не более чем эвристика, не претендует на объективность.
   const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1 };
@@ -127,7 +124,6 @@
     loading: false,
     lightboxIndex: -1,
     queryMatcher: null,
-    extraQueries: [], // переводы запроса на доп. языки (только для первой страницы)
     dedupeHashes: [],
     cooldownUntil: {}, // providerId -> timestamp до которого источник пропускаем
     // ---- Иконки (отдельный от фото пайплайн, см. js/icons.js) ----
@@ -600,7 +596,7 @@
         state[key] = item.dataset.val;
         dropdown.classList.remove("is-open");
         saveFilters();
-        updateFiltersBadge();
+        updateFiltersBadge(true);
         if (state.query) runSearch({ keepTranslation: true });
       });
     });
@@ -614,7 +610,7 @@
   // popover за одной иконкой — раньше это была отдельная строка из пяти
   // всегда видимых плашек. Бейдж на кнопке показывает, сколько фильтров
   // сейчас отличаются от значения по умолчанию, не открывая панель.
-  function updateFiltersBadge() {
+  function updateFiltersBadge(animate = false) {
     const activeCount = [
       state.quality !== "any",
       state.orientation !== "any",
@@ -622,9 +618,11 @@
       state.people !== "any",
       state.color !== "any",
     ].filter(Boolean).length;
+    const changed = el.filtersBadge.textContent !== String(activeCount);
     el.filtersBadge.textContent = String(activeCount);
     el.filtersBadge.hidden = activeCount === 0;
     el.filtersToggle.classList.toggle("has-active-filters", activeCount > 0);
+    if (animate && changed && activeCount > 0) popHeart(el.filtersBadge);
   }
   function closeFiltersPopover() {
     el.filtersPopover.hidden = true;
@@ -690,20 +688,15 @@
       // фильтр поменяли на уже переведённом запросе — не переводим второй раз
     } else if (opts.forceOriginal) {
       state.searchQuery = parsed.apiQuery;
-      state.extraQueries = [];
       el.translatedHint.hidden = true;
       state.queryMatcher = window.buildQueryMatcher(parsed, new Map());
     } else {
-      // Основной перевод, доп.языки (для Wikimedia/Openverse) и перевод
-      // терминов операторов (-слово/"фраза"/ИЛИ) друг от друга не зависят —
-      // раньше они ждали друг друга по очереди (3 последовательных похода к
-      // MyMemory), из-за чего выдача стала заметно медленнее. Теперь все три
-      // похода идут параллельно, и результат готов за время самого долгого
-      // из них, а не суммы всех.
+      // Основной перевод и перевод терминов операторов (-слово/"фраза"/ИЛИ)
+      // друг от друга не зависят — идут одним Promise.all, а не по очереди,
+      // чтобы не ждать два похода к MyMemory подряд.
       const operatorTerms = [...parsed.mustPhrases, ...parsed.mustNot, ...parsed.orGroups.flat()];
-      const [result, extraTranslations, translatedTermsEntries] = await Promise.all([
+      const [result, translatedTermsEntries] = await Promise.all([
         window.translateQuery(parsed.apiQuery),
-        window.translateQueryToLangs ? window.translateQueryToLangs(parsed.apiQuery, MULTI_LANG_TARGETS) : Promise.resolve([]),
         Promise.all(operatorTerms.map(async (term) => {
           const r = await window.translateQuery(term);
           return [term.toLowerCase(), r.translated.toLowerCase()];
@@ -718,11 +711,6 @@
         el.translatedHint.hidden = true;
       }
 
-      // Многоязычный поиск: помимо английского перевода, для источников с
-      // многоязычными описаниями (Wikimedia/Openverse — см. multiLang в
-      // providers.js) пробуем ещё пару языков. Иногда там подписано не
-      // по-английски, и такое фото иначе просто не найдётся.
-      state.extraQueries = extraTranslations.filter((t) => t.toLowerCase() !== state.searchQuery.toLowerCase());
       state.queryMatcher = window.buildQueryMatcher(parsed, new Map(translatedTermsEntries));
     }
 
@@ -786,7 +774,7 @@
     el.grid.querySelectorAll('[data-skeleton="1"]').forEach((s) => s.remove());
   }
 
-  async function loadPage(isFirst, generation = searchGeneration) {
+  async function loadPage(isFirst, generation = searchGeneration, autoDepth = 0) {
     if (state.loading) return;
     state.loading = true;
     el.loadMoreBtn.disabled = true;
@@ -813,31 +801,18 @@
       activeProviders.map(async (p) => {
         const page = (state.pages[p.id] || 0) + 1;
         try {
-          const searchOpts = { orientation: state.orientation, sort: state.sort, color: state.color, people: state.people };
-          // Многоязычный поиск — только на первой странице свежего поиска и
-          // только для источников с multiLang: true (см. providers.js).
-          // "Бонусные" результаты на доп. языках не участвуют в пагинации
-          // (не трогаем state.pages/hasMore) и не считаются в totals — это
-          // добавка к первой странице, а не отдельный источник. Основной и
-          // бонусные запросы уходят ОДНИМ Promise.all (а не по очереди) —
-          // иначе для Wikimedia/Openverse время ответа складывалось бы, а не
-          // определялось самым медленным из них.
-          const bonusQueries = isFirst && p.multiLang && state.extraQueries.length > 0 ? state.extraQueries : [];
-          const [primary, ...bonusBatches] = await Promise.all([
-            p.search(state.searchQuery, { ...searchOpts, page }),
-            ...bonusQueries.map((q) =>
-              p.search(q, { ...searchOpts, page: 1 })
-                .then((r) => r.items)
-                .catch(() => []) // бонусный язык не нашёлся — не критично, тихо пропускаем
-            ),
-          ]);
-          const { items, total } = primary;
+          const { items, total } = await p.search(state.searchQuery, {
+            page,
+            orientation: state.orientation,
+            sort: state.sort,
+            color: state.color,
+            people: state.people,
+          });
           if (p.id === "unsplash") logUnsplashRequest();
           state.pages[p.id] = page;
           state.hasMore[p.id] = items.length > 0;
           totals[p.id] = total;
-          const allItems = items.concat(...bonusBatches);
-          return { id: p.id, items: allItems };
+          return { id: p.id, items };
         } catch (err) {
           console.error(`[${p.label}]`, err);
           if (/HTTP 429/.test(err.message)) {
@@ -903,6 +878,26 @@
     state.loading = false;
     el.loadMoreBtn.disabled = false;
     el.loadMoreBtn.textContent = I18N.t("load_more");
+
+    // IntersectionObserver вызывает колбэк только при ИЗМЕНЕНИИ пересечения,
+    // а не пока оно просто остаётся истинным. Если новая страница добавила
+    // мало карточек (агрессивный дедуп/фильтры) и лента выросла недостаточно,
+    // кнопка "Показать ещё" как была в зоне наблюдателя, так и осталась —
+    // обсервер молчит, и бесконечный скролл выглядит "заглохшим", хотя грузить
+    // ещё есть что. Поэтому после каждой загрузки сами перепроверяем
+    // геометрию и, если сентинел всё ещё рядом с экраном, продолжаем без
+    // ожидания нового события скролла. autoDepth ограничивает такие
+    // самозапуски тремя подряд (сбрасывается любым настоящим кликом/скроллом)
+    // — иначе на очень высоком экране с огромной выдачей это могло бы само
+    // без остановки съедать лимиты API, гоняясь за постоянно "видимым" низом.
+    if (!el.loadMoreWrap.hidden && autoDepth < 3 && isNearViewport(el.loadMoreWrap)) {
+      loadPage(false, generation, autoDepth + 1);
+    }
+  }
+
+  function isNearViewport(elm, margin = 800) {
+    const rect = elm.getBoundingClientRect();
+    return rect.top < (window.innerHeight || document.documentElement.clientHeight) + margin;
   }
 
   // Взвешенное чередование источников (smooth weighted round-robin) вместо
@@ -1338,6 +1333,30 @@
   }
 
   // ---------- Card rendering ----------
+  // Ограничиваем, сколько превью грузится одновременно — раньше сетка сразу
+  // запускала загрузку всех карточек скопом (пусть и с loading="lazy",
+  // видимая часть всё равно бьёт по сети одним залпом), из-за чего выдача
+  // визуально "тормозила". Теперь одновременно в работе не больше 3
+  // изображений: как только одно догрузилось (или упало с ошибкой) —
+  // в дело идёт следующее из очереди.
+  const IMAGE_LOAD_CONCURRENCY = 3;
+  const imageLoadQueue = [];
+  let activeImageLoads = 0;
+  function pumpImageQueue() {
+    while (activeImageLoads < IMAGE_LOAD_CONCURRENCY && imageLoadQueue.length > 0) {
+      const { img, src } = imageLoadQueue.shift();
+      activeImageLoads++;
+      const release = () => { activeImageLoads--; pumpImageQueue(); };
+      img.addEventListener("load", release, { once: true });
+      img.addEventListener("error", release, { once: true });
+      img.src = src;
+    }
+  }
+  function queueImageLoad(img, src) {
+    imageLoadQueue.push({ img, src });
+    pumpImageQueue();
+  }
+
   function appendCards(items) {
     const startIndex = state.items.length;
     const frag = document.createDocumentFragment();
@@ -1352,7 +1371,6 @@
     card.className = "card is-img-loading";
 
     const img = document.createElement("img");
-    img.src = item.thumb;
     img.alt = item.title || "";
     img.loading = "lazy";
     img.decoding = "async";
@@ -1362,6 +1380,7 @@
     const stopLoading = () => card.classList.remove("is-img-loading");
     img.addEventListener("load", stopLoading, { once: true });
     img.addEventListener("error", stopLoading, { once: true });
+    queueImageLoad(img, item.thumb);
     img.draggable = true;
     img.addEventListener("dragstart", (e) => {
       // В Chrome/Edge это заставляет перетащить настоящий файл (не превью)

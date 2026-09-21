@@ -49,7 +49,12 @@
 
   // items: NormalizedItem[]; existingHashes: строки хешей уже принятых фото
   // (из предыдущих страниц этого же поиска). Возвращает { kept, hashes }.
-  async function dedupeItems(items, existingHashes = [], { threshold = 4, concurrency = 10 } = {}) {
+  // concurrency=3 — это, по сути, самая первая настоящая загрузка байтов
+  // каждого превью (для хеша качаем сам файл); если пустить все разом,
+  // сетевой всплеск случается ещё до отрисовки карточек, и последующее
+  // ограничение при показе (см. buildCard в app.js) уже ничего не сглаживает,
+  // потому что браузер отдаёт эти же URL из кэша почти мгновенно.
+  async function dedupeItems(items, existingHashes = [], { threshold = 4, concurrency = 3 } = {}) {
     const computed = new Array(items.length).fill(null);
     let cursor = 0;
     async function worker() {

@@ -134,6 +134,7 @@ body {
   backdrop-filter: blur(16px) saturate(1.4);
   -webkit-backdrop-filter: blur(16px) saturate(1.4);
   box-shadow: var(--shadow-sm);
+  border-radius: 0;
 }
 
 .brand {
@@ -295,6 +296,7 @@ body {
   transition: background 0.15s ease, transform 0.1s ease;
 }
 .searchbar-submit:hover { background: var(--accent-hover); }
+.searchbar-submit:active { transform: scale(0.87); }
 .searchbar-submit:active { transform: scale(0.94); }
 .searchbar-submit .icon { background-color: currentColor; -webkit-mask: var(--icon-search) center / contain no-repeat; mask: var(--icon-search) center / contain no-repeat; }
 
@@ -426,6 +428,7 @@ body {
   transition: all 0.15s ease;
   white-space: nowrap;
 }
+.mode-tab:active { transform: scale(0.93); }
 .mode-tab:hover { color: var(--text); }
 .mode-tab.is-active { background: var(--accent-soft); color: var(--text); font-weight: 600; }
 .sources-sep {
@@ -453,6 +456,7 @@ body {
   white-space: nowrap;
 }
 .source-chip[hidden] { display: none; }
+.source-chip:active { transform: scale(0.94); }
 .source-chip .dot {
   width: 8px;
   height: 8px;
@@ -501,6 +505,7 @@ body {
   line-height: 16px;
   text-align: center;
 }
+.filters-badge.is-pop { animation: heartPop 0.4s ease; }
 #filtersToggle.has-active-filters { color: var(--accent); background: var(--accent-soft); }
 .filters-popover {
   position: absolute;
@@ -538,6 +543,7 @@ body {
   white-space: nowrap;
 }
 .dropdown-btn:hover { background: var(--accent-soft); }
+.dropdown-btn:active { transform: scale(0.96); }
 .dropdown-value { color: var(--text); font-weight: 600; }
 .dropdown-btn .icon-chevron {
   width: 14px; height: 14px;
@@ -728,9 +734,12 @@ body {
   width: 100%;
   height: auto;
   opacity: 1;
-  transition: transform 0.4s ease, opacity 0.3s ease;
+  transform: scale(1);
+  transition: transform 0.4s ease, opacity 0.35s ease;
 }
-.card.is-img-loading img { opacity: 0; }
+/* Лёгкий "проявочный" эффект вместо простого fade — превью чуть подрастает
+   до полного размера, пока проявляется. */
+.card.is-img-loading img { opacity: 0; transform: scale(0.96); }
 .card:hover img { transform: scale(1.035); }
 .card-overlay {
   position: absolute;

@@ -282,12 +282,6 @@
     id: "wikimedia",
     label: "Wikimedia Commons",
     enabled: () => true, // ключ не нужен
-    // Файлы подписаны на разных языках (не только на английском) — здесь
-    // многоязычный поиск (см. app.js) реально находит то, чего нет в
-    // англоязычном запросе. У Pixabay/Pexels/Unsplash/Flickr теги почти
-    // всегда только на английском, так что для них расширять запрос на
-    // другие языки — только зря жечь их (более жёсткий) лимит запросов.
-    multiLang: true,
     async search(query, { page = 1, orientation = "any" } = {}) {
       const limit = 24;
       const qs = buildQuery({
@@ -346,7 +340,6 @@
     id: "openverse",
     label: "Openverse",
     enabled: () => true, // ключ не нужен (анонимный доступ ограничен по частоте)
-    multiLang: true,
     async search(query, { page = 1, orientation = "any" } = {}) {
       const aspectMap = { any: undefined, horizontal: "wide", vertical: "tall", square: "square" };
       const qs = buildQuery({
