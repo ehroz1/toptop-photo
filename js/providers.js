@@ -39,6 +39,52 @@
     return res.json();
   }
 
+  // Единый список цветов для фильтра — используется в app.js для отрисовки
+  // палитры и здесь для маппинга в параметры конкретных API (не все
+  // провайдеры поддерживают все цвета — тогда параметр просто не отправляется).
+  const COLOR_OPTIONS = [
+    { id: "bw", label: "Чёрно-белое", hex: "#9aa0a6" },
+    { id: "black", label: "Чёрный", hex: "#161616" },
+    { id: "white", label: "Белый", hex: "#ffffff" },
+    { id: "gray", label: "Серый", hex: "#9e9e9e" },
+    { id: "red", label: "Красный", hex: "#e53935" },
+    { id: "orange", label: "Оранжевый", hex: "#fb8c00" },
+    { id: "yellow", label: "Жёлтый", hex: "#fdd835" },
+    { id: "green", label: "Зелёный", hex: "#43a047" },
+    { id: "turquoise", label: "Бирюзовый", hex: "#00acc1" },
+    { id: "blue", label: "Синий", hex: "#1e88e5" },
+    { id: "purple", label: "Фиолетовый", hex: "#8e24aa" },
+    { id: "pink", label: "Розовый", hex: "#ec407a" },
+    { id: "brown", label: "Коричневый", hex: "#6d4c41" },
+  ];
+
+  const PIXABAY_COLOR_MAP = { bw: "grayscale", purple: "lilac" };
+  const PEXELS_COLOR_MAP = { purple: "violet", bw: undefined };
+  const UNSPLASH_COLOR_MAP = { bw: "black_and_white", turquoise: "teal", pink: "magenta", gray: undefined, brown: undefined };
+
+  function mapColor(map, color) {
+    if (!color || color === "any") return undefined;
+    return Object.prototype.hasOwnProperty.call(map, color) ? map[color] : color;
+  }
+
+  // Эвристический фильтр "с людьми / без людей" — ни один из подключённых
+  // API не даёт настоящего разделения по наличию людей на фото, поэтому
+  // смотрим на теги/описание/название на English и русском.
+  const PEOPLE_KEYWORDS = [
+    "person", "people", "man", "men", "woman", "women", "girl", "boy", "kid", "child", "children",
+    "human", "portrait", "face", "model", "couple", "family", "crowd", "guy", "lady", "teen", "baby",
+    "senior", "worker", "businessman", "businesswoman", "friends", "student",
+    "человек", "люди", "мужчина", "женщина", "девушка", "парень", "ребёнок", "ребенок", "дети",
+    "портрет", "лицо", "семья", "толпа", "дедушка", "бабушка", "малыш",
+  ];
+  const PEOPLE_REGEX = new RegExp(`\\b(${PEOPLE_KEYWORDS.join("|")})\\b`, "i");
+  function matchesPeopleFilter(item, people) {
+    if (!people || people === "any") return true;
+    const haystack = [item.title, item.description, ...(item.tags || [])].join(" ").toLowerCase();
+    const hasPeople = PEOPLE_REGEX.test(haystack);
+    return people === "with" ? hasPeople : !hasPeople;
+  }
+
   // Ориентация не поддерживается API напрямую — фильтруем то, что уже получили.
   function filterByOrientation(items, orientation) {
     if (orientation === "any") return items;
@@ -56,7 +102,7 @@
     id: "pixabay",
     label: "Pixabay",
     enabled: () => Boolean(CONFIG.PIXABAY_KEY),
-    async search(query, { page = 1, orientation = "any", sort = "popular" } = {}) {
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", people = "any" } = {}) {
       const orientationMap = { any: "all", horizontal: "horizontal", vertical: "vertical", square: "all" };
       const orderMap = { popular: "popular", newest: "latest" };
       const qs = buildQuery({
@@ -68,6 +114,10 @@
         page,
         orientation: orientationMap[orientation] || "all",
         order: orderMap[sort] || "popular",
+        colors: mapColor(PIXABAY_COLOR_MAP, color),
+        // бонус: Pixabay поддерживает категорию "people" — сужаем прямо на сервере,
+        // а окончательную сверку по тегам всё равно делаем в app.js для всех источников
+        category: people === "with" ? "people" : undefined,
       });
       const data = await fetchJson(`https://pixabay.com/api/?${qs}`);
       let items = (data.hits || []).map((hit) => ({
@@ -96,13 +146,14 @@
     id: "pexels",
     label: "Pexels",
     enabled: () => Boolean(CONFIG.PEXELS_KEY),
-    async search(query, { page = 1, orientation = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", color = "any" } = {}) {
       const orientationMap = { any: undefined, horizontal: "landscape", vertical: "portrait", square: "square" };
       const qs = buildQuery({
         query,
         per_page: 24,
         page,
         orientation: orientationMap[orientation],
+        color: mapColor(PEXELS_COLOR_MAP, color),
       });
       const data = await fetchJson(`https://api.pexels.com/v1/search?${qs}`, {
         headers: { Authorization: CONFIG.PEXELS_KEY },
@@ -130,7 +181,7 @@
     id: "unsplash",
     label: "Unsplash",
     enabled: () => Boolean(CONFIG.UNSPLASH_ACCESS_KEY),
-    async search(query, { page = 1, orientation = "any", sort = "popular" } = {}) {
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any" } = {}) {
       const orientationMap = { any: undefined, horizontal: "landscape", vertical: "portrait", square: "squarish" };
       const orderMap = { popular: "relevant", newest: "latest" };
       const qs = buildQuery({
@@ -139,6 +190,7 @@
         page,
         orientation: orientationMap[orientation],
         order_by: orderMap[sort] || "relevant",
+        color: mapColor(UNSPLASH_COLOR_MAP, color),
       });
       const data = await fetchJson(`https://api.unsplash.com/search/photos?${qs}`, {
         headers: { Authorization: `Client-ID ${CONFIG.UNSPLASH_ACCESS_KEY}` },
@@ -301,4 +353,6 @@
     FlickrProvider,
   ];
   global.UNSPLASH_CONFIG = CONFIG;
+  global.COLOR_OPTIONS = COLOR_OPTIONS;
+  global.matchesPeopleFilter = matchesPeopleFilter;
 })(window);

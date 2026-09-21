@@ -4,21 +4,28 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>PhotoSeek — поиск фото сразу везде</title>
-<meta name="description" content="Универсальный поиск фото по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr одновременно, с быстрым переходом в Яндекс и Google Картинки.">
-<link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🖼️</text></svg>">
+<meta name="description" content="Универсальный поиск фото по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr одновременно, с быстрым переходом в Яндекс, Google и Pinterest.">
+<meta name="theme-color" content="#0b0b0f">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/icon-512.png" sizes="512x512">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap">
 <link rel="preconnect" href="https://pixabay.com">
 <link rel="preconnect" href="https://api.pexels.com">
 <link rel="preconnect" href="https://api.unsplash.com">
 <link rel="preconnect" href="https://commons.wikimedia.org">
 <link rel="preconnect" href="https://api.openverse.org">
 <link rel="preconnect" href="https://api.flickr.com">
+<link rel="preconnect" href="https://api.mymemory.translated.net">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
 
 <div class="app">
 
-  <header class="topbar">
+  <header class="topbar" id="topbar">
     <div class="brand">
       <span class="brand-mark" aria-hidden="true"></span>
       <span class="brand-name">PhotoSeek</span>
@@ -34,13 +41,19 @@
         autocomplete="off"
         spellcheck="false"
       >
-      <button type="button" id="clearBtn" class="searchbar-clear" title="Очистить" hidden></button>
+      <button type="button" id="clearBtn" class="searchbar-clear" title="Очистить (Esc)" hidden></button>
       <button type="submit" class="searchbar-submit" title="Искать">
         <span class="icon icon-search" aria-hidden="true"></span>
       </button>
     </form>
 
     <div class="topbar-actions">
+      <button id="favoritesToggle" class="icon-btn" title="Избранное" aria-pressed="false">
+        <span class="icon icon-heart" aria-hidden="true"></span>
+      </button>
+      <button id="selectModeToggle" class="icon-btn" title="Выбрать несколько фото" aria-pressed="false">
+        <span class="icon icon-check-square" aria-hidden="true"></span>
+      </button>
       <button id="themeToggle" class="icon-btn" title="Сменить тему">
         <span class="icon icon-sun" data-theme-icon="light" aria-hidden="true"></span>
         <span class="icon icon-moon" data-theme-icon="dark" aria-hidden="true"></span>
@@ -48,8 +61,13 @@
     </div>
   </header>
 
+  <div id="translatedHint" class="translated-hint" hidden>
+    Ищем как: <strong id="translatedHintText"></strong>
+    <button type="button" id="translatedHintUndo">искать как есть</button>
+  </div>
+
   <div class="toolbar">
-    <div class="toolbar-row">
+    <div class="toolbar-row toolbar-row-scroll">
       <div class="sources" id="sources">
         <button type="button" class="source-chip" data-source="pixabay" aria-pressed="true">
           <span class="dot dot-pixabay"></span>Pixabay
@@ -82,7 +100,9 @@
           <span class="icon icon-external" aria-hidden="true"></span>Pinterest
         </button>
       </div>
+    </div>
 
+    <div class="toolbar-row">
       <div class="filters">
         <div class="dropdown" data-dropdown="quality">
           <button type="button" class="dropdown-btn">
@@ -118,6 +138,28 @@
             <button type="button" class="dropdown-item" data-val="newest">Новое</button>
           </div>
         </div>
+
+        <div class="dropdown" data-dropdown="people">
+          <button type="button" class="dropdown-btn">
+            Люди <span class="dropdown-value" data-value>Любые</span>
+            <span class="icon icon-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="dropdown-menu">
+            <button type="button" class="dropdown-item is-active" data-val="any">Любые фото</button>
+            <button type="button" class="dropdown-item" data-val="with">Только с людьми</button>
+            <button type="button" class="dropdown-item" data-val="without">Без людей</button>
+          </div>
+        </div>
+
+        <div class="dropdown" data-dropdown="color">
+          <button type="button" class="dropdown-btn">
+            Цвет <span class="dropdown-value" data-value>Любой</span>
+            <span class="icon icon-chevron" aria-hidden="true"></span>
+          </button>
+          <div class="dropdown-menu dropdown-menu-colors" id="colorMenu">
+            <button type="button" class="dropdown-item is-any is-active" data-val="any">Любой цвет</button>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -129,12 +171,19 @@
 
   <main class="content">
     <div id="emptyState" class="empty-state">
+      <div class="hero-backdrop" aria-hidden="true"></div>
       <div class="empty-illustration" aria-hidden="true"></div>
-      <h1>Ищите фото сразу во всех источниках</h1>
-      <p>Введите запрос — PhotoSeek одновременно спросит Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr и соберёт всё в одну ленту.</p>
+      <h1>Найдите фото сразу везде</h1>
+      <p>Один запрос — и PhotoSeek одновременно спрашивает Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr, собирая всё в одну ленту.</p>
       <div class="suggestions" id="suggestions">
         <span class="suggestions-label">Попробуйте:</span>
       </div>
+    </div>
+
+    <div id="favoritesEmpty" class="empty-state" hidden>
+      <div class="empty-illustration" aria-hidden="true"></div>
+      <h1>Пока пусто</h1>
+      <p>Нажимайте на сердечко на фото, чтобы добавить их сюда — избранное сохраняется в этом браузере.</p>
     </div>
 
     <div id="grid" class="grid" hidden></div>
@@ -150,6 +199,16 @@
     </div>
   </main>
 
+</div>
+
+<div id="bulkBar" class="bulk-bar" hidden>
+  <span id="bulkCount" class="bulk-count"></span>
+  <div class="bulk-actions">
+    <button type="button" id="bulkCancel" class="btn btn-ghost">Отмена</button>
+    <button type="button" id="bulkDownload" class="btn btn-primary">
+      <span class="icon icon-download" aria-hidden="true"></span>Скачать zip
+    </button>
+  </div>
 </div>
 
 <div id="lightbox" class="lightbox" hidden>
@@ -168,6 +227,9 @@
     <div class="lightbox-image-wrap">
       <img id="lbImage" class="lightbox-image" alt="">
       <div class="lightbox-spinner" id="lbSpinner" aria-hidden="true"></div>
+      <button class="lightbox-heart icon-btn" id="lbHeart" title="В избранное" aria-pressed="false">
+        <span class="icon icon-heart" aria-hidden="true"></span>
+      </button>
     </div>
 
     <aside class="lightbox-panel">
@@ -175,9 +237,15 @@
         <span class="source-badge" id="lbSourceBadge"></span>
         <div class="lightbox-actions">
           <button class="btn btn-ghost" id="lbCopy" title="Скопировать ссылку на изображение">
-            <span class="icon icon-link" aria-hidden="true"></span>Скопировать ссылку
+            <span class="icon icon-link" aria-hidden="true"></span>Ссылка
           </button>
-          <button class="btn btn-primary" id="lbDownload" title="Скачать изображение">
+          <button class="btn btn-ghost" id="lbCopyImage" title="Скопировать саму картинку (Ctrl+V в другом приложении)">
+            <span class="icon icon-copy" aria-hidden="true"></span>Картинка
+          </button>
+          <button class="btn btn-ghost" id="lbShare" title="Поделиться" hidden>
+            <span class="icon icon-share" aria-hidden="true"></span>Поделиться
+          </button>
+          <button class="btn btn-primary" id="lbDownload" title="Скачать изображение (D)">
             <span class="icon icon-download" aria-hidden="true"></span>Скачать
           </button>
         </div>
@@ -200,8 +268,10 @@
 
 <div id="toast" class="toast" hidden></div>
 
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="js/config.js"></script>
 <script src="js/providers.js"></script>
+<script src="js/translate.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
