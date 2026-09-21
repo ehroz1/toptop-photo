@@ -19,7 +19,7 @@
   const QUALITY_THRESHOLDS = { any: 0, "2k": 2048, "4k": 3840, "8k": 7680 };
   // Условный вес "качества" источника для более умного чередования в ленте —
   // не более чем эвристика, не претендует на объективность.
-  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1, shutterstock: 1 };
+  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1, shutterstock: 1, pexafy: 1 };
 
   const el = {
     topbar: document.getElementById("topbar"),
@@ -145,6 +145,7 @@
     openverse: "Openverse",
     flickr: "Flickr",
     shutterstock: "Shutterstock",
+    pexafy: "Pexafy",
   };
 
   function getActiveList() {

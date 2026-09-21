@@ -138,6 +138,17 @@ export default {
       }, origin, env);
     }
 
+    // Pexafy Search API — авторизация заголовком x-api-key (обычный
+    // "Pexafy API" ключ, НЕ ключ типа "MCP" — тот для протокола MCP,
+    // а не для REST).
+    if (url.pathname === "/pexafy") {
+      if (!env.PEXAFY_API_KEY) return jsonError(origin, env, "PEXAFY_API_KEY is not configured", 500);
+      const params = copyParams(url);
+      return proxy(`https://api.pexafy.com/api/v1/search/photos?${params}`, {
+        headers: { "x-api-key": env.PEXAFY_API_KEY },
+      }, origin, env);
+    }
+
     return jsonError(origin, env, "not found", 404);
   },
 };

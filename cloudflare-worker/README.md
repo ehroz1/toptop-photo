@@ -28,6 +28,9 @@
      используете (необязательно; создаётся в личном кабинете на
      shutterstock.com/developers/apps → API Access, отдельный client_id/
      secret не нужен — токен подставляется сразу как `Bearer`)
+   - `PEXAFY_API_KEY` — ключ Pexafy, если используете (необязательно;
+     создаётся на pexafy.com/dashboard/api-keys/create — выберите тип
+     **Pexafy API**, не **MCP**, это ключ для другого протокола)
 
    И одну обычную переменную (тип **Text**, не секрет):
    - `ALLOWED_ORIGINS` — адрес вашего сайта, например
@@ -52,6 +55,7 @@ wrangler secret put PEXELS_KEY
 wrangler secret put UNSPLASH_ACCESS_KEY
 wrangler secret put FLICKR_API_KEY   # необязательно
 wrangler secret put SHUTTERSTOCK_TOKEN   # необязательно
+wrangler secret put PEXAFY_API_KEY   # необязательно
 ```
 
 `wrangler deploy` выведет адрес воркера — впишите его в `js/config.js` так же,

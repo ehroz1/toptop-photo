@@ -433,10 +433,13 @@
   // (см. license.requiresPurchase — отдельная плашка в лайтбоксе).
   const SHUTTERSTOCK_ORIENTATION_MAP = { any: undefined, horizontal: "horizontal", vertical: "vertical", square: "square" };
   const SHUTTERSTOCK_SORT_MAP = { popular: "popular", newest: "newest" };
-  function shutterstockColorHex(color) {
+  // Общий хелпер: цвет в нашем UI задан именем ("bw"/"red"/…), а не hex —
+  // переиспользуем hex из COLOR_OPTIONS и там, где API просит именно hex
+  // (Shutterstock, Pexafy), а не свой список именованных цветов.
+  function hexForColor(color) {
     if (!color || color === "any") return undefined;
     const opt = COLOR_OPTIONS.find((c) => c.id === color);
-    return opt ? opt.hex.replace("#", "") : undefined;
+    return opt ? opt.hex : undefined;
   }
   const ShutterstockProvider = {
     id: "shutterstock",
@@ -450,7 +453,7 @@
         image_type: "photo",
         sort: SHUTTERSTOCK_SORT_MAP[sort] || "popular",
         orientation: SHUTTERSTOCK_ORIENTATION_MAP[orientation],
-        color: shutterstockColorHex(color),
+        color: hexForColor(color)?.replace("#", ""),
       });
       const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/shutterstock?${qs}`);
       const items = (data.data || []).map((p) => {
@@ -479,6 +482,61 @@
     },
   };
 
+  // Pexafy — семантический поиск по девяти бесплатным фотостокам сразу
+  // (Unsplash/Pexels/Pixabay/Kaboompics/Burst/StockSnap/Picjumbo/Skitterphoto/
+  // NegativeSpace), свой собственный free-to-use агрегатор, без требования
+  // атрибуции (см. docs.pexafy.com). Пагинация курсорная, а не по номеру
+  // страницы — pexafyCursors хранит next_cursor на время текущего поиска по
+  // ключу параметров запроса; курсор живёт у Pexafy ~5 минут, поэтому если
+  // его нет (новый поиск/протух) — просто считаем, что страниц больше нет.
+  const pexafyCursors = new Map();
+  const PEXAFY_ORIENTATION_MAP = { any: undefined, horizontal: "landscape", vertical: "portrait", square: "square" };
+  const PEXAFY_SORT_MAP = { popular: "relevance", newest: "newest" };
+  const PexafyProvider = {
+    id: "pexafy",
+    label: "Pexafy",
+    enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any" } = {}) {
+      const cursorKey = JSON.stringify({ query, orientation, sort, color });
+      if (page === 1) pexafyCursors.delete(cursorKey);
+      const cursor = page > 1 ? pexafyCursors.get(cursorKey) : undefined;
+      if (page > 1 && !cursor) return { items: [], total: null }; // курсор закончился/протух — дальше страниц нет
+
+      const qs = buildQuery({
+        q: query,
+        per_page: 24,
+        orientation: PEXAFY_ORIENTATION_MAP[orientation],
+        sort_by: PEXAFY_SORT_MAP[sort] || "relevance",
+        color_hex: color !== "bw" ? hexForColor(color) : undefined,
+        cursor,
+      });
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pexafy?${qs}`);
+      if (data.pagination?.next_cursor) pexafyCursors.set(cursorKey, data.pagination.next_cursor);
+      else pexafyCursors.delete(cursorKey);
+
+      const items = (data.data || []).map((p) => ({
+        id: `pexafy-${p.photo_id}`,
+        provider: "pexafy",
+        thumb: p.urls?.small || p.urls?.thumb,
+        full: p.urls?.regular || p.urls?.large || p.urls?.full,
+        width: p.width,
+        height: p.height,
+        title: p.description || "",
+        description: p.alt_description || p.description || "",
+        tags: [],
+        author: p.photographer_username,
+        authorUrl: undefined,
+        pageUrl: p.source_image_url || p.urls?.full,
+        download: { type: "direct", url: p.urls?.full || p.urls?.large || p.urls?.regular },
+        // Pexafy сама заявляет весь свой каталог как free-to-use без обязательной
+        // атрибуции (агрегирует Unsplash/Pexels/Pixabay и другие бесплатные стоки) —
+        // как и у Pixabay/Pexels/Unsplash, лицензия одна на источник, не на файл.
+        license: { name: "Pexafy (free, no attribution)", url: "https://pexafy.com/pricing", commercial: true, attribution: false },
+      })).filter((it) => it.thumb);
+      return { items, total: null };
+    },
+  };
+
   global.PROVIDERS = [
     PixabayProvider,
     PexelsProvider,
@@ -487,6 +545,7 @@
     OpenverseProvider,
     FlickrProvider,
     ShutterstockProvider,
+    PexafyProvider,
   ];
   global.COLOR_OPTIONS = COLOR_OPTIONS;
   global.matchesPeopleFilter = matchesPeopleFilter;
