@@ -3,8 +3,7 @@
 // обращается к ним через WORKER_BASE_URL без ключей вообще.
 window.APP_CONFIG = {
   // URL вашего задеплоенного воркера, без слэша в конце.
-  // Пример: "https://photoseek-proxy.ваш-логин.workers.dev"
-  WORKER_BASE_URL: "",
+  WORKER_BASE_URL: "https://photoseek-proxy.safarimax777.workers.dev",
   // Название приложения ИЗ настроек на unsplash.com/oauth/applications —
   // нужно для utm-метки в ссылках на автора/фото (это требование их
   // API Guidelines для получения повышенного лимита). Поставьте точное имя
