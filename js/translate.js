@@ -28,5 +28,30 @@
     }
   }
 
+  // Переводит запрос сразу на несколько языков (кроме английского — тот уже
+  // даёт translateQuery). Используется только для источников с многоязычными
+  // описаниями (Wikimedia/Openverse) — там, где на неанглийском языке
+  // реально может найтись что-то, чего нет в английской версии запроса.
+  // Ошибки по отдельным языкам просто пропускаются — это "бонусные"
+  // результаты, а не обязательная часть поиска.
+  async function translateQueryToLangs(text, langs) {
+    if (!text || !hasCyrillic(text)) return [];
+    const results = await Promise.all(langs.map(async (lang) => {
+      try {
+        const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ru|${lang}`;
+        const res = await fetch(url);
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        const translated = data?.responseData?.translatedText;
+        if (!translated || typeof translated !== "string") throw new Error("пустой ответ переводчика");
+        return translated.trim();
+      } catch {
+        return null;
+      }
+    }));
+    return results.filter(Boolean);
+  }
+
   global.translateQuery = translateQuery;
+  global.translateQueryToLangs = translateQueryToLangs;
 })(window);

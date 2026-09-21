@@ -29,6 +29,7 @@
   --icon-close: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round'%3E%3Cline x1='5' y1='5' x2='19' y2='19'/%3E%3Cline x1='19' y1='5' x2='5' y2='19'/%3E%3C/svg%3E");
   --icon-sun: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='4'/%3E%3Cline x1='12' y1='2' x2='12' y2='4.5'/%3E%3Cline x1='12' y1='19.5' x2='12' y2='22'/%3E%3Cline x1='2' y1='12' x2='4.5' y2='12'/%3E%3Cline x1='19.5' y1='12' x2='22' y2='12'/%3E%3Cline x1='4.9' y1='4.9' x2='6.6' y2='6.6'/%3E%3Cline x1='17.4' y1='17.4' x2='19.1' y2='19.1'/%3E%3Cline x1='4.9' y1='19.1' x2='6.6' y2='17.4'/%3E%3Cline x1='17.4' y1='6.6' x2='19.1' y2='4.9'/%3E%3C/svg%3E");
   --icon-moon: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='black' stroke='none'%3E%3Cpath d='M20 14.5A8.5 8.5 0 1 1 9.5 4a7 7 0 0 0 10.5 10.5Z'/%3E%3C/svg%3E");
+  --icon-auto: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='9' fill='none' stroke='black' stroke-width='2'/%3E%3Cpath d='M12 3a9 9 0 0 1 0 18Z' fill='black'/%3E%3C/svg%3E");
   --icon-chevron: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'/%3E%3C/svg%3E");
   --icon-external: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6'/%3E%3Cpolyline points='15 3 21 3 21 9'/%3E%3Cline x1='10' y1='14' x2='21' y2='3'/%3E%3C/svg%3E");
   --icon-download: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='7 10 12 15 17 10'/%3E%3Cline x1='12' y1='15' x2='12' y2='3'/%3E%3C/svg%3E");
@@ -314,10 +315,19 @@ body {
 .icon-btn:active { transform: scale(0.92); }
 .icon-btn[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
 
-#themeToggle .icon-sun { background-color: currentColor; -webkit-mask: var(--icon-sun) center / contain no-repeat; mask: var(--icon-sun) center / contain no-repeat; }
-#themeToggle .icon-moon { display: none; background-color: currentColor; -webkit-mask: var(--icon-moon) center / contain no-repeat; mask: var(--icon-moon) center / contain no-repeat; }
-:root[data-theme="dark"] #themeToggle .icon-sun { display: none; }
-:root[data-theme="dark"] #themeToggle .icon-moon { display: block; }
+/* Иконка показывает выбранный РЕЖИМ (авто/светлая/тёмная), а не текущий
+   цвет — поэтому завязана на data-theme-mode, а не на data-theme (который
+   в режиме "авто" вообще не выставляется и следует за системой через CSS). */
+#themeToggle .icon-sun, #themeToggle .icon-moon, #themeToggle .icon-auto {
+  display: none;
+  background-color: currentColor;
+}
+#themeToggle .icon-sun { -webkit-mask: var(--icon-sun) center / contain no-repeat; mask: var(--icon-sun) center / contain no-repeat; }
+#themeToggle .icon-moon { -webkit-mask: var(--icon-moon) center / contain no-repeat; mask: var(--icon-moon) center / contain no-repeat; }
+#themeToggle .icon-auto { -webkit-mask: var(--icon-auto) center / contain no-repeat; mask: var(--icon-auto) center / contain no-repeat; }
+:root[data-theme-mode="light"] #themeToggle .icon-sun { display: block; }
+:root[data-theme-mode="dark"] #themeToggle .icon-moon { display: block; }
+:root[data-theme-mode="auto"] #themeToggle .icon-auto { display: block; }
 
 #favoritesToggle .icon-heart,
 #selectModeToggle .icon-check-square {
@@ -887,6 +897,25 @@ body {
 
 .lightbox-title { font-size: 17px; font-weight: 700; margin: 0; }
 .lightbox-description { font-size: 13.5px; color: var(--text-muted); margin: 0; line-height: 1.5; }
+
+.license-badge {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--text-muted);
+}
+.license-badge a { color: var(--accent); text-decoration: none; font-weight: 600; }
+.license-badge a:hover { text-decoration: underline; }
+.license-flag {
+  padding: 3px 9px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  font-weight: 600;
+  white-space: nowrap;
+}
+.license-flag-warn { background: color-mix(in srgb, var(--danger) 15%, transparent); color: var(--danger); }
 
 .lightbox-tags { display: flex; flex-wrap: wrap; gap: 6px; }
 .lightbox-tag {

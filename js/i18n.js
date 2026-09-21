@@ -112,6 +112,11 @@
       card_heart_title: "В избранное",
       card_download_title: "Скачать",
 
+      license_commercial_ok: "Можно для коммерции",
+      license_commercial_no: "Только некоммерческое",
+      license_attribution_required: "Нужна атрибуция",
+      license_unknown: "Условия лицензии не определены — уточните на странице источника",
+
       insights_downloads: "Скачано фото",
       insights_searches: "Поисков выполнено",
       insights_top_source: "Любимый источник",
@@ -256,6 +261,11 @@
 
       card_heart_title: "Add to favorites",
       card_download_title: "Download",
+
+      license_commercial_ok: "Commercial use OK",
+      license_commercial_no: "Non-commercial only",
+      license_attribution_required: "Attribution required",
+      license_unknown: "License terms unclear — check the source page",
 
       insights_downloads: "Photos downloaded",
       insights_searches: "Searches made",

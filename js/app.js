@@ -13,6 +13,9 @@
   const UNSPLASH_HOURLY_LIMIT = 50;
   const COOLDOWN_MS = 10 * 60 * 1000; // 10 минут паузы для источника при 429
   const QUALITY_THRESHOLDS = { any: 0, "2k": 2048, "4k": 3840, "8k": 7680 };
+  // Доп. языки для многоязычного поиска (см. описание у loadPage) — только
+  // для источников с multiLang: true (Wikimedia/Openverse).
+  const MULTI_LANG_TARGETS = ["es", "de"];
   // Условный вес "качества" источника для более умного чередования в ленте —
   // не более чем эвристика, не претендует на объективность.
   const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1 };
@@ -69,6 +72,7 @@
     lbTags: document.getElementById("lbTags"),
     lbAuthor: document.getElementById("lbAuthor"),
     lbSourceLink: document.getElementById("lbSourceLink"),
+    lbLicense: document.getElementById("lbLicense"),
     lbPrev: document.getElementById("lbPrev"),
     lbNext: document.getElementById("lbNext"),
   };
@@ -93,6 +97,7 @@
     loading: false,
     lightboxIndex: -1,
     queryMatcher: null,
+    extraQueries: [], // переводы запроса на доп. языки (только для первой страницы)
     dedupeHashes: [],
     cooldownUntil: {}, // providerId -> timestamp до которого источник пропускаем
   };
@@ -126,24 +131,38 @@
   }
 
   // ---------- Theme ----------
-  function initTheme() {
+  // Три режима: auto (следует за системной темой) / light / dark.
+  // Раньше кнопка была бинарным переключателем light<->dark — стоило нажать
+  // её один раз, и обратного пути к "авто" не было вообще (только вручную
+  // чистить localStorage). Это и было той самой "не работает автосмена
+  // темы" — на деле она работала, просто из неё нельзя было выйти обратно.
+  const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  function currentThemeMode() {
     const saved = localStorage.getItem(THEME_KEY);
-    if (saved === "light" || saved === "dark") {
-      document.documentElement.setAttribute("data-theme", saved);
+    return saved === "light" || saved === "dark" ? saved : "auto";
+  }
+  function applyThemeMode(mode) {
+    document.documentElement.setAttribute("data-theme-mode", mode);
+    if (mode === "auto") {
+      localStorage.removeItem(THEME_KEY);
+      document.documentElement.setAttribute("data-theme", systemThemeQuery.matches ? "dark" : "light");
+    } else {
+      localStorage.setItem(THEME_KEY, mode);
+      document.documentElement.setAttribute("data-theme", mode);
     }
   }
+  function initTheme() {
+    applyThemeMode(currentThemeMode());
+  }
   el.themeToggle.addEventListener("click", () => {
-    const current = document.documentElement.getAttribute("data-theme") ||
-      (window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light");
-    const next = current === "dark" ? "light" : "dark";
-    document.documentElement.setAttribute("data-theme", next);
-    localStorage.setItem(THEME_KEY, next);
+    const mode = currentThemeMode();
+    const next = mode === "auto" ? "light" : mode === "light" ? "dark" : "auto";
+    applyThemeMode(next);
   });
-  // Пока пользователь ни разу не переключал тему вручную — живо следуем
-  // за системной темой (например, автоночь по расписанию ОС).
-  const systemThemeQuery = window.matchMedia("(prefers-color-scheme: dark)");
+  // Пока режим "авто" — живо следуем за системной темой (например, автоночь
+  // по расписанию ОС), без перезагрузки страницы.
   systemThemeQuery.addEventListener("change", (e) => {
-    if (localStorage.getItem(THEME_KEY)) return;
+    if (currentThemeMode() !== "auto") return;
     document.documentElement.setAttribute("data-theme", e.matches ? "dark" : "light");
   });
 
@@ -522,6 +541,7 @@
       // фильтр поменяли на уже переведённом запросе — не переводим второй раз
     } else if (opts.forceOriginal) {
       state.searchQuery = parsed.apiQuery;
+      state.extraQueries = [];
       el.translatedHint.hidden = true;
       state.queryMatcher = window.buildQueryMatcher(parsed, new Map());
     } else {
@@ -533,6 +553,15 @@
       } else {
         el.translatedHint.hidden = true;
       }
+
+      // Многоязычный поиск: помимо английского перевода, для источников с
+      // многоязычными описаниями (Wikimedia/Openverse — см. multiLang в
+      // providers.js) пробуем ещё пару языков. Иногда там подписано не
+      // по-английски, и такое фото иначе просто не найдётся.
+      state.extraQueries = window.translateQueryToLangs
+        ? (await window.translateQueryToLangs(parsed.apiQuery, MULTI_LANG_TARGETS))
+            .filter((t) => t.toLowerCase() !== state.searchQuery.toLowerCase())
+        : [];
 
       const operatorTerms = [...parsed.mustPhrases, ...parsed.mustNot, ...parsed.orGroups.flat()];
       const translatedTermsMap = new Map();
@@ -640,7 +669,30 @@
           state.pages[p.id] = page;
           state.hasMore[p.id] = items.length > 0;
           totals[p.id] = total;
-          return { id: p.id, items };
+          let allItems = items;
+          // Многоязычный поиск — только на первой странице свежего поиска и
+          // только для источников с multiLang: true (см. providers.js).
+          // "Бонусные" результаты на доп. языках не участвуют в пагинации
+          // (не трогаем state.pages/hasMore) и не считаются в totals —
+          // это добавка к первой странице, а не отдельный источник.
+          if (isFirst && p.multiLang && state.extraQueries.length > 0) {
+            const extraBatches = await Promise.all(state.extraQueries.map(async (q) => {
+              try {
+                const r = await p.search(q, {
+                  page: 1,
+                  orientation: state.orientation,
+                  sort: state.sort,
+                  color: state.color,
+                  people: state.people,
+                });
+                return r.items;
+              } catch {
+                return []; // бонусный язык не нашёлся — не критично, тихо пропускаем
+              }
+            }));
+            allItems = allItems.concat(...extraBatches);
+          }
+          return { id: p.id, items: allItems };
         } catch (err) {
           console.error(`[${p.label}]`, err);
           if (/HTTP 429/.test(err.message)) {
@@ -837,7 +889,6 @@
   function buildCard(item, index) {
     const card = document.createElement("div");
     card.className = "card is-img-loading";
-    card.dataset.index = String(index);
 
     const img = document.createElement("img");
     img.src = item.thumb;
@@ -1026,6 +1077,34 @@
     el.lightbox.hidden = true;
     document.body.style.overflow = "";
   }
+  // Плашка лицензии: у Pixabay/Pexels/Unsplash лицензия одна на весь сток
+  // (задана статически в providers.js), у Wikimedia/Openverse/Flickr — своя
+  // у каждого фото, поэтому commercial/attribution там могут быть
+  // undefined, если разобрать конкретную лицензию не получилось.
+  function renderLicenseBadge(license) {
+    if (!license || !license.name) {
+      el.lbLicense.hidden = true;
+      return;
+    }
+    const nameHtml = license.url
+      ? `<a href="${license.url}" target="_blank" rel="noopener noreferrer">${license.name}</a>`
+      : license.name;
+    const flags = [];
+    if (license.commercial === true) {
+      flags.push(`<span class="license-flag">${I18N.t("license_commercial_ok")}</span>`);
+    } else if (license.commercial === false) {
+      flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_commercial_no")}</span>`);
+    }
+    if (license.attribution === true) {
+      flags.push(`<span class="license-flag">${I18N.t("license_attribution_required")}</span>`);
+    }
+    if (license.commercial === undefined && license.attribution === undefined) {
+      flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_unknown")}</span>`);
+    }
+    el.lbLicense.innerHTML = `${nameHtml}${flags.join("")}`;
+    el.lbLicense.hidden = false;
+  }
+
   function renderLightbox() {
     const item = getActiveList()[state.lightboxIndex];
     if (!item) return;
@@ -1050,6 +1129,8 @@
     el.lbTitle.textContent = item.title || I18N.t("lightbox_untitled");
     el.lbDescription.textContent = item.description && item.description !== item.title ? item.description : "";
     el.lbDescription.hidden = !el.lbDescription.textContent;
+
+    renderLicenseBadge(item.license);
 
     el.lbTags.innerHTML = "";
     (item.tags || []).slice(0, 8).forEach((tag) => {

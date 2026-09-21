@@ -98,6 +98,56 @@
     return people === "with" ? hasPeople : !hasPeople;
   }
 
+  // Понятная информация по лицензии — item.license = { name, url, commercial,
+  // attribution }. У Pixabay/Pexels/Unsplash лицензия одна на весь сток
+  // (задаём статически), а у Wikimedia/Openverse/Flickr лицензия своя у
+  // каждого файла — разбираем её из ответа API.
+  const CC_CODE_NAMES = {
+    cc0: "CC0",
+    by: "CC BY",
+    "by-sa": "CC BY-SA",
+    "by-nc": "CC BY-NC",
+    "by-nc-sa": "CC BY-NC-SA",
+    "by-nd": "CC BY-ND",
+    "by-nc-nd": "CC BY-NC-ND",
+    pdm: "Public Domain",
+  };
+  function classifyLicenseCode(code, url) {
+    const c = (code || "").toLowerCase();
+    if (!CC_CODE_NAMES[c]) return null;
+    return {
+      name: CC_CODE_NAMES[c],
+      url,
+      commercial: !/nc/.test(c),
+      attribution: c !== "cc0" && c !== "pdm",
+    };
+  }
+  function parseWikimediaLicenseCode(shortName) {
+    const s = (shortName || "").toLowerCase();
+    if (/cc0|public domain|\bpd\b/.test(s)) return "cc0";
+    if (/by-nc-nd/.test(s)) return "by-nc-nd";
+    if (/by-nc-sa/.test(s)) return "by-nc-sa";
+    if (/by-nc/.test(s)) return "by-nc";
+    if (/by-sa/.test(s)) return "by-sa";
+    if (/by-nd/.test(s)) return "by-nd";
+    if (/\bby\b/.test(s)) return "by";
+    return null;
+  }
+  // Числовые коды лицензий Flickr (1-10, 0="все права защищены" уже
+  // отфильтрован на уровне запроса) — официально стабильные, не меняются.
+  const FLICKR_LICENSE_MAP = {
+    1: ["by-nc-sa", "https://creativecommons.org/licenses/by-nc-sa/2.0/"],
+    2: ["by-nc", "https://creativecommons.org/licenses/by-nc/2.0/"],
+    3: ["by-nc-nd", "https://creativecommons.org/licenses/by-nc-nd/2.0/"],
+    4: ["by", "https://creativecommons.org/licenses/by/2.0/"],
+    5: ["by-sa", "https://creativecommons.org/licenses/by-sa/2.0/"],
+    6: ["by-nd", "https://creativecommons.org/licenses/by-nd/2.0/"],
+    7: ["pdm", "https://www.flickr.com/commons/usage/"],
+    8: ["pdm", "https://www.usa.gov/government-works"],
+    9: ["cc0", "https://creativecommons.org/publicdomain/zero/1.0/"],
+    10: ["pdm", "https://creativecommons.org/publicdomain/mark/1.0/"],
+  };
+
   // Ориентация не поддерживается API напрямую — фильтруем то, что уже получили.
   function filterByOrientation(items, orientation) {
     if (orientation === "any") return items;
@@ -146,6 +196,7 @@
         authorUrl: `https://pixabay.com/users/${encodeURIComponent(hit.user)}-${hit.user_id}/`,
         pageUrl: hit.pageURL,
         download: { type: "direct", url: hit.largeImageURL || hit.webformatURL },
+        license: { name: "Pixabay License", url: "https://pixabay.com/service/license-summary/", commercial: true, attribution: false },
       }));
       if (orientation === "square") {
         items = items.filter((it) => it.width && it.height && Math.abs(it.width / it.height - 1) < 0.15);
@@ -182,6 +233,7 @@
         authorUrl: p.photographer_url,
         pageUrl: p.url,
         download: { type: "direct", url: p.src.original },
+        license: { name: "Pexels License", url: "https://www.pexels.com/license/", commercial: true, attribution: false },
       }));
       return { items, total: data.total_results ?? null };
     },
@@ -217,6 +269,7 @@
         authorUrl: withUnsplashUtm(p.user?.links?.html),
         pageUrl: withUnsplashUtm(p.links?.html),
         download: { type: "unsplash", locationUrl: p.links?.download_location, url: p.urls.full },
+        license: { name: "Unsplash License", url: "https://unsplash.com/license", commercial: true, attribution: false },
       }));
       return { items, total: data.total ?? null };
     },
@@ -226,6 +279,12 @@
     id: "wikimedia",
     label: "Wikimedia Commons",
     enabled: () => true, // ключ не нужен
+    // Файлы подписаны на разных языках (не только на английском) — здесь
+    // многоязычный поиск (см. app.js) реально находит то, чего нет в
+    // англоязычном запросе. У Pixabay/Pexels/Unsplash/Flickr теги почти
+    // всегда только на английском, так что для них расширять запрос на
+    // другие языки — только зря жечь их (более жёсткий) лимит запросов.
+    multiLang: true,
     async search(query, { page = 1, orientation = "any" } = {}) {
       const limit = 24;
       const qs = buildQuery({
@@ -263,6 +322,12 @@
             authorUrl: undefined,
             pageUrl: `https://commons.wikimedia.org/wiki/${encodeURIComponent(p.title)}`,
             download: { type: "direct", url: info.url },
+            license: (() => {
+              const shortName = stripHtml(meta.LicenseShortName?.value || "");
+              const code = parseWikimediaLicenseCode(shortName);
+              const classified = code && classifyLicenseCode(code, meta.LicenseUrl?.value);
+              return classified || { name: shortName || null, url: meta.LicenseUrl?.value, commercial: undefined, attribution: undefined };
+            })(),
           };
         });
       items = filterByOrientation(items, orientation);
@@ -274,6 +339,7 @@
     id: "openverse",
     label: "Openverse",
     enabled: () => true, // ключ не нужен (анонимный доступ ограничен по частоте)
+    multiLang: true,
     async search(query, { page = 1, orientation = "any" } = {}) {
       const aspectMap = { any: undefined, horizontal: "wide", vertical: "tall", square: "square" };
       const qs = buildQuery({
@@ -293,12 +359,14 @@
         width: p.width,
         height: p.height,
         title: p.title || "",
-        description: p.license ? `Лицензия: ${p.license.toUpperCase()}${p.license_version ? " " + p.license_version : ""}` : "",
+        description: "",
         tags: (p.tags || []).map((t) => t.name).filter(Boolean),
         author: p.creator,
         authorUrl: p.creator_url,
         pageUrl: p.foreign_landing_url,
         download: { type: "direct", url: p.url },
+        license: classifyLicenseCode(p.license, p.license_url)
+          || { name: p.license ? p.license.toUpperCase() : null, url: p.license_url, commercial: undefined, attribution: undefined },
       }));
       return { items, total: data.result_count ?? null };
     },
@@ -321,7 +389,7 @@
         safe_search: 1,
         per_page: 24,
         page,
-        extras: "url_c,url_l,url_o,o_dims,owner_name,description,tags",
+        extras: "url_c,url_l,url_o,o_dims,owner_name,description,tags,license",
         format: "json",
         nojsoncallback: 1,
       });
@@ -344,6 +412,10 @@
           authorUrl: `https://www.flickr.com/photos/${p.owner}/`,
           pageUrl: `https://www.flickr.com/photos/${p.owner}/${p.id}`,
           download: { type: "direct", url: p.url_o || p.url_l || p.url_c },
+          license: (() => {
+            const mapped = FLICKR_LICENSE_MAP[p.license];
+            return mapped ? classifyLicenseCode(mapped[0], mapped[1]) : null;
+          })(),
         };
       }).filter((it) => it.thumb);
       items = filterByOrientation(items, orientation);
