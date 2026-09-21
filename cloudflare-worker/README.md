@@ -24,6 +24,10 @@
    - `PEXELS_KEY` — ваш ключ Pexels
    - `UNSPLASH_ACCESS_KEY` — ваш Access Key Unsplash
    - `FLICKR_API_KEY` — ключ Flickr, если используете (необязательно)
+   - `SHUTTERSTOCK_TOKEN` — Personal Access Token Shutterstock, если
+     используете (необязательно; создаётся в личном кабинете на
+     shutterstock.com/developers/apps → API Access, отдельный client_id/
+     secret не нужен — токен подставляется сразу как `Bearer`)
 
    И одну обычную переменную (тип **Text**, не секрет):
    - `ALLOWED_ORIGINS` — адрес вашего сайта, например
@@ -47,6 +51,7 @@ wrangler secret put PIXABAY_KEY
 wrangler secret put PEXELS_KEY
 wrangler secret put UNSPLASH_ACCESS_KEY
 wrangler secret put FLICKR_API_KEY   # необязательно
+wrangler secret put SHUTTERSTOCK_TOKEN   # необязательно
 ```
 
 `wrangler deploy` выведет адрес воркера — впишите его в `js/config.js` так же,

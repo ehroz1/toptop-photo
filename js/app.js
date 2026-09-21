@@ -19,7 +19,7 @@
   const QUALITY_THRESHOLDS = { any: 0, "2k": 2048, "4k": 3840, "8k": 7680 };
   // Условный вес "качества" источника для более умного чередования в ленте —
   // не более чем эвристика, не претендует на объективность.
-  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1 };
+  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1, shutterstock: 1 };
 
   const el = {
     topbar: document.getElementById("topbar"),
@@ -144,6 +144,7 @@
     wikimedia: "Wikimedia Commons",
     openverse: "Openverse",
     flickr: "Flickr",
+    shutterstock: "Shutterstock",
   };
 
   function getActiveList() {
@@ -1596,15 +1597,17 @@
       ? `<a href="${license.url}" target="_blank" rel="noopener noreferrer">${license.name}</a>`
       : license.name;
     const flags = [];
-    if (license.commercial === true) {
+    if (license.requiresPurchase) {
+      flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_requires_purchase")}</span>`);
+    } else if (license.commercial === true) {
       flags.push(`<span class="license-flag">${I18N.t("license_commercial_ok")}</span>`);
     } else if (license.commercial === false) {
       flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_commercial_no")}</span>`);
     }
-    if (license.attribution === true) {
+    if (!license.requiresPurchase && license.attribution === true) {
       flags.push(`<span class="license-flag">${I18N.t("license_attribution_required")}</span>`);
     }
-    if (license.commercial === undefined && license.attribution === undefined) {
+    if (!license.requiresPurchase && license.commercial === undefined && license.attribution === undefined) {
       flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_unknown")}</span>`);
     }
     targetEl.innerHTML = `${nameHtml}${flags.join("")}`;

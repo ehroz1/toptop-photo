@@ -426,6 +426,59 @@
     },
   };
 
+  // Shutterstock Content Search API v2 — в отличие от остальных источников,
+  // бесплатный тариф не даёт прав на полноразмерное фото: превью в выдаче и
+  // "скачивание" — это одна и та же водяная картинка со знаком Shutterstock,
+  // настоящий файл открывается только после покупки лицензии на их сайте
+  // (см. license.requiresPurchase — отдельная плашка в лайтбоксе).
+  const SHUTTERSTOCK_ORIENTATION_MAP = { any: undefined, horizontal: "horizontal", vertical: "vertical", square: "square" };
+  const SHUTTERSTOCK_SORT_MAP = { popular: "popular", newest: "newest" };
+  function shutterstockColorHex(color) {
+    if (!color || color === "any") return undefined;
+    const opt = COLOR_OPTIONS.find((c) => c.id === color);
+    return opt ? opt.hex.replace("#", "") : undefined;
+  }
+  const ShutterstockProvider = {
+    id: "shutterstock",
+    label: "Shutterstock",
+    enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any" } = {}) {
+      const qs = buildQuery({
+        query,
+        page,
+        per_page: 24,
+        image_type: "photo",
+        sort: SHUTTERSTOCK_SORT_MAP[sort] || "popular",
+        orientation: SHUTTERSTOCK_ORIENTATION_MAP[orientation],
+        color: shutterstockColorHex(color),
+      });
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/shutterstock?${qs}`);
+      const items = (data.data || []).map((p) => {
+        const assets = p.assets || {};
+        const previewFull = assets.preview_1500 || assets.preview_1000 || assets.preview || assets.huge_thumb;
+        const previewThumb = assets.large_thumb || assets.preview || previewFull;
+        const pageUrl = `https://www.shutterstock.com/image-photo/-${p.id}`;
+        return {
+          id: `shutterstock-${p.id}`,
+          provider: "shutterstock",
+          thumb: previewThumb?.url,
+          full: previewFull?.url,
+          width: previewFull?.width,
+          height: previewFull?.height,
+          title: p.description || "",
+          description: p.description || "",
+          tags: Array.isArray(p.keywords) ? p.keywords.slice(0, 20) : [],
+          author: undefined,
+          authorUrl: undefined,
+          pageUrl,
+          download: { type: "direct", url: previewFull?.url },
+          license: { name: "Shutterstock", url: pageUrl, requiresPurchase: true },
+        };
+      }).filter((it) => it.thumb);
+      return { items, total: typeof data.total_count === "number" ? data.total_count : null };
+    },
+  };
+
   global.PROVIDERS = [
     PixabayProvider,
     PexelsProvider,
@@ -433,6 +486,7 @@
     WikimediaProvider,
     OpenverseProvider,
     FlickrProvider,
+    ShutterstockProvider,
   ];
   global.COLOR_OPTIONS = COLOR_OPTIONS;
   global.matchesPeopleFilter = matchesPeopleFilter;

@@ -127,6 +127,17 @@ export default {
       return proxy(`https://api.flickr.com/services/rest/?${params}`, {}, origin, env);
     }
 
+    // Shutterstock Content Search API v2 — авторизация Bearer-токеном
+    // (Personal Access Token из личного кабинета разработчика), а не
+    // отдельными client_id/secret, поэтому один секрет и без copyParams(["key"]).
+    if (url.pathname === "/shutterstock") {
+      if (!env.SHUTTERSTOCK_TOKEN) return jsonError(origin, env, "SHUTTERSTOCK_TOKEN is not configured", 500);
+      const params = copyParams(url);
+      return proxy(`https://api.shutterstock.com/v2/images/search?${params}`, {
+        headers: { Authorization: `Bearer ${env.SHUTTERSTOCK_TOKEN}` },
+      }, origin, env);
+    }
+
     return jsonError(origin, env, "not found", 404);
   },
 };

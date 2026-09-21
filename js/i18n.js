@@ -124,6 +124,7 @@
       license_commercial_no: "Только некоммерческое",
       license_attribution_required: "Нужна атрибуция",
       license_unknown: "Условия лицензии не определены — уточните на странице источника",
+      license_requires_purchase: "Нужна платная лицензия — это превью со знаком Shutterstock",
 
       icon_copy_name_title: "Скопировать идентификатор иконки (набор:имя)",
       icon_copy_name_label: "ID",
@@ -296,6 +297,7 @@
       license_commercial_no: "Non-commercial only",
       license_attribution_required: "Attribution required",
       license_unknown: "License terms unclear — check the source page",
+      license_requires_purchase: "Paid license required — this is a watermarked Shutterstock preview",
 
       icon_copy_name_title: "Copy the icon identifier (set:name)",
       icon_copy_name_label: "ID",
