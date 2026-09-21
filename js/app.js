@@ -761,6 +761,28 @@
     if (state.view === "favorites") renderFavoritesView();
   }
 
+  // Настоящий CSS masonry (grid-template-rows: masonry) пока не везде
+  // поддерживается, поэтому считаем высоту карточки в мелких строках грида
+  // (шаг GRID_ROW_UNIT) сами — см. .grid/.card-skeleton в styles.css.
+  // ResizeObserver сам пересчитывает span при любом изменении высоты:
+  // догрузилась картинка, изменилась ширина колонки при ресайзе и т.п.
+  const GRID_ROW_UNIT = 4;
+  const GRID_GAP = 8;
+  const masonryObserver = new ResizeObserver((entries) => {
+    for (const entry of entries) {
+      // Для карточек наблюдаем за <img>, а не за .card: у .card стоит
+      // overflow:hidden, и её собственная рамка — это уже НАЗНАЧЕННАЯ грид-
+      // строками высота (изначально 1 строка = 4px), а не то, сколько места
+      // просит картинка — так и получался порочный круг "высота 4px, значит
+      // и оставим 4px". У <img> же реальная высота считается независимо
+      // (через aspect-ratio), поэтому измеряем её и назначаем span карточке.
+      const target = entry.target.tagName === "IMG" ? entry.target.closest(".card") : entry.target;
+      if (!target) continue;
+      const span = Math.ceil((entry.contentRect.height + GRID_GAP) / (GRID_ROW_UNIT + GRID_GAP));
+      target.style.gridRowEnd = `span ${Math.max(span, 1)}`;
+    }
+  });
+
   function renderSkeletons(count) {
     for (let i = 0; i < count; i++) {
       const s = document.createElement("div");
@@ -768,6 +790,7 @@
       s.style.height = `${180 + Math.round(Math.random() * 140)}px`;
       s.dataset.skeleton = "1";
       el.grid.appendChild(s);
+      masonryObserver.observe(s);
     }
   }
   function clearSkeletons() {
@@ -1377,6 +1400,7 @@
     if (item.width && item.height) {
       img.style.aspectRatio = `${item.width} / ${item.height}`;
     }
+    masonryObserver.observe(img);
     const stopLoading = () => card.classList.remove("is-img-loading");
     img.addEventListener("load", stopLoading, { once: true });
     img.addEventListener("error", stopLoading, { once: true });
