@@ -1040,7 +1040,13 @@
     };
 
     el.lbHeart.setAttribute("aria-pressed", String(isFavorited(item.id)));
-    el.lbSourceBadge.innerHTML = `<span class="dot dot-${item.provider}"></span>${PROVIDER_LABELS[item.provider]}`;
+    // Для Unsplash слово "Unsplash" в подписи тоже должно быть ссылкой —
+    // это то, что их гайдлайны называют "attribute Unsplash" (пример у них
+    // в форме: "Photo by Annie Spratt on Unsplash", где оба имени — ссылки).
+    const sourceLabel = item.provider === "unsplash"
+      ? `<a href="https://unsplash.com/?utm_source=${encodeURIComponent(window.APP_CONFIG?.UNSPLASH_APP_NAME || "photoseek")}&utm_medium=referral" target="_blank" rel="noopener noreferrer">${PROVIDER_LABELS[item.provider]}</a>`
+      : PROVIDER_LABELS[item.provider];
+    el.lbSourceBadge.innerHTML = `<span class="dot dot-${item.provider}"></span>${sourceLabel}`;
     el.lbTitle.textContent = item.title || I18N.t("lightbox_untitled");
     el.lbDescription.textContent = item.description && item.description !== item.title ? item.description : "";
     el.lbDescription.hidden = !el.lbDescription.textContent;
