@@ -116,6 +116,15 @@
     }
   }
 
+  // Небольшая "пружинка" на иконке сердца при добавлении в избранное.
+  // Перезапускаем анимацию через reflow, чтобы она срабатывала и при
+  // повторном добавлении того же фото после снятия из избранного.
+  function popHeart(btn) {
+    btn.classList.remove("is-pop");
+    void btn.offsetWidth;
+    btn.classList.add("is-pop");
+  }
+
   // ---------- Theme ----------
   function initTheme() {
     const saved = localStorage.getItem(THEME_KEY);
@@ -355,9 +364,13 @@
   });
 
   // ---------- Voice search ----------
+  // Кнопку показываем всегда (не только когда API распознан) — иначе на части
+  // браузеров/после переустановки PWA иконка выглядит как "пропавшая", хотя
+  // на деле просто не поддерживается. При отсутствии поддержки клик просто
+  // объясняет это тостом, вместо того чтобы прятать кнопку целиком.
+  el.micBtn.hidden = false;
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognitionCtor) {
-    el.micBtn.hidden = false;
     const recognizer = new SpeechRecognitionCtor();
     recognizer.lang = "ru-RU";
     recognizer.interimResults = false;
@@ -387,6 +400,10 @@
       listening = false;
       el.micBtn.classList.remove("is-listening");
     });
+  } else {
+    el.micBtn.addEventListener("click", () => {
+      showToast("Голосовой поиск не поддерживается в этом браузере");
+    });
   }
 
   // ---------- Source chips ----------
@@ -415,9 +432,7 @@
     yandex: (q) => `https://yandex.ru/images/search?text=${encodeURIComponent(q)}`,
     google: (q) => `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`,
     pinterest: (q) => `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(q)}`,
-    // У cosmos.so нет официальной документации по URL поиска — формат ниже
-    // не подтверждён, если не сработает, пришлите правильный шаблон.
-    cosmos: (q) => `https://www.cosmos.so/search?q=${encodeURIComponent(q)}`,
+    cosmos: (q) => `https://www.cosmos.so/search/elements/${encodeURIComponent(q + " ")}`,
   };
   function openExternalSearch(engine) {
     const q = el.input.value.trim();
@@ -746,11 +761,14 @@
     else state.favorites.set(item.id, item);
     persistFavorites();
     vibrate(15);
+    const nowActive = isFavorited(item.id);
     document.querySelectorAll(`.card-heart[data-id="${cssEscape(item.id)}"]`).forEach((btn) => {
-      btn.classList.toggle("is-active", isFavorited(item.id));
+      btn.classList.toggle("is-active", nowActive);
+      if (nowActive) popHeart(btn);
     });
     if (state.lightboxIndex >= 0 && getActiveList()[state.lightboxIndex]?.id === item.id) {
-      el.lbHeart.setAttribute("aria-pressed", String(isFavorited(item.id)));
+      el.lbHeart.setAttribute("aria-pressed", String(nowActive));
+      if (nowActive) popHeart(el.lbHeart);
     }
     if (state.view === "favorites") renderFavoritesView();
   }
@@ -1238,8 +1256,19 @@
 
   // ---------- PWA ----------
   if ("serviceWorker" in navigator) {
+    // Если контроллер уже был (не самый первый визит) и он сменился — значит,
+    // сайт обновился, пока страница была открыта со старым JS в памяти.
+    // Перезагружаем один раз, чтобы сразу подхватить новую версию, а не
+    // ждать следующего захода.
+    const hadController = !!navigator.serviceWorker.controller;
     window.addEventListener("load", () => {
       navigator.serviceWorker.register("sw.js").catch((err) => console.warn("SW registration failed:", err));
+    });
+    let reloadedForUpdate = false;
+    navigator.serviceWorker.addEventListener("controllerchange", () => {
+      if (!hadController || reloadedForUpdate) return;
+      reloadedForUpdate = true;
+      location.reload();
     });
   }
 
