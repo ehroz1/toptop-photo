@@ -905,11 +905,6 @@
     if (state.queryMatcher) {
       batch = batch.filter(state.queryMatcher);
     }
-    if (window.dedupeItems && batch.length > 0) {
-      const { kept, hashes } = await window.dedupeItems(batch, state.dedupeHashes);
-      batch = kept;
-      state.dedupeHashes.push(...hashes);
-    }
 
     if (isFirst) clearSkeletons();
 
@@ -923,6 +918,14 @@
       state.items = state.items.concat(batch);
       const anyMore = activeProviders.some((p) => state.hasMore[p.id]);
       el.loadMoreWrap.hidden = !anyMore;
+      // Дедупликация по перцептивному хешу качает байты каждого превью —
+      // если ждать её здесь (как было раньше), первая карточка появляется
+      // заметно позже, особенно теперь, когда источников стало больше.
+      // Поэтому показываем карточки сразу, а найденные дубли между стоками
+      // убираем из ленты чуть погодя, в фоне, не блокируя отрисовку.
+      if (window.dedupeItems && batch.length > 0) {
+        removeDuplicatesInBackground(batch, generation);
+      }
     }
 
     if (isFirst) {
@@ -951,6 +954,40 @@
     if (!el.loadMoreWrap.hidden && autoDepth < 3 && isNearViewport(el.loadMoreWrap)) {
       loadPage(false, generation, autoDepth + 1);
     }
+  }
+
+  // Считает хеши уже показанных карточек и убирает из ленты те, что
+  // оказались дублями (между разными стоками) — асинхронно, не блокируя
+  // основной рендер (см. вызов в loadPage). Карточка на экране могла успеть
+  // прокрутиться за это время — просто снимаем её из DOM и из state.items.
+  async function removeDuplicatesInBackground(batch, generation) {
+    let kept, hashes;
+    try {
+      ({ kept, hashes } = await window.dedupeItems(batch, state.dedupeHashes));
+    } catch (err) {
+      console.warn("Фоновая дедупликация не удалась:", err);
+      return;
+    }
+    if (generation !== searchGeneration) return; // поиск уже сменился — наш результат не нужен
+    state.dedupeHashes.push(...hashes);
+    if (kept.length === batch.length) return; // дублей не нашлось
+
+    const keptSet = new Set(kept);
+    const removed = batch.filter((it) => !keptSet.has(it));
+    if (removed.length === 0) return;
+    const removedIds = new Set(removed.map((it) => it.id));
+    state.items = state.items.filter((it) => !removedIds.has(it.id));
+    // Пока считали хеши, пользователь мог уйти в "Избранное" — там сейчас
+    // другой набор карточек (может включать те же id, если фото уже
+    // избранное), трогать DOM в этом случае нельзя.
+    if (state.view !== "search") return;
+    removed.forEach((it) => {
+      const card = el.grid.querySelector(`.card[data-id="${cssEscape(it.id)}"]`);
+      if (!card) return;
+      const img = card.querySelector("img");
+      if (img) masonryObserver.unobserve(img);
+      card.remove();
+    });
   }
 
   function isNearViewport(elm, margin = 800) {
@@ -1389,7 +1426,7 @@
     clearImageLoadQueue();
     el.grid.innerHTML = "";
     const frag = document.createDocumentFragment();
-    list.forEach((item, i) => frag.appendChild(buildCard(item, i)));
+    list.forEach((item) => frag.appendChild(buildCard(item)));
     el.grid.appendChild(frag);
   }
 
@@ -1426,17 +1463,19 @@
   }
 
   function appendCards(items) {
-    const startIndex = state.items.length;
     const frag = document.createDocumentFragment();
-    items.forEach((item, i) => {
-      frag.appendChild(buildCard(item, startIndex + i));
-    });
+    items.forEach((item) => frag.appendChild(buildCard(item)));
     el.grid.appendChild(frag);
   }
 
-  function buildCard(item, index) {
+  function buildCard(item) {
     const card = document.createElement("div");
     card.className = "card is-img-loading";
+    // Не завязываемся на позицию в момент рендера — фоновая дедупликация
+    // (см. loadPage) может позже убрать какие-то карточки, из-за чего
+    // "застолблённый" при сборке числовой индекс у всех, что идут за ними,
+    // стал бы неверным. Вместо этого ищем свежий индекс по клику.
+    card.dataset.id = item.id;
 
     const img = document.createElement("img");
     img.alt = item.title || "";
@@ -1516,7 +1555,7 @@
         toggleSelect(item.id, card);
         return;
       }
-      openLightbox(index);
+      openLightbox(getActiveList().indexOf(item));
     });
     return card;
   }
