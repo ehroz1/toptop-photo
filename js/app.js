@@ -21,6 +21,7 @@
     yandexBtn: document.getElementById("yandexBtn"),
     googleBtn: document.getElementById("googleBtn"),
     pinterestBtn: document.getElementById("pinterestBtn"),
+    cosmosBtn: document.getElementById("cosmosBtn"),
     colorMenu: document.getElementById("colorMenu"),
     resultsCount: document.getElementById("resultsCount"),
     providerWarnings: document.getElementById("providerWarnings"),
@@ -238,11 +239,15 @@
   el.yandexBtn.addEventListener("click", () => openExternalSearch("yandex"));
   el.googleBtn.addEventListener("click", () => openExternalSearch("google"));
   el.pinterestBtn.addEventListener("click", () => openExternalSearch("pinterest"));
+  el.cosmosBtn.addEventListener("click", () => openExternalSearch("cosmos"));
 
   const EXTERNAL_SEARCH_URLS = {
     yandex: (q) => `https://yandex.ru/images/search?text=${encodeURIComponent(q)}`,
     google: (q) => `https://www.google.com/search?tbm=isch&q=${encodeURIComponent(q)}`,
     pinterest: (q) => `https://www.pinterest.com/search/pins/?q=${encodeURIComponent(q)}`,
+    // У cosmos.so нет официальной документации по URL поиска — формат ниже
+    // не подтверждён, если не сработает, пришлите правильный шаблон.
+    cosmos: (q) => `https://www.cosmos.so/search?q=${encodeURIComponent(q)}`,
   };
   function openExternalSearch(engine) {
     const q = el.input.value.trim();
