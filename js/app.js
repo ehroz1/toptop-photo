@@ -81,6 +81,9 @@
     lbNext: document.getElementById("lbNext"),
     modeSwitch: document.getElementById("modeSwitch"),
     filtersRow: document.getElementById("filtersRow"),
+    filtersToggle: document.getElementById("filtersToggle"),
+    filtersPopover: document.getElementById("filtersPopover"),
+    filtersBadge: document.getElementById("filtersBadge"),
     heroH1Before: document.getElementById("heroH1Before"),
     heroH1Underline: document.getElementById("heroH1Underline"),
     heroP: document.getElementById("heroP"),
@@ -236,6 +239,7 @@
     exitSelectMode();
     closeLightbox();
     closeIconLightbox();
+    closeFiltersPopover();
     const wasIcons = state.mode === "icons";
     applyModeUI(mode);
     if (wasIcons && mode !== "icons") {
@@ -405,6 +409,7 @@
   })();
 
   loadPersistedFilters();
+  updateFiltersBadge();
 
   // ---------- Stats & rate-limit tracking ----------
   const stats = (function loadStats() {
@@ -595,12 +600,45 @@
         state[key] = item.dataset.val;
         dropdown.classList.remove("is-open");
         saveFilters();
+        updateFiltersBadge();
         if (state.query) runSearch({ keepTranslation: true });
       });
     });
   });
   document.addEventListener("click", () => {
     document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+  });
+
+  // ---------- Единая кнопка фильтров ----------
+  // Все 5 фильтров (качество/ориентация/сортировка/люди/цвет) собраны в один
+  // popover за одной иконкой — раньше это была отдельная строка из пяти
+  // всегда видимых плашек. Бейдж на кнопке показывает, сколько фильтров
+  // сейчас отличаются от значения по умолчанию, не открывая панель.
+  function updateFiltersBadge() {
+    const activeCount = [
+      state.quality !== "any",
+      state.orientation !== "any",
+      state.sort !== "popular",
+      state.people !== "any",
+      state.color !== "any",
+    ].filter(Boolean).length;
+    el.filtersBadge.textContent = String(activeCount);
+    el.filtersBadge.hidden = activeCount === 0;
+    el.filtersToggle.classList.toggle("has-active-filters", activeCount > 0);
+  }
+  function closeFiltersPopover() {
+    el.filtersPopover.hidden = true;
+    el.filtersToggle.setAttribute("aria-expanded", "false");
+  }
+  el.filtersToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = el.filtersPopover.hidden;
+    document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+    el.filtersPopover.hidden = !willOpen;
+    el.filtersToggle.setAttribute("aria-expanded", String(willOpen));
+  });
+  document.addEventListener("click", (e) => {
+    if (!el.filtersPopover.hidden && !el.filtersRow.contains(e.target)) closeFiltersPopover();
   });
 
   // ---------- URL query param (?q=&mode=icons) ----------

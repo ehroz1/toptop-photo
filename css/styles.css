@@ -43,6 +43,7 @@
   --icon-share: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 12v7a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7'/%3E%3Cpolyline points='16 6 12 2 8 6'/%3E%3Cline x1='12' y1='2' x2='12' y2='15'/%3E%3C/svg%3E");
   --icon-mic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2' width='6' height='12' rx='3'/%3E%3Cpath d='M5 11a7 7 0 0 0 14 0'/%3E%3Cline x1='12' y1='18' x2='12' y2='22'/%3E%3Cline x1='8' y1='22' x2='16' y2='22'/%3E%3C/svg%3E");
   --icon-chart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='5' y1='21' x2='5' y2='11'/%3E%3Cline x1='12' y1='21' x2='12' y2='4'/%3E%3Cline x1='19' y1='21' x2='19' y2='15'/%3E%3C/svg%3E");
+  --icon-filters: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cline x1='4' y1='6' x2='20' y2='6'/%3E%3Ccircle cx='9' cy='6' r='2' fill='black' stroke='none'/%3E%3Cline x1='4' y1='12' x2='20' y2='12'/%3E%3Ccircle cx='16' cy='12' r='2' fill='black' stroke='none'/%3E%3Cline x1='4' y1='18' x2='20' y2='18'/%3E%3Ccircle cx='11' cy='18' r='2' fill='black' stroke='none'/%3E%3C/svg%3E");
 }
 
 :root[data-theme="dark"] {
@@ -336,6 +337,7 @@ body {
 #favoritesToggle .icon-heart { -webkit-mask: var(--icon-heart) center / contain no-repeat; mask: var(--icon-heart) center / contain no-repeat; }
 #favoritesToggle[aria-pressed="true"] .icon-heart { -webkit-mask-image: var(--icon-heart-filled); mask-image: var(--icon-heart-filled); }
 #selectModeToggle .icon-check-square { -webkit-mask: var(--icon-check-square) center / contain no-repeat; mask: var(--icon-check-square) center / contain no-repeat; }
+#filtersToggle .icon-filters { background-color: currentColor; -webkit-mask: var(--icon-filters) center / contain no-repeat; mask: var(--icon-filters) center / contain no-repeat; }
 
 /* ---------- Translated query hint ---------- */
 .translated-hint {
@@ -373,7 +375,15 @@ body {
   gap: 12px;
   flex-wrap: wrap;
 }
+/* Строка "источники + кнопка фильтров" не должна переноситься на вторую
+   строку — источники сами скроллятся внутри (.toolbar-row-scroll), а
+   кнопка фильтров всегда остаётся прижатой к правому краю. */
+.toolbar-row-main { flex-wrap: nowrap; }
 .toolbar-row-scroll {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1 1 auto;
   flex-wrap: nowrap;
   overflow-x: auto;
   scrollbar-width: none;
@@ -467,21 +477,59 @@ body {
 .source-chip-external:hover { color: var(--text); background: var(--accent-soft); }
 .source-chip-external .icon { width: 14px; height: 14px; background-color: currentColor; -webkit-mask: var(--icon-external) center / contain no-repeat; mask: var(--icon-external) center / contain no-repeat; }
 
+/* ---------- Единая кнопка фильтров ----------
+   Раньше качество/ориентация/сортировка/люди/цвет были пятью всегда
+   видимыми плашками в отдельной строке. Теперь это один popover за одной
+   иконкой справа (см. #filtersToggle/#filtersPopover в index.html) —
+   внутри те же самые .dropdown-блоки, просто в вертикальный список
+   вместо горизонтального ряда, и вся генерическая логика открытия/выбора
+   в app.js остаётся прежней (она работает с .dropdown по data-атрибуту,
+   а не по тому, где именно он расположен на странице). */
+.filters-popover-wrap { position: relative; flex-shrink: 0; }
+.filters-badge {
+  position: absolute;
+  top: -2px;
+  right: -2px;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 4px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+#filtersToggle.has-active-filters { color: var(--accent); background: var(--accent-soft); }
+.filters-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  min-width: 230px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: 8px;
+  z-index: 30;
+}
+.filters-popover:not([hidden]) { animation: dropdownIn 0.15s ease; }
 .filters {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  align-items: stretch;
+  gap: 2px;
 }
-.dropdown { position: relative; flex-shrink: 0; }
+.dropdown { position: relative; }
 .dropdown-btn {
-  display: inline-flex;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 6px;
-  padding: 9px 13px;
-  border-radius: 5px;
+  width: 100%;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
   border: none;
-  background: var(--bg-elevated);
+  background: transparent;
   color: var(--text-muted);
   font: inherit;
   font-size: 13.5px;

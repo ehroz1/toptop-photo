@@ -22,6 +22,7 @@
       select_mode_title: "Выбрать несколько фото",
       insights_title: "Статистика и лимиты",
       theme_toggle_title: "Сменить тему",
+      filters_title: "Фильтры",
 
       mode_photos: "Фото",
       mode_icons: "Иконки",
@@ -193,6 +194,7 @@
       select_mode_title: "Select multiple photos",
       insights_title: "Stats & limits",
       theme_toggle_title: "Toggle theme",
+      filters_title: "Filters",
 
       mode_photos: "Photos",
       mode_icons: "Icons",

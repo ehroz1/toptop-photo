@@ -79,106 +79,114 @@
   </div>
 
   <div class="toolbar">
-    <div class="toolbar-row toolbar-row-scroll">
-      <div class="mode-switch" id="modeSwitch">
-        <button type="button" class="mode-tab is-active" data-mode="photos" data-i18n="mode_photos">Фото</button>
-        <button type="button" class="mode-tab" data-mode="icons" data-i18n="mode_icons">Иконки</button>
+    <div class="toolbar-row toolbar-row-main">
+      <div class="toolbar-row-scroll">
+        <div class="mode-switch" id="modeSwitch">
+          <button type="button" class="mode-tab is-active" data-mode="photos" data-i18n="mode_photos">Фото</button>
+          <button type="button" class="mode-tab" data-mode="icons" data-i18n="mode_icons">Иконки</button>
+        </div>
+        <div class="sources" id="sources">
+          <button type="button" class="source-chip" data-source="pixabay" aria-pressed="true">
+            <span class="dot dot-pixabay"></span>Pixabay
+          </button>
+          <button type="button" class="source-chip" data-source="pexels" aria-pressed="true">
+            <span class="dot dot-pexels"></span>Pexels
+          </button>
+          <button type="button" class="source-chip" data-source="unsplash" aria-pressed="true">
+            <span class="dot dot-unsplash"></span>Unsplash
+          </button>
+          <button type="button" class="source-chip" data-source="wikimedia" aria-pressed="true">
+            <span class="dot dot-wikimedia"></span>Wikimedia
+          </button>
+          <button type="button" class="source-chip" data-source="openverse" aria-pressed="true">
+            <span class="dot dot-openverse"></span>Openverse
+          </button>
+          <button type="button" class="source-chip" data-source="flickr" aria-pressed="false">
+            <span class="dot dot-flickr"></span>Flickr
+          </button>
+
+          <span class="sources-sep" aria-hidden="true"></span>
+
+          <button type="button" class="source-chip source-chip-external" id="yandexBtn" data-i18n-title="source_yandex_title">
+            <span class="icon icon-external" aria-hidden="true"></span><span data-i18n="source_yandex_label">Яндекс.Картинки</span>
+          </button>
+          <button type="button" class="source-chip source-chip-external" id="googleBtn" data-i18n-title="source_google_title">
+            <span class="icon icon-external" aria-hidden="true"></span><span data-i18n="source_google_label">Google Картинки</span>
+          </button>
+          <button type="button" class="source-chip source-chip-external" id="pinterestBtn" data-i18n-title="source_pinterest_title">
+            <span class="icon icon-external" aria-hidden="true"></span>Pinterest
+          </button>
+          <button type="button" class="source-chip source-chip-external" id="cosmosBtn" data-i18n-title="source_cosmos_title">
+            <span class="icon icon-external" aria-hidden="true"></span>Cosmos
+          </button>
+        </div>
       </div>
-      <div class="sources" id="sources">
-        <button type="button" class="source-chip" data-source="pixabay" aria-pressed="true">
-          <span class="dot dot-pixabay"></span>Pixabay
-        </button>
-        <button type="button" class="source-chip" data-source="pexels" aria-pressed="true">
-          <span class="dot dot-pexels"></span>Pexels
-        </button>
-        <button type="button" class="source-chip" data-source="unsplash" aria-pressed="true">
-          <span class="dot dot-unsplash"></span>Unsplash
-        </button>
-        <button type="button" class="source-chip" data-source="wikimedia" aria-pressed="true">
-          <span class="dot dot-wikimedia"></span>Wikimedia
-        </button>
-        <button type="button" class="source-chip" data-source="openverse" aria-pressed="true">
-          <span class="dot dot-openverse"></span>Openverse
-        </button>
-        <button type="button" class="source-chip" data-source="flickr" aria-pressed="false">
-          <span class="dot dot-flickr"></span>Flickr
-        </button>
 
-        <span class="sources-sep" aria-hidden="true"></span>
-
-        <button type="button" class="source-chip source-chip-external" id="yandexBtn" data-i18n-title="source_yandex_title">
-          <span class="icon icon-external" aria-hidden="true"></span><span data-i18n="source_yandex_label">Яндекс.Картинки</span>
+      <div class="filters-popover-wrap" id="filtersRow">
+        <button type="button" id="filtersToggle" class="icon-btn" data-i18n-title="filters_title" aria-expanded="false">
+          <span class="icon icon-filters" aria-hidden="true"></span>
+          <span id="filtersBadge" class="filters-badge" hidden></span>
         </button>
-        <button type="button" class="source-chip source-chip-external" id="googleBtn" data-i18n-title="source_google_title">
-          <span class="icon icon-external" aria-hidden="true"></span><span data-i18n="source_google_label">Google Картинки</span>
-        </button>
-        <button type="button" class="source-chip source-chip-external" id="pinterestBtn" data-i18n-title="source_pinterest_title">
-          <span class="icon icon-external" aria-hidden="true"></span>Pinterest
-        </button>
-        <button type="button" class="source-chip source-chip-external" id="cosmosBtn" data-i18n-title="source_cosmos_title">
-          <span class="icon icon-external" aria-hidden="true"></span>Cosmos
-        </button>
-      </div>
-    </div>
+        <div id="filtersPopover" class="filters-popover" hidden>
+          <div class="filters">
+            <div class="dropdown" data-dropdown="quality">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="quality_label">Качество</span> <span class="dropdown-value" data-value data-i18n="quality_any">Любое</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="quality_any">Любое</button>
+                <button type="button" class="dropdown-item" data-val="2k" data-i18n="quality_2k">От 2K (2048px+)</button>
+                <button type="button" class="dropdown-item" data-val="4k" data-i18n="quality_4k">От 4K (3840px+)</button>
+                <button type="button" class="dropdown-item" data-val="8k" data-i18n="quality_8k">От 8K (7680px+)</button>
+              </div>
+            </div>
 
-    <div class="toolbar-row" id="filtersRow">
-      <div class="filters">
-        <div class="dropdown" data-dropdown="quality">
-          <button type="button" class="dropdown-btn">
-            <span data-i18n="quality_label">Качество</span> <span class="dropdown-value" data-value data-i18n="quality_any">Любое</span>
-            <span class="icon icon-chevron" aria-hidden="true"></span>
-          </button>
-          <div class="dropdown-menu">
-            <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="quality_any">Любое</button>
-            <button type="button" class="dropdown-item" data-val="2k" data-i18n="quality_2k">От 2K (2048px+)</button>
-            <button type="button" class="dropdown-item" data-val="4k" data-i18n="quality_4k">От 4K (3840px+)</button>
-            <button type="button" class="dropdown-item" data-val="8k" data-i18n="quality_8k">От 8K (7680px+)</button>
-          </div>
-        </div>
+            <div class="dropdown" data-dropdown="orientation">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="orientation_label">Ориентация</span> <span class="dropdown-value" data-value data-i18n="orientation_any">Любая</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="orientation_any">Любая</button>
+                <button type="button" class="dropdown-item" data-val="horizontal" data-i18n="orientation_horizontal">Горизонтальная</button>
+                <button type="button" class="dropdown-item" data-val="vertical" data-i18n="orientation_vertical">Вертикальная</button>
+                <button type="button" class="dropdown-item" data-val="square" data-i18n="orientation_square">Квадрат</button>
+              </div>
+            </div>
 
-        <div class="dropdown" data-dropdown="orientation">
-          <button type="button" class="dropdown-btn">
-            <span data-i18n="orientation_label">Ориентация</span> <span class="dropdown-value" data-value data-i18n="orientation_any">Любая</span>
-            <span class="icon icon-chevron" aria-hidden="true"></span>
-          </button>
-          <div class="dropdown-menu">
-            <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="orientation_any">Любая</button>
-            <button type="button" class="dropdown-item" data-val="horizontal" data-i18n="orientation_horizontal">Горизонтальная</button>
-            <button type="button" class="dropdown-item" data-val="vertical" data-i18n="orientation_vertical">Вертикальная</button>
-            <button type="button" class="dropdown-item" data-val="square" data-i18n="orientation_square">Квадрат</button>
-          </div>
-        </div>
+            <div class="dropdown" data-dropdown="sort">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="sort_label">Сортировка</span> <span class="dropdown-value" data-value data-i18n="sort_popular">Популярное</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="popular" data-i18n="sort_popular">Популярное</button>
+                <button type="button" class="dropdown-item" data-val="newest" data-i18n="sort_newest">Новое</button>
+              </div>
+            </div>
 
-        <div class="dropdown" data-dropdown="sort">
-          <button type="button" class="dropdown-btn">
-            <span data-i18n="sort_label">Сортировка</span> <span class="dropdown-value" data-value data-i18n="sort_popular">Популярное</span>
-            <span class="icon icon-chevron" aria-hidden="true"></span>
-          </button>
-          <div class="dropdown-menu">
-            <button type="button" class="dropdown-item is-active" data-val="popular" data-i18n="sort_popular">Популярное</button>
-            <button type="button" class="dropdown-item" data-val="newest" data-i18n="sort_newest">Новое</button>
-          </div>
-        </div>
+            <div class="dropdown" data-dropdown="people">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="people_label">Люди</span> <span class="dropdown-value" data-value data-i18n="people_any_short">Любые</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="people_any">Любые фото</button>
+                <button type="button" class="dropdown-item" data-val="with" data-i18n="people_with">Только с людьми</button>
+                <button type="button" class="dropdown-item" data-val="without" data-i18n="people_without">Без людей</button>
+              </div>
+            </div>
 
-        <div class="dropdown" data-dropdown="people">
-          <button type="button" class="dropdown-btn">
-            <span data-i18n="people_label">Люди</span> <span class="dropdown-value" data-value data-i18n="people_any_short">Любые</span>
-            <span class="icon icon-chevron" aria-hidden="true"></span>
-          </button>
-          <div class="dropdown-menu">
-            <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="people_any">Любые фото</button>
-            <button type="button" class="dropdown-item" data-val="with" data-i18n="people_with">Только с людьми</button>
-            <button type="button" class="dropdown-item" data-val="without" data-i18n="people_without">Без людей</button>
-          </div>
-        </div>
-
-        <div class="dropdown" data-dropdown="color">
-          <button type="button" class="dropdown-btn">
-            <span data-i18n="color_label">Цвет</span> <span class="dropdown-value" data-value data-i18n="color_any_short">Любой</span>
-            <span class="icon icon-chevron" aria-hidden="true"></span>
-          </button>
-          <div class="dropdown-menu dropdown-menu-colors" id="colorMenu">
-            <button type="button" class="dropdown-item is-any is-active" data-val="any" data-i18n="color_any">Любой цвет</button>
+            <div class="dropdown" data-dropdown="color">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="color_label">Цвет</span> <span class="dropdown-value" data-value data-i18n="color_any_short">Любой</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu dropdown-menu-colors" id="colorMenu">
+                <button type="button" class="dropdown-item is-any is-active" data-val="any" data-i18n="color_any">Любой цвет</button>
+              </div>
+            </div>
           </div>
         </div>
       </div>
