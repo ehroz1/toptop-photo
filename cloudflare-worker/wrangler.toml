@@ -1,0 +1,14 @@
+name = "photoseek-proxy"
+main = "worker.js"
+compatibility_date = "2024-01-01"
+
+# Секретные ключи НЕ пишутся сюда и не коммитятся. После деплоя задайте их
+# командами (каждая спросит значение интерактивно, ничего не попадёт в git):
+#   wrangler secret put PIXABAY_KEY
+#   wrangler secret put PEXELS_KEY
+#   wrangler secret put UNSPLASH_ACCESS_KEY
+#   wrangler secret put FLICKR_API_KEY   (необязательно, если не используете Flickr)
+#
+# ALLOWED_ORIGINS не секретный — можно задать прямо тут, через vars.
+[vars]
+ALLOWED_ORIGINS = "https://ehroz1.github.io"

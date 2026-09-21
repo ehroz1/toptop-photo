@@ -1187,27 +1187,35 @@
   }
 
   // ---------- Download ----------
+  // Ключ Unsplash теперь не хранится в браузере — download_location дёргаем
+  // через Cloudflare Worker (см. cloudflare-worker/worker.js), который сам
+  // подставляет ключ на своей стороне.
   // Unsplash API Guidelines требуют дёргать photo.links.download_location
   // при любом действии, похожем на скачивание (сохранение, копирование
   // картинки, шаринг файлом, перетаскивание на рабочий стол) — не только
   // при явном клике на "Скачать".
+  function unsplashDownloadProxyUrl(item) {
+    if (!window.APP_CONFIG?.WORKER_BASE_URL) return null;
+    return `${window.APP_CONFIG.WORKER_BASE_URL}/unsplash/download?location=${encodeURIComponent(item.download.locationUrl)}`;
+  }
+
   function pingUnsplashDownload(item) {
     if (item.download?.type === "unsplash" && item.download.locationUrl) {
-      fetch(item.download.locationUrl, {
-        headers: { Authorization: `Client-ID ${window.APP_CONFIG.UNSPLASH_ACCESS_KEY}` },
-      }).catch(() => { /* не критично — это просто отметка о скачивании */ });
+      const proxyUrl = unsplashDownloadProxyUrl(item);
+      if (proxyUrl) fetch(proxyUrl).catch(() => { /* не критично — это просто отметка о скачивании */ });
     }
   }
 
   async function resolveDownloadUrl(item) {
     if (item.download.type === "unsplash" && item.download.locationUrl) {
+      const proxyUrl = unsplashDownloadProxyUrl(item);
       try {
-        const res = await fetch(item.download.locationUrl, {
-          headers: { Authorization: `Client-ID ${window.APP_CONFIG.UNSPLASH_ACCESS_KEY}` },
-        });
-        if (res.ok) {
-          const data = await res.json();
-          if (data.url) return data.url;
+        if (proxyUrl) {
+          const res = await fetch(proxyUrl);
+          if (res.ok) {
+            const data = await res.json();
+            if (data.url) return data.url;
+          }
         }
       } catch { /* используем прямую ссылку как запасной вариант */ }
     }

@@ -111,12 +111,11 @@
   const PixabayProvider = {
     id: "pixabay",
     label: "Pixabay",
-    enabled: () => Boolean(CONFIG.PIXABAY_KEY),
+    enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
     async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", people = "any" } = {}) {
       const orientationMap = { any: "all", horizontal: "horizontal", vertical: "vertical", square: "all" };
       const orderMap = { popular: "popular", newest: "latest" };
       const qs = buildQuery({
-        key: CONFIG.PIXABAY_KEY,
         q: query,
         image_type: "photo",
         safesearch: "true",
@@ -129,7 +128,7 @@
         // а окончательную сверку по тегам всё равно делаем в app.js для всех источников
         category: people === "with" ? "people" : undefined,
       });
-      const data = await fetchJson(`https://pixabay.com/api/?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pixabay?${qs}`);
       let items = (data.hits || []).map((hit) => ({
         id: `pixabay-${hit.id}`,
         provider: "pixabay",
@@ -155,7 +154,7 @@
   const PexelsProvider = {
     id: "pexels",
     label: "Pexels",
-    enabled: () => Boolean(CONFIG.PEXELS_KEY),
+    enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
     async search(query, { page = 1, orientation = "any", color = "any" } = {}) {
       const orientationMap = { any: undefined, horizontal: "landscape", vertical: "portrait", square: "square" };
       const qs = buildQuery({
@@ -165,9 +164,7 @@
         orientation: orientationMap[orientation],
         color: mapColor(PEXELS_COLOR_MAP, color),
       });
-      const data = await fetchJson(`https://api.pexels.com/v1/search?${qs}`, {
-        headers: { Authorization: CONFIG.PEXELS_KEY },
-      });
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pexels?${qs}`);
       const items = (data.photos || []).map((p) => ({
         id: `pexels-${p.id}`,
         provider: "pexels",
@@ -190,7 +187,7 @@
   const UnsplashProvider = {
     id: "unsplash",
     label: "Unsplash",
-    enabled: () => Boolean(CONFIG.UNSPLASH_ACCESS_KEY),
+    enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
     async search(query, { page = 1, orientation = "any", sort = "popular", color = "any" } = {}) {
       const orientationMap = { any: undefined, horizontal: "landscape", vertical: "portrait", square: "squarish" };
       const orderMap = { popular: "relevant", newest: "latest" };
@@ -202,9 +199,7 @@
         order_by: orderMap[sort] || "relevant",
         color: mapColor(UNSPLASH_COLOR_MAP, color),
       });
-      const data = await fetchJson(`https://api.unsplash.com/search/photos?${qs}`, {
-        headers: { Authorization: `Client-ID ${CONFIG.UNSPLASH_ACCESS_KEY}` },
-      });
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/unsplash/search?${qs}`);
       const items = (data.results || []).map((p) => ({
         id: `unsplash-${p.id}`,
         provider: "unsplash",
@@ -309,12 +304,11 @@
   const FlickrProvider = {
     id: "flickr",
     label: "Flickr",
-    enabled: () => Boolean(CONFIG.FLICKR_API_KEY),
+    enabled: () => Boolean(CONFIG.WORKER_BASE_URL && CONFIG.FLICKR_ENABLED),
     async search(query, { page = 1, orientation = "any", sort = "popular" } = {}) {
       const sortMap = { popular: "relevance", newest: "date-posted-desc" };
       const qs = buildQuery({
         method: "flickr.photos.search",
-        api_key: CONFIG.FLICKR_API_KEY,
         text: query,
         sort: sortMap[sort] || "relevance",
         // только лицензии, допускающие свободное использование/переработку
@@ -328,7 +322,7 @@
         format: "json",
         nojsoncallback: 1,
       });
-      const data = await fetchJson(`https://api.flickr.com/services/rest/?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/flickr?${qs}`);
       if (data.stat !== "ok") throw new Error(data.message || "error");
       let items = (data.photos?.photo || []).map((p) => {
         const width = p.o_width ? Number(p.o_width) : undefined;
@@ -362,7 +356,6 @@
     OpenverseProvider,
     FlickrProvider,
   ];
-  global.UNSPLASH_CONFIG = CONFIG;
   global.COLOR_OPTIONS = COLOR_OPTIONS;
   global.matchesPeopleFilter = matchesPeopleFilter;
 })(window);
