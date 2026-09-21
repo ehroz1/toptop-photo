@@ -694,7 +694,22 @@
       el.translatedHint.hidden = true;
       state.queryMatcher = window.buildQueryMatcher(parsed, new Map());
     } else {
-      const result = await window.translateQuery(parsed.apiQuery);
+      // Основной перевод, доп.языки (для Wikimedia/Openverse) и перевод
+      // терминов операторов (-слово/"фраза"/ИЛИ) друг от друга не зависят —
+      // раньше они ждали друг друга по очереди (3 последовательных похода к
+      // MyMemory), из-за чего выдача стала заметно медленнее. Теперь все три
+      // похода идут параллельно, и результат готов за время самого долгого
+      // из них, а не суммы всех.
+      const operatorTerms = [...parsed.mustPhrases, ...parsed.mustNot, ...parsed.orGroups.flat()];
+      const [result, extraTranslations, translatedTermsEntries] = await Promise.all([
+        window.translateQuery(parsed.apiQuery),
+        window.translateQueryToLangs ? window.translateQueryToLangs(parsed.apiQuery, MULTI_LANG_TARGETS) : Promise.resolve([]),
+        Promise.all(operatorTerms.map(async (term) => {
+          const r = await window.translateQuery(term);
+          return [term.toLowerCase(), r.translated.toLowerCase()];
+        })),
+      ]);
+
       state.searchQuery = result.translated;
       if (result.wasTranslated) {
         el.translatedHintText.textContent = result.translated;
@@ -707,18 +722,8 @@
       // многоязычными описаниями (Wikimedia/Openverse — см. multiLang в
       // providers.js) пробуем ещё пару языков. Иногда там подписано не
       // по-английски, и такое фото иначе просто не найдётся.
-      state.extraQueries = window.translateQueryToLangs
-        ? (await window.translateQueryToLangs(parsed.apiQuery, MULTI_LANG_TARGETS))
-            .filter((t) => t.toLowerCase() !== state.searchQuery.toLowerCase())
-        : [];
-
-      const operatorTerms = [...parsed.mustPhrases, ...parsed.mustNot, ...parsed.orGroups.flat()];
-      const translatedTermsMap = new Map();
-      await Promise.all(operatorTerms.map(async (term) => {
-        const r = await window.translateQuery(term);
-        translatedTermsMap.set(term.toLowerCase(), r.translated.toLowerCase());
-      }));
-      state.queryMatcher = window.buildQueryMatcher(parsed, translatedTermsMap);
+      state.extraQueries = extraTranslations.filter((t) => t.toLowerCase() !== state.searchQuery.toLowerCase());
+      state.queryMatcher = window.buildQueryMatcher(parsed, new Map(translatedTermsEntries));
     }
 
     if (myGeneration !== searchGeneration) return; // отменено более новым поиском, пока мы переводили
@@ -808,40 +813,30 @@
       activeProviders.map(async (p) => {
         const page = (state.pages[p.id] || 0) + 1;
         try {
-          const { items, total } = await p.search(state.searchQuery, {
-            page,
-            orientation: state.orientation,
-            sort: state.sort,
-            color: state.color,
-            people: state.people,
-          });
+          const searchOpts = { orientation: state.orientation, sort: state.sort, color: state.color, people: state.people };
+          // Многоязычный поиск — только на первой странице свежего поиска и
+          // только для источников с multiLang: true (см. providers.js).
+          // "Бонусные" результаты на доп. языках не участвуют в пагинации
+          // (не трогаем state.pages/hasMore) и не считаются в totals — это
+          // добавка к первой странице, а не отдельный источник. Основной и
+          // бонусные запросы уходят ОДНИМ Promise.all (а не по очереди) —
+          // иначе для Wikimedia/Openverse время ответа складывалось бы, а не
+          // определялось самым медленным из них.
+          const bonusQueries = isFirst && p.multiLang && state.extraQueries.length > 0 ? state.extraQueries : [];
+          const [primary, ...bonusBatches] = await Promise.all([
+            p.search(state.searchQuery, { ...searchOpts, page }),
+            ...bonusQueries.map((q) =>
+              p.search(q, { ...searchOpts, page: 1 })
+                .then((r) => r.items)
+                .catch(() => []) // бонусный язык не нашёлся — не критично, тихо пропускаем
+            ),
+          ]);
+          const { items, total } = primary;
           if (p.id === "unsplash") logUnsplashRequest();
           state.pages[p.id] = page;
           state.hasMore[p.id] = items.length > 0;
           totals[p.id] = total;
-          let allItems = items;
-          // Многоязычный поиск — только на первой странице свежего поиска и
-          // только для источников с multiLang: true (см. providers.js).
-          // "Бонусные" результаты на доп. языках не участвуют в пагинации
-          // (не трогаем state.pages/hasMore) и не считаются в totals —
-          // это добавка к первой странице, а не отдельный источник.
-          if (isFirst && p.multiLang && state.extraQueries.length > 0) {
-            const extraBatches = await Promise.all(state.extraQueries.map(async (q) => {
-              try {
-                const r = await p.search(q, {
-                  page: 1,
-                  orientation: state.orientation,
-                  sort: state.sort,
-                  color: state.color,
-                  people: state.people,
-                });
-                return r.items;
-              } catch {
-                return []; // бонусный язык не нашёлся — не критично, тихо пропускаем
-              }
-            }));
-            allItems = allItems.concat(...extraBatches);
-          }
+          const allItems = items.concat(...bonusBatches);
           return { id: p.id, items: allItems };
         } catch (err) {
           console.error(`[${p.label}]`, err);

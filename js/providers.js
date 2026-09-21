@@ -222,7 +222,10 @@
       const items = (data.photos || []).map((p) => ({
         id: `pexels-${p.id}`,
         provider: "pexels",
-        thumb: p.src.large || p.src.medium,
+        // src.medium — 350px, с запасом хватает на карточку сетки шириной
+        // ~280px; src.large (940px) грузился явно тяжелее, чем нужно для
+        // превью, и заметно тормозил выдачу.
+        thumb: p.src.medium || p.src.small,
         full: p.src.original,
         width: p.width,
         height: p.height,
@@ -296,7 +299,11 @@
         gsroffset: (page - 1) * limit,
         prop: "imageinfo",
         iiprop: "url|size|extmetadata|mime",
-        iiurlwidth: 1200,
+        // 800px с запасом хватает и на карточку сетки, и на просмотр в
+        // лайтбоксе (кнопка "Скачать" всё равно ведёт на оригинал через
+        // info.url, а не на этот уменьшенный превью) — 1200px только зря
+        // утяжелял каждую карточку Wikimedia в выдаче.
+        iiurlwidth: 800,
         format: "json",
         origin: "*",
       });
@@ -389,7 +396,7 @@
         safe_search: 1,
         per_page: 24,
         page,
-        extras: "url_c,url_l,url_o,o_dims,owner_name,description,tags,license",
+        extras: "url_n,url_c,url_l,url_o,o_dims,owner_name,description,tags,license",
         format: "json",
         nojsoncallback: 1,
       });
@@ -401,7 +408,10 @@
         return {
           id: `flickr-${p.id}`,
           provider: "flickr",
-          thumb: p.url_c || p.url_l || p.url_o,
+          // url_n — 320px по длинной стороне, для карточки сетки достаточно;
+          // раньше не запрашивали ничего мельче url_c (800px), а без него
+          // превью иногда падало сразу на оригинал (может быть много МБ).
+          thumb: p.url_n || p.url_c || p.url_l || p.url_o,
           full: p.url_l || p.url_c || p.url_o,
           width,
           height,
