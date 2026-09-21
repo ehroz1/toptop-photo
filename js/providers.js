@@ -19,6 +19,16 @@
     return (str || "").replace(/<[^>]*>/g, "").trim();
   }
 
+  // Unsplash API Guidelines требуют помечать ссылки на автора/фото меткой
+  // utm_source=<имя приложения>&utm_medium=referral — без этого заявку на
+  // повышение лимита (Production, 5000 запросов/час вместо 50) отклонят.
+  function withUnsplashUtm(url) {
+    if (!url) return url;
+    const appName = CONFIG.UNSPLASH_APP_NAME || "photoseek";
+    const sep = url.includes("?") ? "&" : "?";
+    return `${url}${sep}utm_source=${encodeURIComponent(appName)}&utm_medium=referral`;
+  }
+
   // Единая обёртка над fetch с понятными сообщениями об ошибках —
   // чтобы в интерфейсе было видно не просто "ошибка", а что именно случилось
   // (HTTP-код, текст ответа сервера или сетевой/CORS-сбой).
@@ -206,8 +216,8 @@
         description: p.description || p.alt_description || "",
         tags: (p.tags || []).map((t) => t.title).filter(Boolean),
         author: p.user?.name,
-        authorUrl: p.user?.links?.html,
-        pageUrl: p.links?.html,
+        authorUrl: withUnsplashUtm(p.user?.links?.html),
+        pageUrl: withUnsplashUtm(p.links?.html),
         download: { type: "unsplash", locationUrl: p.links?.download_location, url: p.urls.full },
       }));
       return { items, total: data.total ?? null };
