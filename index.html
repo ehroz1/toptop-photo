@@ -23,9 +23,8 @@
 <div class="app">
 
   <header class="topbar" id="topbar">
-    <a class="brand" href="https://ehroz1.github.io/toptop-photo/" title="На главный экран">
+    <a class="brand" href="https://ehroz1.github.io/toptop-photo/" data-i18n-title="brand_home_title">
       <span class="brand-mark" aria-hidden="true"></span>
-      <span class="brand-name">PhotoSeek</span>
     </a>
 
     <form class="searchbar" id="searchForm" role="search">
@@ -34,34 +33,34 @@
         id="searchInput"
         type="text"
         class="searchbar-input"
-        placeholder="Например: закат над океаном, кот, город ночью…"
+        data-i18n-placeholder="search_placeholder"
         autocomplete="off"
         spellcheck="false"
-        title='Поддерживается: -слово (исключить), "точная фраза", слово1 ИЛИ слово2'
+        data-i18n-title="search_operators_title"
       >
-      <button type="button" id="micBtn" class="searchbar-mic" title="Голосовой поиск" hidden>
+      <button type="button" id="micBtn" class="searchbar-mic" data-i18n-title="mic_title" hidden>
         <span class="icon icon-mic" aria-hidden="true"></span>
       </button>
-      <button type="button" id="clearBtn" class="searchbar-clear" title="Очистить (Esc)" hidden></button>
-      <button type="submit" class="searchbar-submit" title="Искать">
+      <button type="button" id="clearBtn" class="searchbar-clear" data-i18n-title="clear_title" hidden></button>
+      <button type="submit" class="searchbar-submit" data-i18n-title="submit_title">
         <span class="icon icon-search" aria-hidden="true"></span>
       </button>
     </form>
 
     <div class="topbar-actions">
-      <button id="favoritesToggle" class="icon-btn" title="Избранное" aria-pressed="false">
+      <button id="favoritesToggle" class="icon-btn" data-i18n-title="favorites_title" aria-pressed="false">
         <span class="icon icon-heart" aria-hidden="true"></span>
       </button>
-      <button id="selectModeToggle" class="icon-btn" title="Выбрать несколько фото" aria-pressed="false">
+      <button id="selectModeToggle" class="icon-btn" data-i18n-title="select_mode_title" aria-pressed="false">
         <span class="icon icon-check-square" aria-hidden="true"></span>
       </button>
       <div class="insights-wrap">
-        <button id="insightsToggle" class="icon-btn" title="Статистика и лимиты">
+        <button id="insightsToggle" class="icon-btn" data-i18n-title="insights_title">
           <span class="icon icon-chart" aria-hidden="true"></span>
         </button>
         <div id="insightsPanel" class="insights-panel" hidden></div>
       </div>
-      <button id="themeToggle" class="icon-btn" title="Сменить тему">
+      <button id="themeToggle" class="icon-btn" data-i18n-title="theme_toggle_title">
         <span class="icon icon-sun" data-theme-icon="light" aria-hidden="true"></span>
         <span class="icon icon-moon" data-theme-icon="dark" aria-hidden="true"></span>
       </button>
@@ -69,12 +68,12 @@
   </header>
 
   <div id="translatedHint" class="translated-hint" hidden>
-    Ищем как: <strong id="translatedHintText"></strong>
-    <button type="button" id="translatedHintUndo">искать как есть</button>
+    <span data-i18n="translated_hint_prefix">Ищем как:</span> <strong id="translatedHintText"></strong>
+    <button type="button" id="translatedHintUndo" data-i18n="translated_hint_undo">искать как есть</button>
   </div>
   <div id="spellHint" class="translated-hint" hidden>
-    Возможно, вы имели в виду: <strong id="spellHintText"></strong>
-    <button type="button" id="spellHintApply">исправить</button>
+    <span data-i18n="spell_hint_prefix">Возможно, вы имели в виду:</span> <strong id="spellHintText"></strong>
+    <button type="button" id="spellHintApply" data-i18n="spell_hint_apply">исправить</button>
   </div>
 
   <div class="toolbar">
@@ -101,16 +100,16 @@
 
         <span class="sources-sep" aria-hidden="true"></span>
 
-        <button type="button" class="source-chip source-chip-external" id="yandexBtn" title="Открыть этот запрос в Яндекс.Картинках">
-          <span class="icon icon-external" aria-hidden="true"></span>Яндекс.Картинки
+        <button type="button" class="source-chip source-chip-external" id="yandexBtn" data-i18n-title="source_yandex_title">
+          <span class="icon icon-external" aria-hidden="true"></span><span data-i18n="source_yandex_label">Яндекс.Картинки</span>
         </button>
-        <button type="button" class="source-chip source-chip-external" id="googleBtn" title="Открыть этот запрос в Google Картинках">
-          <span class="icon icon-external" aria-hidden="true"></span>Google Картинки
+        <button type="button" class="source-chip source-chip-external" id="googleBtn" data-i18n-title="source_google_title">
+          <span class="icon icon-external" aria-hidden="true"></span><span data-i18n="source_google_label">Google Картинки</span>
         </button>
-        <button type="button" class="source-chip source-chip-external" id="pinterestBtn" title="Открыть этот запрос в Pinterest">
+        <button type="button" class="source-chip source-chip-external" id="pinterestBtn" data-i18n-title="source_pinterest_title">
           <span class="icon icon-external" aria-hidden="true"></span>Pinterest
         </button>
-        <button type="button" class="source-chip source-chip-external" id="cosmosBtn" title="Открыть этот запрос в Cosmos">
+        <button type="button" class="source-chip source-chip-external" id="cosmosBtn" data-i18n-title="source_cosmos_title">
           <span class="icon icon-external" aria-hidden="true"></span>Cosmos
         </button>
       </div>
@@ -120,60 +119,60 @@
       <div class="filters">
         <div class="dropdown" data-dropdown="quality">
           <button type="button" class="dropdown-btn">
-            Качество <span class="dropdown-value" data-value>Любое</span>
+            <span data-i18n="quality_label">Качество</span> <span class="dropdown-value" data-value data-i18n="quality_any">Любое</span>
             <span class="icon icon-chevron" aria-hidden="true"></span>
           </button>
           <div class="dropdown-menu">
-            <button type="button" class="dropdown-item is-active" data-val="any">Любое</button>
-            <button type="button" class="dropdown-item" data-val="2k">От 2K (2048px+)</button>
-            <button type="button" class="dropdown-item" data-val="4k">От 4K (3840px+)</button>
-            <button type="button" class="dropdown-item" data-val="8k">От 8K (7680px+)</button>
+            <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="quality_any">Любое</button>
+            <button type="button" class="dropdown-item" data-val="2k" data-i18n="quality_2k">От 2K (2048px+)</button>
+            <button type="button" class="dropdown-item" data-val="4k" data-i18n="quality_4k">От 4K (3840px+)</button>
+            <button type="button" class="dropdown-item" data-val="8k" data-i18n="quality_8k">От 8K (7680px+)</button>
           </div>
         </div>
 
         <div class="dropdown" data-dropdown="orientation">
           <button type="button" class="dropdown-btn">
-            Ориентация <span class="dropdown-value" data-value>Любая</span>
+            <span data-i18n="orientation_label">Ориентация</span> <span class="dropdown-value" data-value data-i18n="orientation_any">Любая</span>
             <span class="icon icon-chevron" aria-hidden="true"></span>
           </button>
           <div class="dropdown-menu">
-            <button type="button" class="dropdown-item is-active" data-val="any">Любая</button>
-            <button type="button" class="dropdown-item" data-val="horizontal">Горизонтальная</button>
-            <button type="button" class="dropdown-item" data-val="vertical">Вертикальная</button>
-            <button type="button" class="dropdown-item" data-val="square">Квадрат</button>
+            <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="orientation_any">Любая</button>
+            <button type="button" class="dropdown-item" data-val="horizontal" data-i18n="orientation_horizontal">Горизонтальная</button>
+            <button type="button" class="dropdown-item" data-val="vertical" data-i18n="orientation_vertical">Вертикальная</button>
+            <button type="button" class="dropdown-item" data-val="square" data-i18n="orientation_square">Квадрат</button>
           </div>
         </div>
 
         <div class="dropdown" data-dropdown="sort">
           <button type="button" class="dropdown-btn">
-            Сортировка <span class="dropdown-value" data-value>Популярное</span>
+            <span data-i18n="sort_label">Сортировка</span> <span class="dropdown-value" data-value data-i18n="sort_popular">Популярное</span>
             <span class="icon icon-chevron" aria-hidden="true"></span>
           </button>
           <div class="dropdown-menu">
-            <button type="button" class="dropdown-item is-active" data-val="popular">Популярное</button>
-            <button type="button" class="dropdown-item" data-val="newest">Новое</button>
+            <button type="button" class="dropdown-item is-active" data-val="popular" data-i18n="sort_popular">Популярное</button>
+            <button type="button" class="dropdown-item" data-val="newest" data-i18n="sort_newest">Новое</button>
           </div>
         </div>
 
         <div class="dropdown" data-dropdown="people">
           <button type="button" class="dropdown-btn">
-            Люди <span class="dropdown-value" data-value>Любые</span>
+            <span data-i18n="people_label">Люди</span> <span class="dropdown-value" data-value data-i18n="people_any_short">Любые</span>
             <span class="icon icon-chevron" aria-hidden="true"></span>
           </button>
           <div class="dropdown-menu">
-            <button type="button" class="dropdown-item is-active" data-val="any">Любые фото</button>
-            <button type="button" class="dropdown-item" data-val="with">Только с людьми</button>
-            <button type="button" class="dropdown-item" data-val="without">Без людей</button>
+            <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="people_any">Любые фото</button>
+            <button type="button" class="dropdown-item" data-val="with" data-i18n="people_with">Только с людьми</button>
+            <button type="button" class="dropdown-item" data-val="without" data-i18n="people_without">Без людей</button>
           </div>
         </div>
 
         <div class="dropdown" data-dropdown="color">
           <button type="button" class="dropdown-btn">
-            Цвет <span class="dropdown-value" data-value>Любой</span>
+            <span data-i18n="color_label">Цвет</span> <span class="dropdown-value" data-value data-i18n="color_any_short">Любой</span>
             <span class="icon icon-chevron" aria-hidden="true"></span>
           </button>
           <div class="dropdown-menu dropdown-menu-colors" id="colorMenu">
-            <button type="button" class="dropdown-item is-any is-active" data-val="any">Любой цвет</button>
+            <button type="button" class="dropdown-item is-any is-active" data-val="any" data-i18n="color_any">Любой цвет</button>
           </div>
         </div>
       </div>
@@ -188,28 +187,28 @@
   <main class="content">
     <div id="emptyState" class="empty-state">
       <span class="eyebrow">Photoseek</span>
-      <h1>Найдите фото сразу <span class="underline-accent">везде</span></h1>
-      <p>Один запрос — и PhotoSeek одновременно спрашивает Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr, собирая всё в одну ленту.</p>
+      <h1><span data-i18n="hero_h1_before">Найдите фото сразу</span> <span class="underline-accent" data-i18n="hero_h1_underline">везде</span></h1>
+      <p data-i18n="hero_p">Один запрос — и PhotoSeek одновременно спрашивает Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr, собирая всё в одну ленту.</p>
       <div class="suggestions" id="recentSearches" hidden></div>
       <div class="suggestions" id="suggestions">
-        <span class="suggestions-label">Попробуйте:</span>
+        <span class="suggestions-label" data-i18n="try_label">Попробуйте:</span>
       </div>
     </div>
 
     <div id="favoritesEmpty" class="empty-state" hidden>
-      <h1>Пока пусто</h1>
-      <p>Нажимайте на сердечко на фото, чтобы добавить их сюда — избранное сохраняется в этом браузере.</p>
+      <h1 data-i18n="favorites_empty_h1">Пока пусто</h1>
+      <p data-i18n="favorites_empty_p">Нажимайте на сердечко на фото, чтобы добавить их сюда — избранное сохраняется в этом браузере.</p>
     </div>
 
     <div id="grid" class="grid" hidden></div>
 
     <div id="loadMoreWrap" class="load-more-wrap" hidden>
-      <button id="loadMoreBtn" class="btn btn-secondary">Показать ещё</button>
+      <button id="loadMoreBtn" class="btn btn-secondary" data-i18n="load_more">Показать ещё</button>
     </div>
 
     <div id="noResults" class="empty-state" hidden>
-      <h1>Ничего не найдено</h1>
-      <p>Попробуйте другой запрос или снимите часть фильтров.</p>
+      <h1 data-i18n="no_results_h1">Ничего не найдено</h1>
+      <p data-i18n="no_results_p">Попробуйте другой запрос или снимите часть фильтров.</p>
     </div>
   </main>
 
@@ -218,9 +217,9 @@
 <div id="bulkBar" class="bulk-bar" hidden>
   <span id="bulkCount" class="bulk-count"></span>
   <div class="bulk-actions">
-    <button type="button" id="bulkCancel" class="btn btn-ghost">Отмена</button>
+    <button type="button" id="bulkCancel" class="btn btn-ghost" data-i18n="bulk_cancel">Отмена</button>
     <button type="button" id="bulkDownload" class="btn btn-primary">
-      <span class="icon icon-download" aria-hidden="true"></span>Скачать zip
+      <span class="icon icon-download" aria-hidden="true"></span><span data-i18n="bulk_download">Скачать zip</span>
     </button>
   </div>
 </div>
@@ -228,20 +227,20 @@
 <div id="lightbox" class="lightbox" hidden>
   <div class="lightbox-backdrop" data-close></div>
   <div class="lightbox-dialog">
-    <button class="lightbox-close icon-btn" data-close title="Закрыть (Esc)">
+    <button class="lightbox-close icon-btn" data-close data-i18n-title="lightbox_close_title">
       <span class="icon icon-close" aria-hidden="true"></span>
     </button>
-    <button class="lightbox-nav lightbox-prev icon-btn" id="lbPrev" title="Предыдущее (←)">
+    <button class="lightbox-nav lightbox-prev icon-btn" id="lbPrev" data-i18n-title="lightbox_prev_title">
       <span class="icon icon-arrow-left" aria-hidden="true"></span>
     </button>
-    <button class="lightbox-nav lightbox-next icon-btn" id="lbNext" title="Следующее (→)">
+    <button class="lightbox-nav lightbox-next icon-btn" id="lbNext" data-i18n-title="lightbox_next_title">
       <span class="icon icon-arrow-right" aria-hidden="true"></span>
     </button>
 
     <div class="lightbox-image-wrap">
       <img id="lbImage" class="lightbox-image" alt="">
       <div class="lightbox-spinner" id="lbSpinner" aria-hidden="true"></div>
-      <button class="lightbox-heart icon-btn" id="lbHeart" title="В избранное" aria-pressed="false">
+      <button class="lightbox-heart icon-btn" id="lbHeart" data-i18n-title="lightbox_heart_title" aria-pressed="false">
         <span class="icon icon-heart" aria-hidden="true"></span>
       </button>
     </div>
@@ -250,17 +249,17 @@
       <div class="lightbox-panel-top">
         <span class="source-badge" id="lbSourceBadge"></span>
         <div class="lightbox-actions">
-          <button class="btn btn-ghost" id="lbCopy" title="Скопировать ссылку на изображение">
-            <span class="icon icon-link" aria-hidden="true"></span>Ссылка
+          <button class="btn btn-ghost" id="lbCopy" data-i18n-title="lightbox_copy_title">
+            <span class="icon icon-link" aria-hidden="true"></span><span data-i18n="lightbox_copy_label">Ссылка</span>
           </button>
-          <button class="btn btn-ghost" id="lbCopyImage" title="Скопировать саму картинку (Ctrl+V в другом приложении)">
-            <span class="icon icon-copy" aria-hidden="true"></span>Картинка
+          <button class="btn btn-ghost" id="lbCopyImage" data-i18n-title="lightbox_copy_image_title">
+            <span class="icon icon-copy" aria-hidden="true"></span><span data-i18n="lightbox_copy_image_label">Картинка</span>
           </button>
-          <button class="btn btn-ghost" id="lbShare" title="Поделиться" hidden>
-            <span class="icon icon-share" aria-hidden="true"></span>Поделиться
+          <button class="btn btn-ghost" id="lbShare" data-i18n-title="lightbox_share_title" hidden>
+            <span class="icon icon-share" aria-hidden="true"></span><span data-i18n="lightbox_share_title">Поделиться</span>
           </button>
-          <button class="btn btn-primary" id="lbDownload" title="Скачать изображение (D)">
-            <span class="icon icon-download" aria-hidden="true"></span>Скачать
+          <button class="btn btn-primary" id="lbDownload" data-i18n-title="lightbox_download_title">
+            <span class="icon icon-download" aria-hidden="true"></span><span data-i18n="lightbox_download_label">Скачать</span>
           </button>
         </div>
       </div>
@@ -273,7 +272,7 @@
       <div class="lightbox-meta">
         <a id="lbAuthor" class="lightbox-author" target="_blank" rel="noopener noreferrer"></a>
         <a id="lbSourceLink" class="lightbox-source-link" target="_blank" rel="noopener noreferrer">
-          Открыть источник <span class="icon icon-external" aria-hidden="true"></span>
+          <span data-i18n="lightbox_source_link">Открыть источник</span> <span class="icon icon-external" aria-hidden="true"></span>
         </a>
       </div>
     </aside>
@@ -284,6 +283,8 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
+<script>window.I18N.applyStaticI18n();</script>
 <script src="js/providers.js"></script>
 <script src="js/translate.js"></script>
 <script src="js/queryLogic.js"></script>

@@ -1,7 +1,7 @@
 (function () {
   "use strict";
 
-  const SUGGESTIONS = ["природа", "город ночью", "кофе", "океан", "горы", "космос", "еда", "животные"];
+  const SUGGESTIONS = I18N.t("suggestions");
   const FAVORITES_KEY = "photoseek-favorites";
   const FILTERS_KEY = "photoseek-filters";
   const HISTORY_KEY = "photoseek-history";
@@ -183,7 +183,7 @@
     el.recentSearches.hidden = false;
     const label = document.createElement("span");
     label.className = "suggestions-label";
-    label.textContent = "Недавние:";
+    label.textContent = I18N.t("recent_label");
     el.recentSearches.appendChild(label);
     hist.forEach((term) => {
       const chip = document.createElement("button");
@@ -201,12 +201,13 @@
 
   // ---------- Color filter: populate swatches ----------
   (window.COLOR_OPTIONS || []).forEach((c) => {
+    const label = I18N.t(`color_${c.id}`);
     const btn = document.createElement("button");
     btn.type = "button";
     btn.className = "dropdown-item color-swatch";
     btn.dataset.val = c.id;
-    btn.title = c.label;
-    btn.textContent = c.label;
+    btn.title = label;
+    btn.textContent = label;
     btn.style.background = c.id === "white"
       ? "#fff"
       : (c.id === "bw" ? "linear-gradient(135deg, #fff 50%, #161616 50%)" : c.hex);
@@ -314,19 +315,19 @@
   function renderInsights() {
     const remaining = getUnsplashRemaining();
     const topEntry = Object.entries(stats.byProvider || {}).sort((a, b) => b[1] - a[1])[0];
-    const topLine = topEntry ? `${PROVIDER_LABELS[topEntry[0]] || topEntry[0]} (${topEntry[1]})` : "—";
+    const topLine = topEntry ? `${PROVIDER_LABELS[topEntry[0]] || topEntry[0]} (${topEntry[1]})` : I18N.t("insights_none");
     const cooldownLines = Object.entries(state.cooldownUntil)
       .filter(([, until]) => until > Date.now())
       .map(([id, until]) => {
         const mins = Math.max(1, Math.round((until - Date.now()) / 60000));
-        return `<div class="insights-row"><span>${PROVIDER_LABELS[id] || id}</span><strong>пауза ~${mins} мин</strong></div>`;
+        return `<div class="insights-row"><span>${PROVIDER_LABELS[id] || id}</span><strong>${I18N.t("insights_cooldown", { mins })}</strong></div>`;
       }).join("");
     el.insightsPanel.innerHTML = `
-      <div class="insights-row"><span>Скачано фото</span><strong>${stats.downloads || 0}</strong></div>
-      <div class="insights-row"><span>Поисков выполнено</span><strong>${stats.searches || 0}</strong></div>
-      <div class="insights-row"><span>Любимый источник</span><strong>${topLine}</strong></div>
+      <div class="insights-row"><span>${I18N.t("insights_downloads")}</span><strong>${stats.downloads || 0}</strong></div>
+      <div class="insights-row"><span>${I18N.t("insights_searches")}</span><strong>${stats.searches || 0}</strong></div>
+      <div class="insights-row"><span>${I18N.t("insights_top_source")}</span><strong>${topLine}</strong></div>
       <div class="insights-sep"></div>
-      <div class="insights-row"><span>Лимит Unsplash (в час)</span><strong>${remaining} из ${UNSPLASH_HOURLY_LIMIT}</strong></div>
+      <div class="insights-row"><span>${I18N.t("insights_unsplash_limit")}</span><strong>${remaining} ${I18N.t("insights_of")} ${UNSPLASH_HOURLY_LIMIT}</strong></div>
       ${cooldownLines}
     `;
   }
@@ -372,7 +373,7 @@
   const SpeechRecognitionCtor = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (SpeechRecognitionCtor) {
     const recognizer = new SpeechRecognitionCtor();
-    recognizer.lang = "ru-RU";
+    recognizer.lang = I18N.LANG === "en" ? "en-US" : "ru-RU";
     recognizer.interimResults = false;
     recognizer.maxAlternatives = 1;
     let listening = false;
@@ -402,7 +403,7 @@
     });
   } else {
     el.micBtn.addEventListener("click", () => {
-      showToast("Голосовой поиск не поддерживается в этом браузере");
+      showToast(I18N.t("mic_unsupported"));
     });
   }
 
@@ -437,7 +438,7 @@
   function openExternalSearch(engine) {
     const q = el.input.value.trim();
     if (!q) {
-      showToast("Сначала введите запрос");
+      showToast(I18N.t("external_search_need_query"));
       el.input.focus();
       return;
     }
@@ -605,7 +606,7 @@
     if (state.loading) return;
     state.loading = true;
     el.loadMoreBtn.disabled = true;
-    el.loadMoreBtn.textContent = "Загрузка…";
+    el.loadMoreBtn.textContent = I18N.t("loading");
 
     const now = Date.now();
     // Проактивно не дёргаем Unsplash, если сами видим, что лимит на этот час исчерпан.
@@ -620,7 +621,7 @@
     );
     const warnings = skippedForCooldown.map((p) => {
       const mins = Math.max(1, Math.round((state.cooldownUntil[p.id] - now) / 60000));
-      return `${p.label}: пауза ~${mins} мин (лимит запросов)`;
+      return I18N.t("warn_cooldown", { label: p.label, mins });
     });
     const totals = {};
 
@@ -644,9 +645,9 @@
           console.error(`[${p.label}]`, err);
           if (/HTTP 429/.test(err.message)) {
             state.cooldownUntil[p.id] = Date.now() + COOLDOWN_MS;
-            warnings.push(`${p.label}: превышен лимит запросов, пауза 10 минут`);
+            warnings.push(I18N.t("warn_rate_limited", { label: p.label }));
           } else {
-            warnings.push(`${p.label}: ${err.message || "ошибка запроса"}`);
+            warnings.push(I18N.t("warn_with_message", { label: p.label, message: err.message || I18N.t("warn_generic_error") }));
           }
           state.hasMore[p.id] = false;
           return { id: p.id, items: [] };
@@ -659,7 +660,7 @@
       // не показываем устаревшие результаты и не трогаем его состояние.
       state.loading = false;
       el.loadMoreBtn.disabled = false;
-      el.loadMoreBtn.textContent = "Показать ещё";
+      el.loadMoreBtn.textContent = I18N.t("load_more");
       return;
     }
 
@@ -697,15 +698,14 @@
     if (isFirst) {
       const knownTotals = Object.values(totals).filter((t) => typeof t === "number");
       const sum = knownTotals.reduce((a, b) => a + b, 0);
-      el.resultsCount.textContent = state.items.length
-        ? `Найдено фото: ${sum > 0 ? sum.toLocaleString("ru-RU") : state.items.length}`
-        : "";
+      const n = sum > 0 ? sum.toLocaleString(I18N.t("locale")) : state.items.length;
+      el.resultsCount.textContent = state.items.length ? I18N.t("results_found", { n }) : "";
     }
     el.providerWarnings.textContent = warnings.join("  ·  ");
 
     state.loading = false;
     el.loadMoreBtn.disabled = false;
-    el.loadMoreBtn.textContent = "Показать ещё";
+    el.loadMoreBtn.textContent = I18N.t("load_more");
   }
 
   // Взвешенное чередование источников (smooth weighted round-robin) вместо
@@ -802,7 +802,7 @@
     el.noResults.hidden = true;
     el.providerWarnings.textContent = "";
     el.resultsCount.textContent = state.favoritesList.length
-      ? `В избранном: ${state.favoritesList.length}`
+      ? I18N.t("results_favorites", { n: state.favoritesList.length })
       : "";
     if (state.favoritesList.length === 0) {
       el.grid.hidden = true;
@@ -888,7 +888,7 @@
     heartBtn.type = "button";
     heartBtn.className = "card-round-btn card-heart";
     heartBtn.dataset.id = item.id;
-    heartBtn.title = "В избранное";
+    heartBtn.title = I18N.t("card_heart_title");
     heartBtn.innerHTML = '<span class="icon"></span>';
     if (isFavorited(item.id)) heartBtn.classList.add("is-active");
     heartBtn.addEventListener("click", (e) => {
@@ -900,7 +900,7 @@
     const dlBtn = document.createElement("button");
     dlBtn.type = "button";
     dlBtn.className = "card-round-btn card-download";
-    dlBtn.title = "Скачать";
+    dlBtn.title = I18N.t("card_download_title");
     dlBtn.innerHTML = '<span class="icon"></span>';
     dlBtn.addEventListener("click", (e) => {
       e.stopPropagation();
@@ -951,7 +951,7 @@
   function updateBulkBar() {
     const n = state.selected.size;
     el.bulkBar.hidden = !state.selectMode || n === 0;
-    el.bulkCount.textContent = `Выбрано: ${n}`;
+    el.bulkCount.textContent = I18N.t("bulk_selected", { n });
   }
   el.bulkCancel.addEventListener("click", exitSelectMode);
   el.bulkDownload.addEventListener("click", downloadSelectedAsZip);
@@ -962,7 +962,7 @@
     if (items.length === 0) return;
 
     if (!window.JSZip) {
-      showToast("Архиватор не загрузился — скачиваю по одному");
+      showToast(I18N.t("toast_archiver_missing"));
       for (const item of items) {
         // eslint-disable-next-line no-await-in-loop
         await downloadItem(item);
@@ -975,7 +975,7 @@
     let ok = 0;
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
-      showToast(`Архивирую ${i + 1} из ${items.length}…`);
+      showToast(I18N.t("toast_archiving", { i: i + 1, n: items.length }));
       try {
         const url = await resolveDownloadUrl(item);
         // eslint-disable-next-line no-await-in-loop
@@ -991,22 +991,22 @@
       }
     }
     if (ok === 0) {
-      showToast("Не удалось скачать ни одного файла");
+      showToast(I18N.t("toast_archive_failed_all"));
       el.bulkDownload.disabled = false;
       return;
     }
     vibrate(20);
-    showToast("Собираю архив…");
+    showToast(I18N.t("toast_archive_building"));
     const zipBlob = await zip.generateAsync({ type: "blob" });
     const objectUrl = URL.createObjectURL(zipBlob);
     const a = document.createElement("a");
     a.href = objectUrl;
-    a.download = `photoseek-${items.length}-фото.zip`;
+    a.download = I18N.t("zip_filename", { n: items.length });
     document.body.appendChild(a);
     a.click();
     a.remove();
     setTimeout(() => URL.revokeObjectURL(objectUrl), 4000);
-    showToast(`Готово: ${ok} из ${items.length}`);
+    showToast(I18N.t("toast_archive_done", { ok, n: items.length }));
     el.bulkDownload.disabled = false;
     exitSelectMode();
   }
@@ -1041,7 +1041,7 @@
 
     el.lbHeart.setAttribute("aria-pressed", String(isFavorited(item.id)));
     el.lbSourceBadge.innerHTML = `<span class="dot dot-${item.provider}"></span>${PROVIDER_LABELS[item.provider]}`;
-    el.lbTitle.textContent = item.title || "Без названия";
+    el.lbTitle.textContent = item.title || I18N.t("lightbox_untitled");
     el.lbDescription.textContent = item.description && item.description !== item.title ? item.description : "";
     el.lbDescription.hidden = !el.lbDescription.textContent;
 
@@ -1053,7 +1053,7 @@
       el.lbTags.appendChild(t);
     });
 
-    el.lbAuthor.textContent = item.author ? `Автор: ${item.author}` : "";
+    el.lbAuthor.textContent = item.author ? `${I18N.t("lightbox_author_prefix")} ${item.author}` : "";
     el.lbAuthor.href = item.authorUrl || "#";
     el.lbAuthor.style.visibility = item.author ? "visible" : "hidden";
     el.lbSourceLink.href = item.pageUrl || "#";
@@ -1113,9 +1113,9 @@
     if (!item) return;
     try {
       await navigator.clipboard.writeText(item.full);
-      showToast("Ссылка скопирована");
+      showToast(I18N.t("toast_link_copied"));
     } catch {
-      showToast("Не удалось скопировать");
+      showToast(I18N.t("toast_copy_failed"));
     }
   });
 
@@ -1123,10 +1123,10 @@
     const item = getActiveList()[state.lightboxIndex];
     if (!item) return;
     if (!navigator.clipboard || !window.ClipboardItem) {
-      showToast("Браузер не поддерживает копирование картинок");
+      showToast(I18N.t("toast_image_copy_unsupported"));
       return;
     }
-    showToast("Копирую картинку…");
+    showToast(I18N.t("toast_copying_image"));
     try {
       const res = await fetch(item.full, { mode: "cors" });
       if (!res.ok) throw new Error("network");
@@ -1134,10 +1134,10 @@
       if (blob.type !== "image/png") blob = await blobToPng(blob);
       await navigator.clipboard.write([new window.ClipboardItem({ [blob.type]: blob })]);
       pingUnsplashDownload(item);
-      showToast("Картинка скопирована — вставьте Ctrl+V");
+      showToast(I18N.t("toast_image_copied"));
     } catch (err) {
       console.error(err);
-      showToast("Не удалось скопировать картинку");
+      showToast(I18N.t("toast_image_copy_failed"));
     }
   });
 
@@ -1173,13 +1173,13 @@
             const blob = await res.blob();
             const file = new File([blob], filenameFor(item), { type: blob.type || "image/jpeg" });
             if (navigator.canShare({ files: [file] })) {
-              await navigator.share({ files: [file], title: item.title || "Фото из PhotoSeek" });
+              await navigator.share({ files: [file], title: item.title || I18N.t("share_title_fallback") });
               pingUnsplashDownload(item);
               return;
             }
           } catch { /* не вышло файлом — делимся ссылкой */ }
         }
-        await navigator.share({ title: item.title || "Фото", url: item.pageUrl || item.full });
+        await navigator.share({ title: item.title || I18N.t("share_title_plain"), url: item.pageUrl || item.full });
       } catch (err) {
         if (err?.name !== "AbortError") console.warn("Share failed", err);
       }
@@ -1223,16 +1223,16 @@
   }
 
   async function downloadItem(item) {
-    showToast("Скачивание…");
+    showToast(I18N.t("toast_downloading"));
     try {
       const url = await resolveDownloadUrl(item);
       await forceDownload(url, filenameFor(item));
       recordDownload(item.provider);
       vibrate(20);
-      showToast("Готово!");
+      showToast(I18N.t("toast_download_done"));
     } catch (err) {
       console.error(err);
-      showToast("Открываю в новой вкладке…");
+      showToast(I18N.t("toast_opening_tab"));
       window.open(item.full, "_blank", "noopener,noreferrer");
     }
   }

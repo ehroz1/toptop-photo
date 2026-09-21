@@ -52,20 +52,23 @@
   // Единый список цветов для фильтра — используется в app.js для отрисовки
   // палитры и здесь для маппинга в параметры конкретных API (не все
   // провайдеры поддерживают все цвета — тогда параметр просто не отправляется).
+  // label больше не хранится тут — заголовок цвета берётся из словаря
+  // переводов (js/i18n.js) по ключу `color_${id}`, чтобы работать и на
+  // русском, и на английском интерфейсе.
   const COLOR_OPTIONS = [
-    { id: "bw", label: "Чёрно-белое", hex: "#9aa0a6" },
-    { id: "black", label: "Чёрный", hex: "#161616" },
-    { id: "white", label: "Белый", hex: "#ffffff" },
-    { id: "gray", label: "Серый", hex: "#9e9e9e" },
-    { id: "red", label: "Красный", hex: "#e53935" },
-    { id: "orange", label: "Оранжевый", hex: "#fb8c00" },
-    { id: "yellow", label: "Жёлтый", hex: "#fdd835" },
-    { id: "green", label: "Зелёный", hex: "#43a047" },
-    { id: "turquoise", label: "Бирюзовый", hex: "#00acc1" },
-    { id: "blue", label: "Синий", hex: "#1e88e5" },
-    { id: "purple", label: "Фиолетовый", hex: "#8e24aa" },
-    { id: "pink", label: "Розовый", hex: "#ec407a" },
-    { id: "brown", label: "Коричневый", hex: "#6d4c41" },
+    { id: "bw", hex: "#9aa0a6" },
+    { id: "black", hex: "#161616" },
+    { id: "white", hex: "#ffffff" },
+    { id: "gray", hex: "#9e9e9e" },
+    { id: "red", hex: "#e53935" },
+    { id: "orange", hex: "#fb8c00" },
+    { id: "yellow", hex: "#fdd835" },
+    { id: "green", hex: "#43a047" },
+    { id: "turquoise", hex: "#00acc1" },
+    { id: "blue", hex: "#1e88e5" },
+    { id: "purple", hex: "#8e24aa" },
+    { id: "pink", hex: "#ec407a" },
+    { id: "brown", hex: "#6d4c41" },
   ];
 
   const PIXABAY_COLOR_MAP = { bw: "grayscale", purple: "lilac" };
