@@ -372,6 +372,54 @@
     },
   };
 
+  // Doodl — каталог AI-сгенерированных стоковых фото, публичный CORS-API без
+  // ключа (сделан специально для встраивания в сторонние приложения — плагины
+  // для Figma/Canva/Framer и т.п.), поэтому обращаемся напрямую с клиента,
+  // без Cloudflare Worker. Пагинация обычная (page), но чтобы результаты не
+  // "плавали" между страницами одного поиска, сервер использует случайный
+  // seed — сохраняем его с первой страницы и передаём на следующих (как и
+  // курсор у Pexafy, но без ограничения по времени жизни).
+  const doodlSeeds = new Map();
+  const DoodlProvider = {
+    id: "doodl",
+    label: "Doodl",
+    enabled: () => true, // ключ не нужен
+    async search(query, { page = 1, orientation = "any" } = {}) {
+      if (page === 1) doodlSeeds.delete(query);
+      const qs = buildQuery({
+        q: query,
+        page,
+        per_page: 24,
+        seed: page > 1 ? doodlSeeds.get(query) : undefined,
+      });
+      const data = await fetchJson(`https://www.doodl.co/api/plugin/search?${qs}`);
+      if (data.seed) doodlSeeds.set(query, data.seed);
+      let items = (data.results || []).map((p) => ({
+        id: `doodl-${p.id}`,
+        provider: "doodl",
+        thumb: p.urls?.small || p.urls?.thumbnail,
+        full: p.urls?.large || p.urls?.medium,
+        width: p.width,
+        height: p.height,
+        title: p.title || "",
+        description: p.description || "",
+        tags: p.tags || [],
+        author: p.creator?.name,
+        authorUrl: p.creator?.profile_url,
+        pageUrl: p.page_url,
+        download: { type: "direct", url: p.urls?.download ? `${p.urls.download}?resolution=large` : p.urls?.large },
+        license: {
+          name: "Doodl License",
+          url: p.license?.url,
+          commercial: p.license?.commercial_use,
+          attribution: p.license?.attribution_required,
+        },
+      })).filter((it) => it.thumb);
+      items = filterByOrientation(items, orientation);
+      return { items, total: typeof data.total === "number" ? data.total : null };
+    },
+  };
+
   const FlickrProvider = {
     id: "flickr",
     label: "Flickr",
@@ -543,6 +591,7 @@
     UnsplashProvider,
     WikimediaProvider,
     OpenverseProvider,
+    DoodlProvider,
     FlickrProvider,
     ShutterstockProvider,
     PexafyProvider,

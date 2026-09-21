@@ -25,6 +25,7 @@
   --flickr: #ff0084;
   --shutterstock: #ee2a24;
   --pexafy: #7c5cff;
+  --doodl: #06b6d4;
   color-scheme: light;
 
   --icon-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
@@ -474,6 +475,7 @@ body {
 .dot-flickr { background: var(--flickr); }
 .dot-shutterstock { background: var(--shutterstock); }
 .dot-pexafy { background: var(--pexafy); }
+.dot-doodl { background: var(--doodl); }
 .source-chip[aria-pressed="true"] {
   color: var(--text);
   background: var(--accent-soft);
