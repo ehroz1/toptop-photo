@@ -72,6 +72,10 @@
       color_pink: "Розовый",
       color_brown: "Коричневый",
 
+      sources_menu_title: "Выбрать источники поиска фото",
+      sources_menu_label: "Источники",
+      sources_menu_note: "Можно выбрать не более 3 источников одновременно",
+
       source_yandex_title: "Открыть этот запрос в Яндекс.Картинках",
       source_yandex_label: "Яндекс.Картинки",
       source_google_title: "Открыть этот запрос в Google Картинках",
@@ -260,6 +264,10 @@
       color_purple: "Purple",
       color_pink: "Pink",
       color_brown: "Brown",
+
+      sources_menu_title: "Choose photo search sources",
+      sources_menu_label: "Sources",
+      sources_menu_note: "You can select up to 3 sources at once",
 
       source_yandex_title: "Open this search in Yandex Images",
       source_yandex_label: "Yandex Images",

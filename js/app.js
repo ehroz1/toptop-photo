@@ -54,6 +54,11 @@
     insightsToggle: document.getElementById("insightsToggle"),
     insightsPanel: document.getElementById("insightsPanel"),
     recentSearches: document.getElementById("recentSearches"),
+    sourcesRow: document.getElementById("sourcesRow"),
+    sourcesMenuWrap: document.getElementById("sourcesMenuWrap"),
+    sourcesMenuToggle: document.getElementById("sourcesMenuToggle"),
+    sourcesMenuPopover: document.getElementById("sourcesMenuPopover"),
+    sourcesMenuBadge: document.getElementById("sourcesMenuBadge"),
     sources: document.getElementById("sources"),
     iconSources: document.getElementById("iconSources"),
     yandexBtn: document.getElementById("yandexBtn"),
@@ -343,7 +348,7 @@
     const isIcons = mode === "icons";
     const isVideo = mode === "video";
     const isPhotos = mode === "photos";
-    el.sources.hidden = !isPhotos;
+    el.sourcesRow.hidden = !isPhotos;
     el.filtersRow.hidden = !isPhotos;
     el.iconSources.hidden = !isIcons;
     el.iconFiltersRow.hidden = !isIcons;
@@ -369,6 +374,7 @@
     closeFiltersPopover();
     closeIconFiltersPopover();
     closeVideoFiltersPopover();
+    closeSourcesMenuPopover();
     const prevMode = state.mode;
     applyModeUI(mode);
     if (prevMode === "icons" && mode !== "icons") {
@@ -493,10 +499,13 @@
   // состояние ("без ограничения"), поэтому его вообще не трогаем.
   function enforceSourceCap(chips, activeSet, cap) {
     const idOf = (c) => c.dataset.source || c.dataset.iconSource || c.dataset.videoSource;
+    // Фото теперь чекбоксы (popover "Источники"), иконки/видео — кнопки-пилюли
+    // (aria-pressed) — один и тот же хелпер обслуживает оба вида элементов.
+    const deactivate = (c) => (c.type === "checkbox" ? (c.checked = false) : c.setAttribute("aria-pressed", "false"));
     const activeChips = chips.filter((c) => activeSet.has(idOf(c)));
     if (activeChips.length <= cap) return false;
     activeChips.slice(cap).forEach((c) => {
-      c.setAttribute("aria-pressed", "false");
+      deactivate(c);
       activeSet.delete(idOf(c));
     });
     return true;
@@ -509,7 +518,7 @@
   // молча выключен у всех, кто уже сохранял фильтры раньше.
   function saveFilters() {
     try {
-      const visibleIds = Array.from(el.sources.querySelectorAll(".source-chip[data-source]:not([hidden])"))
+      const visibleIds = Array.from(el.sources.querySelectorAll("input.source-checkbox[data-source]:not([hidden])"))
         .map((c) => c.dataset.source);
       localStorage.setItem(FILTERS_KEY, JSON.stringify({
         orientation: state.orientation,
@@ -562,18 +571,18 @@
       disabled = new Set();
     }
 
-    el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
-      if (chip.hidden) return; // источник без ключа — недоступен, не трогаем
-      const want = !disabled.has(chip.dataset.source);
-      chip.setAttribute("aria-pressed", String(want));
-      if (want) state.activeSources.add(chip.dataset.source);
-      else state.activeSources.delete(chip.dataset.source);
+    el.sources.querySelectorAll("input.source-checkbox[data-source]").forEach((cb) => {
+      if (cb.hidden) return; // источник без ключа — недоступен, не трогаем
+      const want = !disabled.has(cb.dataset.source);
+      cb.checked = want;
+      if (want) state.activeSources.add(cb.dataset.source);
+      else state.activeSources.delete(cb.dataset.source);
     });
 
     // Сохранённые фильтры могли появиться до лимита в MAX_ACTIVE_SOURCES —
     // подрезаем и сразу пересохраняем исправленный список, чтобы это не
     // повторялось на каждой загрузке.
-    const visibleChips = Array.from(el.sources.querySelectorAll(".source-chip[data-source]:not([hidden])"));
+    const visibleChips = Array.from(el.sources.querySelectorAll("input.source-checkbox[data-source]:not([hidden])"));
     if (enforceSourceCap(visibleChips, state.activeSources, MAX_ACTIVE_SOURCES)) saveFilters();
   }
 
@@ -586,17 +595,17 @@
     const byId = {};
     (window.PROVIDERS || []).forEach((p) => { byId[p.id] = p; });
     let activatedCount = 0;
-    el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
-      const provider = byId[chip.dataset.source];
+    el.sources.querySelectorAll("input.source-checkbox[data-source]").forEach((cb) => {
+      const provider = byId[cb.dataset.source];
       if (provider && provider.enabled()) {
         const activate = activatedCount < MAX_ACTIVE_SOURCES;
         if (activate) {
           state.activeSources.add(provider.id);
           activatedCount++;
         }
-        chip.setAttribute("aria-pressed", String(activate));
+        cb.checked = activate;
       } else {
-        chip.hidden = true;
+        cb.hidden = true;
       }
     });
   })();
@@ -850,10 +859,64 @@
     });
     updateCapVisual();
   }
-  bindSourceChipGroup(el.sources, "data-source", "source", state.activeSources, {
-    allowZero: false,
+  // Фото — единственная группа с реальными <input type="checkbox"> (в
+  // popover "Источники"), а не кнопками-пилюлями, поэтому у неё свой
+  // байндер: событие "change", а не "click", и `checked` вместо `aria-pressed`.
+  // Логика лимита/тоста/"минимум 1" — та же, что и в bindSourceChipGroup ниже.
+  function bindSourceCheckboxGroup(container, activeSet, { onChange }) {
+    function boxes() { return Array.from(container.querySelectorAll("input.source-checkbox[data-source]:not([hidden])")); }
+    function updateCapVisual() {
+      const atCap = activeSet.size >= MAX_ACTIVE_SOURCES;
+      boxes().forEach((cb) => cb.closest(".source-check-row").classList.toggle("is-capped", atCap && !cb.checked));
+    }
+    boxes().forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const src = cb.dataset.source;
+        if (cb.checked) {
+          if (activeSet.size >= MAX_ACTIVE_SOURCES) {
+            cb.checked = false;
+            showToast(I18N.t("sources_max_reached", { n: MAX_ACTIVE_SOURCES }));
+            return;
+          }
+          activeSet.add(src);
+        } else {
+          if (activeSet.size <= 1) {
+            cb.checked = true; // хотя бы один источник должен остаться включён
+            return;
+          }
+          activeSet.delete(src);
+        }
+        updateCapVisual();
+        updateSourcesMenuBadge();
+        onChange();
+      });
+    });
+    updateCapVisual();
+  }
+  bindSourceCheckboxGroup(el.sources, state.activeSources, {
     onChange: () => { saveFilters(); if (state.query) runSearch({ keepTranslation: true }); },
   });
+
+  // ---------- Popover "Источники" (фото) ----------
+  function updateSourcesMenuBadge() {
+    el.sourcesMenuBadge.textContent = String(state.activeSources.size);
+  }
+  updateSourcesMenuBadge();
+  function closeSourcesMenuPopover() {
+    el.sourcesMenuPopover.hidden = true;
+    el.sourcesMenuToggle.setAttribute("aria-expanded", "false");
+  }
+  el.sourcesMenuToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = el.sourcesMenuPopover.hidden;
+    document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+    el.sourcesMenuPopover.hidden = !willOpen;
+    el.sourcesMenuToggle.setAttribute("aria-expanded", String(willOpen));
+  });
+  document.addEventListener("click", (e) => {
+    if (!el.sourcesMenuPopover.hidden && !el.sourcesMenuWrap.contains(e.target)) closeSourcesMenuPopover();
+  });
+
   bindSourceChipGroup(el.iconSources, "data-icon-source", "iconSource", state.activeIconSources, {
     allowZero: true,
     onChange: () => { saveIconFilters(); rerunIconSearchWithFilters(); },
