@@ -346,7 +346,10 @@ body {
 #favoritesToggle .icon-heart { -webkit-mask: var(--icon-heart) center / contain no-repeat; mask: var(--icon-heart) center / contain no-repeat; }
 #favoritesToggle[aria-pressed="true"] .icon-heart { -webkit-mask-image: var(--icon-heart-filled); mask-image: var(--icon-heart-filled); }
 #selectModeToggle .icon-check-square { -webkit-mask: var(--icon-check-square) center / contain no-repeat; mask: var(--icon-check-square) center / contain no-repeat; }
-#filtersToggle .icon-filters { background-color: currentColor; -webkit-mask: var(--icon-filters) center / contain no-repeat; mask: var(--icon-filters) center / contain no-repeat; }
+#filtersToggle .icon-filters,
+#iconFiltersToggle .icon-filters,
+#videoFiltersToggle .icon-filters { background-color: currentColor; -webkit-mask: var(--icon-filters) center / contain no-repeat; mask: var(--icon-filters) center / contain no-repeat; }
+#insightsToggle .icon-chart { background-color: currentColor; -webkit-mask: var(--icon-chart) center / contain no-repeat; mask: var(--icon-chart) center / contain no-repeat; }
 
 /* ---------- Вход (Supabase: Google / почта) ---------- */
 .auth-wrap { position: relative; flex-shrink: 0; }

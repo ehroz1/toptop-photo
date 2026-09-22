@@ -35,6 +35,10 @@ function corsHeaders(origin, env) {
     "Access-Control-Allow-Origin": allow,
     "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
     "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    // Запросы вошедших пользователей несут заголовок Authorization, из-за
+    // чего браузер перед каждым шлёт preflight (OPTIONS). Кэшируем ответ на
+    // него, иначе каждый поиск стоил бы лишний сетевой круг.
+    "Access-Control-Max-Age": "86400",
     "Vary": "Origin",
   };
 }

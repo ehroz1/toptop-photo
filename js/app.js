@@ -339,7 +339,7 @@
   // не ждём и не показываем при сбое: это не влияет на сам поиск.
   function logSearch(query, mode) {
     const base = window.APP_CONFIG?.WORKER_BASE_URL;
-    if (!base || !query) return;
+    if (!base || !query || !window.APP_CONFIG?.ACCOUNTS_ENABLED) return;
     const token = window.PhotoSeekAuth && window.PhotoSeekAuth.getAccessToken();
     const headers = { "Content-Type": "application/json" };
     if (token) headers.Authorization = `Bearer ${token}`;
@@ -2461,35 +2461,40 @@
   }
 
   // ---------- Card rendering ----------
-  // Ограничиваем, сколько превью грузится одновременно — раньше сетка сразу
-  // запускала загрузку всех карточек скопом (пусть и с loading="lazy",
-  // видимая часть всё равно бьёт по сети одним залпом), из-за чего выдача
-  // визуально "тормозила". Теперь одновременно в работе не больше 3
-  // изображений: как только одно догрузилось (или упало с ошибкой) —
-  // в дело идёт следующее из очереди.
-  const IMAGE_LOAD_CONCURRENCY = 3;
-  const imageLoadQueue = [];
-  let activeImageLoads = 0;
-  function pumpImageQueue() {
-    while (activeImageLoads < IMAGE_LOAD_CONCURRENCY && imageLoadQueue.length > 0) {
-      const { img, src } = imageLoadQueue.shift();
-      activeImageLoads++;
-      const release = () => { activeImageLoads--; pumpImageQueue(); };
-      img.addEventListener("load", release, { once: true });
-      img.addEventListener("error", release, { once: true });
-      img.src = src;
-    }
+  // Превью начинает грузиться, только когда карточка подъезжает к экрану
+  // (с запасом IMAGE_PRELOAD_MARGIN), и сразу — без общей очереди со
+  // счётчиком слотов. Прежняя очередь (3 одновременно) заклинивало: превью,
+  // удалённое со страницы посреди загрузки (стёрли запрос / новый поиск),
+  // не присылало ни load, ни error, его слот не освобождался, и через пару
+  // прерванных поисков новые превью не грузились вовсе.
+  const IMAGE_PRELOAD_MARGIN = "800px 0px";
+  const imageObserver = "IntersectionObserver" in window
+    ? new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        imageObserver.unobserve(entry.target);
+        startImageLoad(entry.target);
+      }
+    }, { rootMargin: IMAGE_PRELOAD_MARGIN })
+    : null;
+  function startImageLoad(img) {
+    const src = img.dataset.src;
+    if (!src) return;
+    delete img.dataset.src;
+    img.src = src;
   }
   function queueImageLoad(img, src) {
-    imageLoadQueue.push({ img, src });
-    pumpImageQueue();
+    img.dataset.src = src;
+    if (imageObserver) imageObserver.observe(img);
+    else startImageLoad(img);
   }
-  // Вызывается при каждой очистке сетки (новый поиск, сброс, переключение
-  // вида) — превью старого поиска, которые ещё не успели встать в работу,
-  // никто уже не увидит, нет смысла тратить на них сеть. Уже начатые (в
-  // работе) загрузки долетят сами — они не в очереди, а в activeImageLoads.
+  // Вызывается перед каждой очисткой сетки: снимает наблюдение и обрывает
+  // ещё не догруженные превью, чтобы они не занимали канал у нового поиска.
   function clearImageLoadQueue() {
-    imageLoadQueue.length = 0;
+    el.grid.querySelectorAll(".card.is-img-loading img").forEach((img) => {
+      imageObserver?.unobserve(img);
+      if (img.getAttribute("src")) img.removeAttribute("src");
+    });
   }
 
   function appendCards(items) {
@@ -2509,7 +2514,6 @@
 
     const img = document.createElement("img");
     img.alt = item.title || "";
-    img.loading = "lazy";
     img.decoding = "async";
     if (item.width && item.height) {
       img.style.aspectRatio = `${item.width} / ${item.height}`;
@@ -2608,6 +2612,7 @@
     else enterSelectMode();
   });
   function enterSelectMode() {
+    loadJSZip();
     state.selectMode = true;
     state.selected.clear();
     el.selectModeToggle.setAttribute("aria-pressed", "true");
@@ -2637,11 +2642,32 @@
   el.bulkCancel.addEventListener("click", exitSelectMode);
   el.bulkDownload.addEventListener("click", downloadSelectedAsZip);
 
+  // JSZip (~28 КБ сжатого JS) нужен только для скачивания архивом — грузим
+  // его по первому требованию, а не на каждом открытии сайта.
+  const JSZIP_URL = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+  let jszipPromise = null;
+  function loadJSZip() {
+    if (window.JSZip) return Promise.resolve(window.JSZip);
+    if (!jszipPromise) {
+      jszipPromise = new Promise((resolve) => {
+        const s = document.createElement("script");
+        s.src = JSZIP_URL;
+        s.onload = () => resolve(window.JSZip || null);
+        s.onerror = () => { jszipPromise = null; resolve(null); };
+        document.head.appendChild(s);
+      });
+    }
+    return jszipPromise;
+  }
+
   async function downloadSelectedAsZip() {
     const list = getActiveList();
     const items = list.filter((it) => state.selected.has(it.id));
     if (items.length === 0) return;
 
+    el.bulkDownload.disabled = true;
+    await loadJSZip();
+    el.bulkDownload.disabled = false;
     if (!window.JSZip) {
       showToast(I18N.t("toast_archiver_missing"));
       for (const item of items) {
@@ -2816,6 +2842,10 @@
   }
 
   document.querySelectorAll("[data-close]").forEach((n) => n.addEventListener("click", closeLightbox));
+  el.lbDownload.addEventListener("click", () => {
+    const item = getActiveList()[state.lightboxIndex];
+    if (item) downloadItem(item);
+  });
   el.lbPrev.addEventListener("click", () => {
     if (state.lightboxIndex > 0) { state.lightboxIndex--; renderLightbox(); }
   });
