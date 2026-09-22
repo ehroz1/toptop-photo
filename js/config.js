@@ -16,5 +16,12 @@ window.APP_CONFIG = {
   // COVERR_API_KEY в секреты воркера И проверили, что /coverr в воркере
   // реально отвечает (их API не тестировался вживую при подключении —
   // см. комментарий в cloudflare-worker/worker.js).
-  COVERR_ENABLED: false
+  COVERR_ENABLED: false,
+  // Supabase — вход через Google/почту, профили, статистика. Project URL и
+  // Publishable key НЕ секретные (Publishable по дизайну Supabase безопасно
+  // светить на клиенте — доступ к данным ограничивает RLS в базе), поэтому
+  // хранятся прямо тут. Если оставить пустыми — кнопка входа на сайте
+  // просто не появится, остальной функционал не пострадает.
+  SUPABASE_URL: "https://stmjykymgtijghbcullm.supabase.co",
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_TUerYlzR3Z6Ap4rNdXV5IA_lv1XJMdz"
 };

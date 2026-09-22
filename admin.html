@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PhotoSeek — админка</title>
+<meta name="robots" content="noindex, nofollow">
+<link rel="icon" href="icons/icon-512.png?v=2" sizes="512x512">
+<link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/admin.css">
+</head>
+<body>
+
+<div class="admin-app">
+  <header class="admin-header">
+    <a class="admin-brand" href="index.html">← PhotoSeek</a>
+    <h1>Админка</h1>
+    <div id="adminWhoami" class="admin-whoami"></div>
+  </header>
+
+  <div id="adminGate" class="admin-gate">
+    <p id="adminGateMessage">Проверяем доступ…</p>
+    <button type="button" id="adminGoogleBtn" class="btn btn-primary" hidden>Войти через Google</button>
+  </div>
+
+  <main id="adminContent" class="admin-content" hidden>
+    <section class="admin-section">
+      <h2>Статистика</h2>
+      <div class="admin-stats-row">
+        <div class="admin-stat-card">
+          <span class="admin-stat-value" id="statUsers">—</span>
+          <span class="admin-stat-label">пользователей зарегистрировано</span>
+        </div>
+        <div class="admin-stat-card">
+          <span class="admin-stat-value" id="statSearchesToday">—</span>
+          <span class="admin-stat-label">поисков сегодня</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="admin-section">
+      <h2>Ключи API фотостоков</h2>
+      <p class="admin-hint">Значения хранятся в Cloudflare KV и подставляются воркером при каждом запросе — без редеплоя. Пока запись в KV не сделана, используется старый секрет воркера (если задан).</p>
+      <div id="keysTable" class="admin-keys-table"></div>
+    </section>
+  </main>
+</div>
+
+<div id="adminToast" class="toast" hidden></div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="js/config.js"></script>
+<script src="js/auth.js"></script>
+<script src="js/admin.js"></script>
+</body>
+</html>

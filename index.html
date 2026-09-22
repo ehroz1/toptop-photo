@@ -20,6 +20,7 @@
 <link rel="preconnect" href="https://www.doodl.co">
 <link rel="preconnect" href="https://images.doodl.co">
 <link rel="preconnect" href="https://archive.org">
+<link rel="preconnect" href="https://stmjykymgtijghbcullm.supabase.co">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -63,6 +64,36 @@
           <span class="icon icon-chart" aria-hidden="true"></span>
         </button>
         <div id="insightsPanel" class="insights-panel" hidden></div>
+      </div>
+      <div class="auth-wrap" id="authWrap" hidden>
+        <button type="button" id="authToggle" class="icon-btn" data-i18n-title="auth_toggle_title" aria-expanded="false">
+          <span class="icon icon-user" aria-hidden="true"></span>
+          <span id="authAvatar" class="auth-avatar" hidden aria-hidden="true"></span>
+        </button>
+        <div id="authPopover" class="filters-popover auth-popover" hidden>
+          <div id="authLoggedOut">
+            <button type="button" id="authGoogleBtn" class="btn btn-secondary auth-google-btn">
+              <svg class="auth-google-icon" viewBox="0 0 18 18" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.87 2.7-6.62z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/>
+                <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.17.29-1.7V4.97H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.03l2.97-2.33z"/>
+                <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.97l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/>
+              </svg>
+              <span data-i18n="auth_google">Войти через Google</span>
+            </button>
+            <div class="auth-divider" data-i18n="auth_or">или</div>
+            <form id="authEmailForm" class="auth-email-form">
+              <input type="email" id="authEmailInput" class="auth-email-input" data-i18n-placeholder="auth_email_placeholder" autocomplete="email" required>
+              <button type="submit" class="btn btn-primary auth-email-submit" data-i18n="auth_email_submit">Прислать ссылку</button>
+            </form>
+            <p class="auth-email-note" data-i18n="auth_email_note">Пришлём ссылку для входа без пароля.</p>
+          </div>
+          <div id="authLoggedIn" hidden>
+            <p id="authEmailLabel" class="auth-email-label"></p>
+            <a id="authAdminLink" href="admin.html" class="btn btn-ghost auth-admin-link" hidden data-i18n="auth_admin_link">Админка</a>
+            <button type="button" id="authSignOutBtn" class="btn btn-ghost auth-sign-out-btn" data-i18n="auth_sign_out">Выйти</button>
+          </div>
+        </div>
       </div>
       <button id="themeToggle" class="icon-btn" data-i18n-title="theme_toggle_title">
         <span class="icon icon-auto" data-theme-icon="auto" aria-hidden="true"></span>
@@ -534,9 +565,11 @@
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="js/config.js"></script>
 <script src="js/i18n.js"></script>
 <script>window.I18N.applyStaticI18n();</script>
+<script src="js/auth.js"></script>
 <script src="js/providers.js"></script>
 <script src="js/icons.js"></script>
 <script src="js/videoProviders.js"></script>

@@ -1,0 +1,74 @@
+/* Админка — использует переменные и .btn/.toast из css/styles.css, здесь
+   только специфичная для этой страницы разметка. */
+
+.admin-app {
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 24px 20px 60px;
+}
+
+.admin-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+.admin-header h1 { font-size: 20px; margin: 0; flex: 1; }
+.admin-brand { color: var(--text-muted); text-decoration: none; font-size: 14px; }
+.admin-brand:hover { color: var(--text); }
+.admin-whoami { font-size: 13px; color: var(--text-muted); }
+
+.admin-gate {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text-muted);
+}
+.admin-gate .btn { margin-top: 14px; }
+
+.admin-content[hidden], .admin-gate[hidden] { display: none; }
+
+.admin-section { margin-bottom: 36px; }
+.admin-section h2 { font-size: 16px; margin: 0 0 12px; }
+.admin-hint { font-size: 13px; color: var(--text-muted); line-height: 1.5; margin: 0 0 14px; }
+
+.admin-stats-row { display: flex; gap: 16px; flex-wrap: wrap; }
+.admin-stat-card {
+  flex: 1;
+  min-width: 160px;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.admin-stat-value { font-size: 28px; font-weight: 700; }
+.admin-stat-label { font-size: 12.5px; color: var(--text-muted); }
+
+.admin-keys-table { display: flex; flex-direction: column; gap: 10px; }
+.admin-key-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  background: var(--bg-elevated);
+  border-radius: var(--radius-md);
+  padding: 12px 14px;
+}
+.admin-key-label { display: flex; flex-direction: column; gap: 2px; min-width: 180px; flex: 1; }
+.admin-key-status { font-size: 12.5px; color: var(--text-muted); font-family: monospace; }
+.admin-key-status.is-ok { color: var(--text); }
+.admin-key-status.is-missing { color: var(--danger); }
+.admin-key-source { color: var(--text-muted); }
+.admin-key-form { display: flex; gap: 8px; flex-shrink: 0; }
+.admin-key-form input {
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  width: 220px;
+}
+.admin-key-delete { flex-shrink: 0; }

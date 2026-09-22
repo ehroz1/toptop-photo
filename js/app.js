@@ -53,6 +53,18 @@
     micBtn: document.getElementById("micBtn"),
     insightsToggle: document.getElementById("insightsToggle"),
     insightsPanel: document.getElementById("insightsPanel"),
+    authWrap: document.getElementById("authWrap"),
+    authToggle: document.getElementById("authToggle"),
+    authAvatar: document.getElementById("authAvatar"),
+    authPopover: document.getElementById("authPopover"),
+    authLoggedOut: document.getElementById("authLoggedOut"),
+    authLoggedIn: document.getElementById("authLoggedIn"),
+    authGoogleBtn: document.getElementById("authGoogleBtn"),
+    authEmailForm: document.getElementById("authEmailForm"),
+    authEmailInput: document.getElementById("authEmailInput"),
+    authEmailLabel: document.getElementById("authEmailLabel"),
+    authAdminLink: document.getElementById("authAdminLink"),
+    authSignOutBtn: document.getElementById("authSignOutBtn"),
     recentSearches: document.getElementById("recentSearches"),
     sourcesRow: document.getElementById("sourcesRow"),
     sourcesMenuWrap: document.getElementById("sourcesMenuWrap"),
@@ -323,7 +335,23 @@
   // Большинство мест в коде (саджесты, история, Enter в пустом поле и т.п.)
   // хотят одно и то же: "запусти/сбрось поиск в ТЕКУЩЕМ режиме" — вместо
   // трёхветочного if/else в каждом таком месте, две точки входа здесь.
+  // Лог поиска в Supabase (для статистики в админке) — best-effort, ничего
+  // не ждём и не показываем при сбое: это не влияет на сам поиск.
+  function logSearch(query, mode) {
+    const base = window.APP_CONFIG?.WORKER_BASE_URL;
+    if (!base || !query) return;
+    const token = window.PhotoSeekAuth && window.PhotoSeekAuth.getAccessToken();
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    fetch(`${base}/log-search`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ query, mode }),
+    }).catch(() => {});
+  }
+
   function runSearchForMode(opts) {
+    logSearch(el.input.value.trim(), state.mode);
     if (state.mode === "icons") runIconSearch(opts);
     else if (state.mode === "video") runVideoSearch(opts);
     else runSearch(opts);
@@ -917,6 +945,75 @@
   document.addEventListener("click", (e) => {
     if (!el.sourcesMenuPopover.hidden && !el.sourcesMenuWrap.contains(e.target)) closeSourcesMenuPopover();
   });
+
+  // ---------- Вход (Supabase) ----------
+  if (window.PhotoSeekAuth && window.PhotoSeekAuth.isConfigured()) {
+    el.authWrap.hidden = false;
+
+    function closeAuthPopover() {
+      el.authPopover.hidden = true;
+      el.authToggle.setAttribute("aria-expanded", "false");
+    }
+    el.authToggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const willOpen = el.authPopover.hidden;
+      document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+      el.authPopover.hidden = !willOpen;
+      el.authToggle.setAttribute("aria-expanded", String(willOpen));
+    });
+    document.addEventListener("click", (e) => {
+      if (!el.authPopover.hidden && !el.authWrap.contains(e.target)) closeAuthPopover();
+    });
+
+    window.PhotoSeekAuth.onChange((session) => {
+      const user = session && session.user;
+      el.authLoggedOut.hidden = Boolean(user);
+      el.authLoggedIn.hidden = !user;
+      if (user) {
+        const label = user.email || "";
+        el.authEmailLabel.textContent = label;
+        el.authAvatar.textContent = label.slice(0, 1) || "?";
+        el.authAvatar.hidden = false;
+        el.authToggle.querySelector(".icon-user").hidden = true;
+        el.authAdminLink.hidden = false;
+      } else {
+        el.authAvatar.hidden = true;
+        el.authToggle.querySelector(".icon-user").hidden = false;
+        el.authAdminLink.hidden = true;
+      }
+    });
+
+    el.authGoogleBtn.addEventListener("click", async () => {
+      try {
+        await window.PhotoSeekAuth.signInWithGoogle();
+      } catch (err) {
+        showToast(`Не удалось начать вход через Google: ${err.message}`);
+      }
+    });
+
+    el.authEmailForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = el.authEmailInput.value.trim();
+      if (!email) return;
+      const submitBtn = el.authEmailForm.querySelector("button[type=submit]");
+      submitBtn.disabled = true;
+      try {
+        await window.PhotoSeekAuth.signInWithEmail(email);
+        showToast("Ссылка для входа отправлена на почту");
+        el.authEmailInput.value = "";
+        closeAuthPopover();
+      } catch (err) {
+        showToast(`Не удалось отправить ссылку: ${err.message}`);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    el.authSignOutBtn.addEventListener("click", async () => {
+      closeAuthPopover();
+      await window.PhotoSeekAuth.signOut();
+    });
+  }
 
   bindSourceChipGroup(el.iconSources, "data-icon-source", "iconSource", state.activeIconSources, {
     allowZero: true,

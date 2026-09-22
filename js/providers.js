@@ -19,6 +19,13 @@
     return (str || "").replace(/<[^>]*>/g, "").trim();
   }
 
+  function withAuthHeader(url, opts) {
+    if (!CONFIG.WORKER_BASE_URL || !url.startsWith(CONFIG.WORKER_BASE_URL)) return opts;
+    const token = global.PhotoSeekAuth && global.PhotoSeekAuth.getAccessToken();
+    if (!token) return opts;
+    return { ...opts, headers: { ...(opts && opts.headers), Authorization: `Bearer ${token}` } };
+  }
+
   // Unsplash API Guidelines требуют помечать ссылки на автора/фото меткой
   // utm_source=<имя приложения>&utm_medium=referral — без этого заявку на
   // повышение лимита (Production, 5000 запросов/час вместо 50) отклонят.
@@ -31,11 +38,14 @@
 
   // Единая обёртка над fetch с понятными сообщениями об ошибках —
   // чтобы в интерфейсе было видно не просто "ошибка", а что именно случилось
-  // (HTTP-код, текст ответа сервера или сетевой/CORS-сбой).
+  // (HTTP-код, текст ответа сервера или сетевой/CORS-сбой). Запросам к
+  // воркеру дополнительно подставляет токен сессии Supabase (если
+  // пользователь вошёл) — так воркер снимает с него дневной лимит гостя.
   async function fetchJson(url, opts) {
     let res;
+    const finalOpts = withAuthHeader(url, opts);
     try {
-      res = await fetch(url, opts);
+      res = await fetch(url, finalOpts);
     } catch (err) {
       // AbortError (запрос отменён через signal — новый поиск стартовал раньше,
       // чем ответил этот) — пробрасываем как есть, не заворачивая в обычную

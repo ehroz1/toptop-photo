@@ -8,7 +8,30 @@ compatibility_date = "2024-01-01"
 #   wrangler secret put PEXELS_KEY
 #   wrangler secret put UNSPLASH_ACCESS_KEY
 #   wrangler secret put FLICKR_API_KEY   (необязательно, если не используете Flickr)
+#   wrangler secret put SUPABASE_SECRET_KEY   (Project Settings → API → Secret key в Supabase)
 #
-# ALLOWED_ORIGINS не секретный — можно задать прямо тут, через vars.
+# ALLOWED_ORIGINS, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY не секретные —
+# заданы прямо тут, через vars (Publishable key по дизайну Supabase не даёт
+# доступа в обход RLS, светить его на клиенте и здесь — нормально).
 [vars]
 ALLOWED_ORIGINS = "https://ehroz1.github.io"
+SUPABASE_URL = "https://stmjykymgtijghbcullm.supabase.co"
+SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TUerYlzR3Z6Ap4rNdXV5IA_lv1XJMdz"
+# Необязательно: сколько запросов в сутки на IP разрешено гостям (без входа).
+# Если не задать — используется значение по умолчанию из worker.js (150).
+# ANON_DAILY_LIMIT = "150"
+
+# Cloudflare KV — хранилище ключей фотостоков (пишет админка) и счётчиков
+# дневного лимита для гостей. Если деплоите через сайт Cloudflare (Quick
+# edit), эти привязки не нужны тут — добавьте их в Settings → Bindings
+# у воркера в дашборде (см. cloudflare-worker/README.md). Если деплоите
+# через wrangler — создайте namespace'ы и впишите их id вместо "ЗАМЕНИТЕ":
+#   wrangler kv namespace create photoseek-keys
+#   wrangler kv namespace create photoseek-limits
+# [[kv_namespaces]]
+# binding = "KEYS"
+# id = "ЗАМЕНИТЕ_НА_ID_photoseek-keys"
+#
+# [[kv_namespaces]]
+# binding = "LIMITS"
+# id = "ЗАМЕНИТЕ_НА_ID_photoseek-limits"
