@@ -51,10 +51,18 @@ function copyParams(url, exclude = []) {
   return out;
 }
 
+// Некоторые API (замечено на Shutterstock) отклоняют запрос без заголовка
+// User-Agent — fetch() из Cloudflare Worker не подставляет браузерный UA
+// сам по себе. Задаём его один раз здесь для всех проксируемых запросов.
+const WORKER_USER_AGENT = "PhotoSeek/1.0 (+https://ehroz1.github.io/toptop-photo/; Cloudflare Worker proxy)";
+
 async function proxy(targetUrl, init, origin, env) {
   let res;
   try {
-    res = await fetch(targetUrl, init);
+    res = await fetch(targetUrl, {
+      ...init,
+      headers: { "User-Agent": WORKER_USER_AGENT, ...(init.headers || {}) },
+    });
   } catch (err) {
     return jsonError(origin, env, `upstream fetch failed: ${err.message}`, 502);
   }
