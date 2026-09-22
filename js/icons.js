@@ -55,9 +55,19 @@
     return collectionsCache.get(prefix) || null;
   }
 
-  async function search(query, { page = 1 } = {}) {
+  // prefixes/palette — базовые фильтры (выбор наборов иконок + моно/цветные,
+  // см. app.js). Отправляем их и на сервер (если Iconify их поддерживает —
+  // меньше лишних данных в ответе), но полагаться только на это нельзя: не
+  // из этой песочницы проверить точные имена параметров живого API, поэтому
+  // app.js обязательно ещё раз фильтрует items на клиенте после ответа —
+  // сервер-side фильтр тут просто оптимизация, а не единственный барьер.
+  async function search(query, { page = 1, prefixes = [], palette = "any" } = {}) {
     const start = (page - 1) * PAGE_SIZE;
-    const url = `${API_BASE}/search?query=${encodeURIComponent(query)}&limit=${PAGE_SIZE}&start=${start}`;
+    const params = new URLSearchParams({ query, limit: String(PAGE_SIZE), start: String(start) });
+    if (prefixes.length) params.set("prefixes", prefixes.join(","));
+    if (palette === "mono") params.set("palette", "false");
+    else if (palette === "color") params.set("palette", "true");
+    const url = `${API_BASE}/search?${params.toString()}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -66,15 +76,15 @@
       const sep = id.indexOf(":");
       return { id, prefix: id.slice(0, sep), name: id.slice(sep + 1) };
     });
-    const prefixes = Array.from(new Set(items.map((it) => it.prefix)));
+    const resultPrefixes = Array.from(new Set(items.map((it) => it.prefix)));
     if (data.collections) {
-      prefixes.forEach((p) => {
+      resultPrefixes.forEach((p) => {
         if (data.collections[p] && !collectionsCache.has(p)) collectionsCache.set(p, data.collections[p]);
       });
     }
     // Не ждём лицензии наборов, чтобы не тормозить показ сетки — подтянутся
     // к моменту, когда пользователь откроет конкретную иконку.
-    fetchCollectionsInfo(prefixes);
+    fetchCollectionsInfo(resultPrefixes);
     return { items, total: typeof data.total === "number" ? data.total : null };
   }
 
@@ -140,6 +150,7 @@
     getIconBody,
     buildSvgMarkup,
     getCollectionInfo,
+    ensureCollectionsInfo: fetchCollectionsInfo,
     classifyIconLicense,
     iconPageUrl,
   };

@@ -88,32 +88,32 @@
           <button type="button" class="mode-tab" data-mode="icons" data-i18n="mode_icons">Иконки</button>
         </div>
         <div class="sources" id="sources">
-          <button type="button" class="source-chip" data-source="pixabay" aria-pressed="true">
+          <button type="button" class="source-chip" data-source="pixabay" aria-pressed="false">
             <span class="dot dot-pixabay"></span>Pixabay
           </button>
-          <button type="button" class="source-chip" data-source="pexels" aria-pressed="true">
+          <button type="button" class="source-chip" data-source="pexels" aria-pressed="false">
             <span class="dot dot-pexels"></span>Pexels
           </button>
-          <button type="button" class="source-chip" data-source="unsplash" aria-pressed="true">
-            <span class="dot dot-unsplash"></span>Unsplash
-          </button>
-          <button type="button" class="source-chip" data-source="wikimedia" aria-pressed="true">
+          <button type="button" class="source-chip" data-source="wikimedia" aria-pressed="false">
             <span class="dot dot-wikimedia"></span>Wikimedia
           </button>
-          <button type="button" class="source-chip" data-source="openverse" aria-pressed="true">
+          <button type="button" class="source-chip" data-source="openverse" aria-pressed="false">
             <span class="dot dot-openverse"></span>Openverse
           </button>
-          <button type="button" class="source-chip" data-source="doodl" aria-pressed="true">
+          <button type="button" class="source-chip" data-source="doodl" aria-pressed="false">
             <span class="dot dot-doodl"></span>Doodl
+          </button>
+          <button type="button" class="source-chip" data-source="unsplash" aria-pressed="false">
+            <span class="dot dot-unsplash"></span>Unsplash
+          </button>
+          <button type="button" class="source-chip" data-source="shutterstock" aria-pressed="false">
+            <span class="dot dot-shutterstock"></span>Shutterstock
+          </button>
+          <button type="button" class="source-chip" data-source="pexafy" aria-pressed="false">
+            <span class="dot dot-pexafy"></span>Pexafy
           </button>
           <button type="button" class="source-chip" data-source="flickr" aria-pressed="false">
             <span class="dot dot-flickr"></span>Flickr
-          </button>
-          <button type="button" class="source-chip" data-source="shutterstock" aria-pressed="true">
-            <span class="dot dot-shutterstock"></span>Shutterstock
-          </button>
-          <button type="button" class="source-chip" data-source="pexafy" aria-pressed="true">
-            <span class="dot dot-pexafy"></span>Pexafy
           </button>
 
           <span class="sources-sep" aria-hidden="true"></span>
@@ -130,6 +130,16 @@
           <button type="button" class="source-chip source-chip-external" id="cosmosBtn" data-i18n-title="source_cosmos_title">
             <span class="icon icon-external" aria-hidden="true"></span>Cosmos
           </button>
+        </div>
+        <div class="sources" id="iconSources" hidden>
+          <button type="button" class="source-chip" data-icon-source="mdi" aria-pressed="false" data-i18n-title="icon_source_chip_title">Material Design</button>
+          <button type="button" class="source-chip" data-icon-source="tabler" aria-pressed="false" data-i18n-title="icon_source_chip_title">Tabler</button>
+          <button type="button" class="source-chip" data-icon-source="ph" aria-pressed="false" data-i18n-title="icon_source_chip_title">Phosphor</button>
+          <button type="button" class="source-chip" data-icon-source="bi" aria-pressed="false" data-i18n-title="icon_source_chip_title">Bootstrap</button>
+          <button type="button" class="source-chip" data-icon-source="lucide" aria-pressed="false" data-i18n-title="icon_source_chip_title">Lucide</button>
+          <button type="button" class="source-chip" data-icon-source="fa6-solid" aria-pressed="false" data-i18n-title="icon_source_chip_title">Font Awesome</button>
+          <button type="button" class="source-chip" data-icon-source="simple-icons" aria-pressed="false" data-i18n-title="icon_source_chip_title">Simple Icons</button>
+          <button type="button" class="source-chip" data-icon-source="twemoji" aria-pressed="false" data-i18n-title="icon_source_chip_title">Twemoji</button>
         </div>
       </div>
 
@@ -196,6 +206,28 @@
               </button>
               <div class="dropdown-menu dropdown-menu-colors" id="colorMenu">
                 <button type="button" class="dropdown-item is-any is-active" data-val="any" data-i18n="color_any">Любой цвет</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filters-popover-wrap" id="iconFiltersRow" hidden>
+        <button type="button" id="iconFiltersToggle" class="icon-btn" data-i18n-title="filters_title" aria-expanded="false">
+          <span class="icon icon-filters" aria-hidden="true"></span>
+          <span id="iconFiltersBadge" class="filters-badge" hidden></span>
+        </button>
+        <div id="iconFiltersPopover" class="filters-popover" hidden>
+          <div class="filters">
+            <div class="dropdown" data-dropdown="iconStyle">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="icon_style_label">Стиль</span> <span class="dropdown-value" data-value data-i18n="icon_style_any">Любой</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="icon_style_any">Любой</button>
+                <button type="button" class="dropdown-item" data-val="mono" data-i18n="icon_style_mono">Одноцветные</button>
+                <button type="button" class="dropdown-item" data-val="color" data-i18n="icon_style_color">Цветные</button>
               </div>
             </div>
           </div>

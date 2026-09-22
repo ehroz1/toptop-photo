@@ -5,6 +5,7 @@
   const ICON_SUGGESTIONS = I18N.t("suggestions_icons");
   const FAVORITES_KEY = "photoseek-favorites";
   const FILTERS_KEY = "photoseek-filters";
+  const ICON_FILTERS_KEY = "photoseek-icon-filters";
   const HISTORY_KEY = "photoseek-history";
   const ICON_HISTORY_KEY = "photoseek-icon-history";
   const STATS_KEY = "photoseek-stats";
@@ -27,6 +28,10 @@
   // Перевод — тоже best-effort: если MyMemory не ответил за это время, ищем
   // как есть на языке оригинала, вместо того чтобы держать весь поиск.
   const TRANSLATE_TIMEOUT_MS = 2500;
+  // Слишком много одновременно опрошенных источников — это не быстрее (см.
+  // предыдущую перестройку поиска на независимый параллельный опрос), а
+  // просто больше сетевых запросов и шума в ленте; ограничиваем выбор.
+  const MAX_ACTIVE_SOURCES = 3;
 
   const el = {
     topbar: document.getElementById("topbar"),
@@ -47,6 +52,7 @@
     insightsPanel: document.getElementById("insightsPanel"),
     recentSearches: document.getElementById("recentSearches"),
     sources: document.getElementById("sources"),
+    iconSources: document.getElementById("iconSources"),
     yandexBtn: document.getElementById("yandexBtn"),
     googleBtn: document.getElementById("googleBtn"),
     pinterestBtn: document.getElementById("pinterestBtn"),
@@ -89,6 +95,10 @@
     filtersToggle: document.getElementById("filtersToggle"),
     filtersPopover: document.getElementById("filtersPopover"),
     filtersBadge: document.getElementById("filtersBadge"),
+    iconFiltersRow: document.getElementById("iconFiltersRow"),
+    iconFiltersToggle: document.getElementById("iconFiltersToggle"),
+    iconFiltersPopover: document.getElementById("iconFiltersPopover"),
+    iconFiltersBadge: document.getElementById("iconFiltersBadge"),
     heroH1Before: document.getElementById("heroH1Before"),
     heroH1Underline: document.getElementById("heroH1Underline"),
     heroP: document.getElementById("heroP"),
@@ -145,6 +155,10 @@
     iconLoading: false,
     iconLightboxIndex: -1,
     iconColor: null, // null = цвет темы (currentColor), иначе выбранный hex
+    // Пустой набор = без ограничения (ищем по всем наборам Iconify, как и
+    // раньше) — в отличие от activeSources у фото, где пусто невозможно.
+    activeIconSources: new Set(),
+    iconStyle: "any", // "any" | "mono" | "color"
   };
 
   const PROVIDER_LABELS = {
@@ -265,6 +279,8 @@
     const isIcons = mode === "icons";
     el.sources.hidden = isIcons;
     el.filtersRow.hidden = isIcons;
+    el.iconSources.hidden = !isIcons;
+    el.iconFiltersRow.hidden = !isIcons;
     el.favoritesToggle.hidden = isIcons;
     el.selectModeToggle.hidden = isIcons;
     applyHeroForMode();
@@ -282,6 +298,7 @@
     closeLightbox();
     closeIconLightbox();
     closeFiltersPopover();
+    closeIconFiltersPopover();
     const wasIcons = state.mode === "icons";
     applyModeUI(mode);
     if (wasIcons && mode !== "icons") {
@@ -392,6 +409,22 @@
     el.colorMenu.appendChild(btn);
   });
 
+  // Если активных источников больше лимита (миграция со старых сохранённых
+  // фильтров, где лимита ещё не было) — оставляем первые cap штук в порядке
+  // чипов на странице, остальные выключаем. Для фото (allowZero=false) это
+  // никогда не опустошает набор — уже не более 3 при входе в эту функцию
+  // означает, что 3 и останется; для иконок (allowZero=true) 0 — валидное
+  // состояние ("без ограничения"), поэтому его вообще не трогаем.
+  function enforceSourceCap(chips, activeSet, cap) {
+    const activeChips = chips.filter((c) => activeSet.has(c.dataset.source || c.dataset.iconSource));
+    if (activeChips.length <= cap) return false;
+    activeChips.slice(cap).forEach((c) => {
+      c.setAttribute("aria-pressed", "false");
+      activeSet.delete(c.dataset.source || c.dataset.iconSource);
+    });
+    return true;
+  }
+
   // ---------- Persisted filters ----------
   // Список ИСКЛЮЧЁННЫХ источников, а не включённых — иначе каждый новый
   // источник, добавленный позже (как Shutterstock/Pexafy/Doodl сейчас), не
@@ -459,6 +492,12 @@
       if (want) state.activeSources.add(chip.dataset.source);
       else state.activeSources.delete(chip.dataset.source);
     });
+
+    // Сохранённые фильтры могли появиться до лимита в MAX_ACTIVE_SOURCES —
+    // подрезаем и сразу пересохраняем исправленный список, чтобы это не
+    // повторялось на каждой загрузке.
+    const visibleChips = Array.from(el.sources.querySelectorAll(".source-chip[data-source]:not([hidden])"));
+    if (enforceSourceCap(visibleChips, state.activeSources, MAX_ACTIVE_SOURCES)) saveFilters();
   }
 
   // Источники без ключа в config.js просто скрываем — они появятся сами,
@@ -469,11 +508,16 @@
   (function initSourceChips() {
     const byId = {};
     (window.PROVIDERS || []).forEach((p) => { byId[p.id] = p; });
+    let activatedCount = 0;
     el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
       const provider = byId[chip.dataset.source];
       if (provider && provider.enabled()) {
-        state.activeSources.add(provider.id);
-        chip.setAttribute("aria-pressed", "true");
+        const activate = activatedCount < MAX_ACTIVE_SOURCES;
+        if (activate) {
+          state.activeSources.add(provider.id);
+          activatedCount++;
+        }
+        chip.setAttribute("aria-pressed", String(activate));
       } else {
         chip.hidden = true;
       }
@@ -482,6 +526,34 @@
 
   loadPersistedFilters();
   updateFiltersBadge();
+
+  // ---------- Persisted icon filters (стиль + выбор наборов иконок) ----------
+  function saveIconFilters() {
+    try {
+      localStorage.setItem(ICON_FILTERS_KEY, JSON.stringify({
+        iconStyle: state.iconStyle,
+        activeIconSources: Array.from(state.activeIconSources),
+      }));
+    } catch { /* localStorage недоступен — не критично */ }
+  }
+  function loadPersistedIconFilters() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(ICON_FILTERS_KEY) || "null"); } catch { /* битые данные — игнорируем */ }
+    if (!saved) return;
+    if (saved.iconStyle) {
+      state.iconStyle = saved.iconStyle;
+      setDropdownUI("iconStyle", saved.iconStyle);
+    }
+    const chips = Array.from(el.iconSources.querySelectorAll("[data-icon-source]"));
+    if (Array.isArray(saved.activeIconSources)) {
+      const known = new Set(chips.map((c) => c.dataset.iconSource));
+      saved.activeIconSources.filter((id) => known.has(id)).forEach((id) => state.activeIconSources.add(id));
+      chips.forEach((chip) => chip.setAttribute("aria-pressed", String(state.activeIconSources.has(chip.dataset.iconSource))));
+      if (enforceSourceCap(chips, state.activeIconSources, MAX_ACTIVE_SOURCES)) saveIconFilters();
+    }
+  }
+  loadPersistedIconFilters();
+  updateIconFiltersBadge();
 
   // ---------- Stats & rate-limit tracking ----------
   const stats = (function loadStats() {
@@ -613,21 +685,63 @@
   }
 
   // ---------- Source chips ----------
+  // Обновляет визуальную "притушенность" неактивных чипов, когда лимит
+  // MAX_ACTIVE_SOURCES исчерпан — сам клик при этом не блокируется, чтобы
+  // на притушенный чип всё равно можно было нажать и увидеть тост-объяснение
+  // вместо молчаливого игнорирования.
+  function updateSourceCapVisual(chips, activeSet) {
+    const atCap = activeSet.size >= MAX_ACTIVE_SOURCES;
+    chips.forEach((c) => c.classList.toggle("is-capped", atCap));
+  }
   el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
     chip.addEventListener("click", () => {
       const src = chip.dataset.source;
       const willBeActive = chip.getAttribute("aria-pressed") !== "true";
-      if (!willBeActive) {
-        const activeCount = el.sources.querySelectorAll('.source-chip[aria-pressed="true"]').length;
-        if (activeCount <= 1) return; // хотя бы один источник должен остаться включён
+      const chips = Array.from(el.sources.querySelectorAll(".source-chip[data-source]:not([hidden])"));
+      if (willBeActive) {
+        if (state.activeSources.size >= MAX_ACTIVE_SOURCES) {
+          showToast(I18N.t("sources_max_reached", { n: MAX_ACTIVE_SOURCES }));
+          return;
+        }
+      } else if (state.activeSources.size <= 1) {
+        return; // хотя бы один источник должен остаться включён
       }
       chip.setAttribute("aria-pressed", String(willBeActive));
       if (willBeActive) state.activeSources.add(src);
       else state.activeSources.delete(src);
+      updateSourceCapVisual(chips, state.activeSources);
       saveFilters();
       if (state.query) runSearch({ keepTranslation: true });
     });
   });
+  updateSourceCapVisual(Array.from(el.sources.querySelectorAll(".source-chip[data-source]:not([hidden])")), state.activeSources);
+
+  // ---------- Icon source chips (наборы иконок Iconify) ----------
+  // В отличие от фото, пустой выбор здесь — валидное и по умолчанию активное
+  // состояние: значит "искать по всем наборам", как и было раньше. До трёх
+  // выбранных чипов сужают поиск конкретными наборами (см. loadIconPage).
+  function updateIconSourceCapVisual() {
+    const chips = Array.from(el.iconSources.querySelectorAll("[data-icon-source]"));
+    const atCap = state.activeIconSources.size >= MAX_ACTIVE_SOURCES;
+    chips.forEach((c) => c.classList.toggle("is-capped", atCap));
+  }
+  el.iconSources.querySelectorAll("[data-icon-source]").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      const src = chip.dataset.iconSource;
+      const willBeActive = chip.getAttribute("aria-pressed") !== "true";
+      if (willBeActive && state.activeIconSources.size >= MAX_ACTIVE_SOURCES) {
+        showToast(I18N.t("sources_max_reached", { n: MAX_ACTIVE_SOURCES }));
+        return;
+      }
+      chip.setAttribute("aria-pressed", String(willBeActive));
+      if (willBeActive) state.activeIconSources.add(src);
+      else state.activeIconSources.delete(src);
+      updateIconSourceCapVisual();
+      saveIconFilters();
+      rerunIconSearchWithFilters();
+    });
+  });
+  updateIconSourceCapVisual();
 
   el.yandexBtn.addEventListener("click", () => openExternalSearch("yandex"));
   el.googleBtn.addEventListener("click", () => openExternalSearch("google"));
@@ -664,6 +778,11 @@
       if (!isOpen) dropdown.classList.add("is-open");
     });
 
+    // Единственный дропдаун иконок (data-dropdown="iconStyle") живёт внутри
+    // #iconFiltersPopover и сохраняется/перезапускает поиск по-своему — он
+    // выключен из этого общего блока, чтобы не задеть фото-состояние.
+    const isIconDropdown = !!dropdown.closest("#iconFiltersPopover");
+
     menu.querySelectorAll(".dropdown-item").forEach((item) => {
       item.addEventListener("click", () => {
         menu.querySelectorAll(".dropdown-item").forEach((i) => i.classList.remove("is-active"));
@@ -671,9 +790,15 @@
         valueEl.textContent = item.textContent.trim();
         state[key] = item.dataset.val;
         dropdown.classList.remove("is-open");
-        saveFilters();
-        updateFiltersBadge(true);
-        if (state.query) runSearch({ keepTranslation: true });
+        if (isIconDropdown) {
+          saveIconFilters();
+          updateIconFiltersBadge(true);
+          rerunIconSearchWithFilters();
+        } else {
+          saveFilters();
+          updateFiltersBadge(true);
+          if (state.query) runSearch({ keepTranslation: true });
+        }
       });
     });
   });
@@ -713,6 +838,28 @@
   });
   document.addEventListener("click", (e) => {
     if (!el.filtersPopover.hidden && !el.filtersRow.contains(e.target)) closeFiltersPopover();
+    if (!el.iconFiltersPopover.hidden && !el.iconFiltersRow.contains(e.target)) closeIconFiltersPopover();
+  });
+
+  // ---------- Кнопка фильтров иконок (стиль: любой/одноцветные/цветные) ----------
+  function updateIconFiltersBadge(animate = false) {
+    const activeCount = (state.iconStyle !== "any" ? 1 : 0) + (state.activeIconSources.size > 0 ? 1 : 0);
+    const changed = el.iconFiltersBadge.textContent !== String(activeCount);
+    el.iconFiltersBadge.textContent = String(activeCount);
+    el.iconFiltersBadge.hidden = activeCount === 0;
+    el.iconFiltersToggle.classList.toggle("has-active-filters", activeCount > 0);
+    if (animate && changed && activeCount > 0) popHeart(el.iconFiltersBadge);
+  }
+  function closeIconFiltersPopover() {
+    el.iconFiltersPopover.hidden = true;
+    el.iconFiltersToggle.setAttribute("aria-expanded", "false");
+  }
+  el.iconFiltersToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = el.iconFiltersPopover.hidden;
+    document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+    el.iconFiltersPopover.hidden = !willOpen;
+    el.iconFiltersToggle.setAttribute("aria-expanded", String(willOpen));
   });
 
   // ---------- URL query param (?q=&mode=icons) ----------
@@ -1207,7 +1354,14 @@
     }
 
     if (myGeneration !== iconSearchGeneration) return; // отменено более новым поиском
+    await startIconResultsLoad(myGeneration);
+  }
 
+  // Общий хвост запуска поиска иконок — используется и при обычном поиске
+  // (после перевода запроса), и при смене фильтров стиля/наборов иконок,
+  // когда переводить/добавлять в историю заново не нужно, а вот сбросить
+  // сетку и перезапросить текущий (уже переведённый) запрос — нужно.
+  async function startIconResultsLoad(generation) {
     state.iconItems = [];
     state.iconPage = 0;
     state.iconHasMore = false;
@@ -1217,7 +1371,16 @@
     el.iconNoResults.hidden = true;
     el.providerWarnings.textContent = "";
     renderIconSkeletons(18);
-    await loadIconPage(true, myGeneration);
+    await loadIconPage(true, generation);
+  }
+
+  // Смена фильтра стиля/наборов иконок посреди уже открытого поиска: не
+  // трогаем историю/URL/перевод — просто отменяем текущую страницу (новое
+  // поколение) и грузим первую страницу заново с новыми фильтрами.
+  function rerunIconSearchWithFilters() {
+    if (!state.iconSearchQuery) return; // ещё ничего не искали — фильтр применится при следующем поиске
+    const myGeneration = ++iconSearchGeneration;
+    startIconResultsLoad(myGeneration);
   }
 
   function renderIconSkeletons(count) {
@@ -1239,12 +1402,19 @@
     el.iconLoadMoreBtn.textContent = I18N.t("loading");
 
     const page = state.iconPage + 1;
+    const prefixes = Array.from(state.activeIconSources);
     let items = [];
     let total = null;
     try {
-      const r = await window.IconSearch.search(state.iconSearchQuery, { page });
+      const r = await window.IconSearch.search(state.iconSearchQuery, { page, prefixes, palette: state.iconStyle });
       items = r.items;
       total = r.total;
+      // Сервер мог не поддержать/проигнорировать prefixes — фильтруем и на
+      // клиенте, это единственная гарантия (см. комментарий в icons.js).
+      if (prefixes.length) {
+        const wanted = state.activeIconSources;
+        items = items.filter((it) => wanted.has(it.prefix));
+      }
       await window.IconSearch.fetchIconBodies(items);
     } catch (err) {
       console.error("[Iconify]", err);
@@ -1264,7 +1434,27 @@
     // Иконки, для которых не удалось получить тело SVG (например, сеть
     // моргнула на конкретном наборе) — отбрасываем, показывать пустую
     // плитку смысла нет.
-    const renderable = items.filter((it) => window.IconSearch.getIconBody(it.prefix, it.name));
+    let renderable = items.filter((it) => window.IconSearch.getIconBody(it.prefix, it.name));
+
+    // Фильтр "стиль" (одноцветные/цветные) — по метаданным набора (palette),
+    // которые могли ещё не подгрузиться для совсем новых наборов; в этом
+    // случае иконку не прячем (лучше лишняя, чем ложно пустая выдача).
+    if (state.iconStyle !== "any" && renderable.length) {
+      const distinctPrefixes = Array.from(new Set(renderable.map((it) => it.prefix)));
+      await window.IconSearch.ensureCollectionsInfo(distinctPrefixes);
+      if (generation !== iconSearchGeneration) {
+        state.iconLoading = false;
+        el.iconLoadMoreBtn.disabled = false;
+        el.iconLoadMoreBtn.textContent = I18N.t("load_more");
+        return;
+      }
+      renderable = renderable.filter((it) => {
+        const info = window.IconSearch.getCollectionInfo(it.prefix);
+        if (!info) return true;
+        const isColor = !!info.palette;
+        return state.iconStyle === "color" ? isColor : !isColor;
+      });
+    }
 
     if (isFirst) clearIconSkeletons();
 

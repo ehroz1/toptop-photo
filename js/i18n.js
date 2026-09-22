@@ -78,6 +78,13 @@
       source_pinterest_title: "Открыть этот запрос в Pinterest",
       source_cosmos_title: "Открыть этот запрос в Cosmos",
       external_search_need_query: "Сначала введите запрос",
+      sources_max_reached: "Можно выбрать не более {n} источников одновременно",
+
+      icon_style_label: "Стиль",
+      icon_style_any: "Любой",
+      icon_style_mono: "Одноцветные",
+      icon_style_color: "Цветные",
+      icon_source_chip_title: "Показывать иконки только из этого набора",
 
       hero_h1_before: "Найдите фото сразу",
       hero_h1_underline: "везде",
@@ -254,6 +261,13 @@
       source_pinterest_title: "Open this search in Pinterest",
       source_cosmos_title: "Open this search in Cosmos",
       external_search_need_query: "Enter a search first",
+      sources_max_reached: "You can select up to {n} sources at once",
+
+      icon_style_label: "Style",
+      icon_style_any: "Any",
+      icon_style_mono: "Monochrome",
+      icon_style_color: "Color",
+      icon_source_chip_title: "Show icons from this set only",
 
       hero_h1_before: "Find photos",
       hero_h1_underline: "everywhere",

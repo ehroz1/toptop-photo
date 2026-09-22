@@ -481,6 +481,10 @@ body {
   background: var(--accent-soft);
 }
 .source-chip[aria-pressed="true"] .dot { opacity: 1; }
+/* Максимум одновременно выбранных источников (см. MAX_ACTIVE_SOURCES в
+   app.js) — остальные чипы визуально притушены, пока лимит не освободится,
+   но клик по ним всё равно работает (показывает тост с объяснением). */
+.source-chip.is-capped:not([aria-pressed="true"]) { opacity: 0.4; }
 .source-chip-external {
   color: var(--text-muted);
 }
@@ -512,7 +516,7 @@ body {
   text-align: center;
 }
 .filters-badge.is-pop { animation: heartPop 0.4s ease; }
-#filtersToggle.has-active-filters { color: var(--accent); background: var(--accent-soft); }
+#filtersToggle.has-active-filters, #iconFiltersToggle.has-active-filters { color: var(--accent); background: var(--accent-soft); }
 .filters-popover {
   position: absolute;
   top: calc(100% + 8px);

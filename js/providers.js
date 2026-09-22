@@ -597,13 +597,13 @@
   global.PROVIDERS = [
     PixabayProvider,
     PexelsProvider,
-    UnsplashProvider,
     WikimediaProvider,
     OpenverseProvider,
     DoodlProvider,
-    FlickrProvider,
+    UnsplashProvider,
     ShutterstockProvider,
     PexafyProvider,
+    FlickrProvider,
   ];
   global.COLOR_OPTIONS = COLOR_OPTIONS;
   global.matchesPeopleFilter = matchesPeopleFilter;
