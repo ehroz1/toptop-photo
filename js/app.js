@@ -349,6 +349,7 @@
     const isVideo = mode === "video";
     const isPhotos = mode === "photos";
     el.sourcesRow.hidden = !isPhotos;
+    el.sourcesMenuWrap.hidden = !isPhotos;
     el.filtersRow.hidden = !isPhotos;
     el.iconSources.hidden = !isIcons;
     el.iconFiltersRow.hidden = !isIcons;

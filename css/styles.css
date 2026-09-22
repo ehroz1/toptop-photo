@@ -469,7 +469,7 @@ body {
   line-height: 16px;
   text-align: center;
 }
-.sources-menu-popover { left: 0; right: auto; min-width: 220px; }
+.sources-menu-popover { min-width: 220px; }
 .sources-menu-note {
   margin: 0 0 8px;
   padding: 0 4px;

@@ -90,57 +90,6 @@
           <button type="button" class="mode-tab" data-mode="video" data-i18n="mode_video">Видео</button>
         </div>
         <div class="sources" id="sourcesRow">
-          <div class="sources-menu-wrap" id="sourcesMenuWrap">
-            <button type="button" id="sourcesMenuToggle" class="source-chip sources-menu-toggle" data-i18n-title="sources_menu_title" aria-expanded="false">
-              <span class="icon icon-layers" aria-hidden="true"></span>
-              <span data-i18n="sources_menu_label">Источники</span>
-              <span id="sourcesMenuBadge" class="filters-badge sources-menu-badge"></span>
-            </button>
-            <div id="sourcesMenuPopover" class="filters-popover sources-menu-popover" hidden>
-              <p class="sources-menu-note" data-i18n="sources_menu_note">Можно выбрать не более 3 источников одновременно</p>
-              <div class="source-checklist" id="sources">
-                <label class="source-check-row">
-                  <input type="checkbox" class="source-checkbox" data-source="pixabay">
-                  <span class="dot dot-pixabay"></span>Pixabay
-                </label>
-                <label class="source-check-row">
-                  <input type="checkbox" class="source-checkbox" data-source="pexels">
-                  <span class="dot dot-pexels"></span>Pexels
-                </label>
-                <label class="source-check-row">
-                  <input type="checkbox" class="source-checkbox" data-source="wikimedia">
-                  <span class="dot dot-wikimedia"></span>Wikimedia
-                </label>
-                <label class="source-check-row">
-                  <input type="checkbox" class="source-checkbox" data-source="openverse">
-                  <span class="dot dot-openverse"></span>Openverse
-                </label>
-                <label class="source-check-row">
-                  <input type="checkbox" class="source-checkbox" data-source="doodl">
-                  <span class="dot dot-doodl"></span>Doodl
-                </label>
-                <label class="source-check-row">
-                  <input type="checkbox" class="source-checkbox" data-source="unsplash">
-                  <span class="dot dot-unsplash"></span>Unsplash
-                </label>
-                <label class="source-check-row">
-                  <input type="checkbox" class="source-checkbox" data-source="shutterstock">
-                  <span class="dot dot-shutterstock"></span>Shutterstock
-                </label>
-                <label class="source-check-row">
-                  <input type="checkbox" class="source-checkbox" data-source="pexafy">
-                  <span class="dot dot-pexafy"></span>Pexafy
-                </label>
-                <label class="source-check-row">
-                  <input type="checkbox" class="source-checkbox" data-source="flickr">
-                  <span class="dot dot-flickr"></span>Flickr
-                </label>
-              </div>
-            </div>
-          </div>
-
-          <span class="sources-sep" aria-hidden="true"></span>
-
           <button type="button" class="source-chip source-chip-external" id="yandexBtn" data-i18n-title="source_yandex_title">
             <span class="icon icon-external" aria-hidden="true"></span><span data-i18n="source_yandex_label">Яндекс.Картинки</span>
           </button>
@@ -180,6 +129,55 @@
           <button type="button" class="source-chip" data-video-source="coverr" aria-pressed="false">
             <span class="dot dot-coverr"></span>Coverr
           </button>
+        </div>
+      </div>
+
+      <div class="sources-menu-wrap" id="sourcesMenuWrap">
+        <button type="button" id="sourcesMenuToggle" class="source-chip sources-menu-toggle" data-i18n-title="sources_menu_title" aria-expanded="false">
+          <span class="icon icon-layers" aria-hidden="true"></span>
+          <span data-i18n="sources_menu_label">Источники</span>
+          <span id="sourcesMenuBadge" class="filters-badge sources-menu-badge"></span>
+        </button>
+        <div id="sourcesMenuPopover" class="filters-popover sources-menu-popover" hidden>
+          <p class="sources-menu-note" data-i18n="sources_menu_note">Можно выбрать не более 3 источников одновременно</p>
+          <div class="source-checklist" id="sources">
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="pixabay">
+              <span class="dot dot-pixabay"></span>Pixabay
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="pexels">
+              <span class="dot dot-pexels"></span>Pexels
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="wikimedia">
+              <span class="dot dot-wikimedia"></span>Wikimedia
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="openverse">
+              <span class="dot dot-openverse"></span>Openverse
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="doodl">
+              <span class="dot dot-doodl"></span>Doodl
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="unsplash">
+              <span class="dot dot-unsplash"></span>Unsplash
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="shutterstock">
+              <span class="dot dot-shutterstock"></span>Shutterstock
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="pexafy">
+              <span class="dot dot-pexafy"></span>Pexafy
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="flickr">
+              <span class="dot dot-flickr"></span>Flickr
+            </label>
+          </div>
         </div>
       </div>
 
