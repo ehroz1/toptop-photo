@@ -26,6 +26,8 @@
   --shutterstock: #ee2a24;
   --pexafy: #7c5cff;
   --doodl: #06b6d4;
+  --archive: #8b5e34;
+  --coverr: #e8a33d;
   color-scheme: light;
 
   --icon-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
@@ -476,6 +478,8 @@ body {
 .dot-shutterstock { background: var(--shutterstock); }
 .dot-pexafy { background: var(--pexafy); }
 .dot-doodl { background: var(--doodl); }
+.dot-archive { background: var(--archive); }
+.dot-coverr { background: var(--coverr); }
 .source-chip[aria-pressed="true"] {
   color: var(--text);
   background: var(--accent-soft);
@@ -516,7 +520,7 @@ body {
   text-align: center;
 }
 .filters-badge.is-pop { animation: heartPop 0.4s ease; }
-#filtersToggle.has-active-filters, #iconFiltersToggle.has-active-filters { color: var(--accent); background: var(--accent-soft); }
+#filtersToggle.has-active-filters, #iconFiltersToggle.has-active-filters, #videoFiltersToggle.has-active-filters { color: var(--accent); background: var(--accent-soft); }
 .filters-popover {
   position: absolute;
   top: calc(100% + 8px);
@@ -886,6 +890,93 @@ body {
   animation: shimmer 1.3s ease-in-out infinite;
 }
 @keyframes shimmer { 0% { background-position: 150% 0; } 100% { background-position: -50% 0; } }
+
+/* ---------- Video grid (режим "Видео") ----------
+   Видео-превью в отличие от фото почти всегда 16:9 — фиксированный
+   аспект вместо JS-считаемого masonry-span (см. .grid/masonryObserver
+   в app.js), поэтому .video-card сама задаёт себе высоту через CSS. */
+.grid.video-grid { grid-auto-rows: auto; }
+@media (max-width: 680px) {
+  .grid.video-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+.video-card {
+  aspect-ratio: 16 / 9;
+  background: #0b0b0d;
+}
+.video-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 1;
+  transform: none;
+}
+.video-card.is-img-loading img { opacity: 0; }
+.video-card-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.video-card:hover .video-card-play { background: rgba(0,0,0,0.75); transform: translate(-50%, -50%) scale(1.08); }
+.video-card-play::after {
+  content: "";
+  width: 0;
+  height: 0;
+  margin-left: 3px;
+  border-style: solid;
+  border-width: 8px 0 8px 14px;
+  border-color: transparent transparent transparent #fff;
+}
+.video-card-duration {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.video-card .card-source-badge { background: rgba(0,0,0,0.55); color: #fff; }
+
+/* ---------- Video lightbox ---------- */
+.video-lightbox-wrap {
+  flex: 1.6;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+.video-lightbox-player {
+  max-width: 100%;
+  max-height: 88vh;
+  width: 100%;
+  display: block;
+}
+.lightbox-duration-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lightbox-duration-badge[hidden] { display: none; }
 
 /* ---------- Icon grid (режим "Иконки") ----------
    В отличие от фото-сетки (masonry-колонки под разную высоту фото), иконки

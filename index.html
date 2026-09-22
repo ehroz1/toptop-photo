@@ -19,6 +19,7 @@
 <link rel="preconnect" href="https://api.iconify.design">
 <link rel="preconnect" href="https://www.doodl.co">
 <link rel="preconnect" href="https://images.doodl.co">
+<link rel="preconnect" href="https://archive.org">
 <link rel="stylesheet" href="css/styles.css">
 </head>
 <body>
@@ -86,6 +87,7 @@
         <div class="mode-switch" id="modeSwitch">
           <button type="button" class="mode-tab is-active" data-mode="photos" data-i18n="mode_photos">Фото</button>
           <button type="button" class="mode-tab" data-mode="icons" data-i18n="mode_icons">Иконки</button>
+          <button type="button" class="mode-tab" data-mode="video" data-i18n="mode_video">Видео</button>
         </div>
         <div class="sources" id="sources">
           <button type="button" class="source-chip" data-source="pixabay" aria-pressed="false">
@@ -140,6 +142,23 @@
           <button type="button" class="source-chip" data-icon-source="fa6-solid" aria-pressed="false" data-i18n-title="icon_source_chip_title">Font Awesome</button>
           <button type="button" class="source-chip" data-icon-source="simple-icons" aria-pressed="false" data-i18n-title="icon_source_chip_title">Simple Icons</button>
           <button type="button" class="source-chip" data-icon-source="twemoji" aria-pressed="false" data-i18n-title="icon_source_chip_title">Twemoji</button>
+        </div>
+        <div class="sources" id="videoSources" hidden>
+          <button type="button" class="source-chip" data-video-source="pixabay" aria-pressed="false">
+            <span class="dot dot-pixabay"></span>Pixabay
+          </button>
+          <button type="button" class="source-chip" data-video-source="pexels" aria-pressed="false">
+            <span class="dot dot-pexels"></span>Pexels
+          </button>
+          <button type="button" class="source-chip" data-video-source="wikimedia" aria-pressed="false">
+            <span class="dot dot-wikimedia"></span>Wikimedia
+          </button>
+          <button type="button" class="source-chip" data-video-source="archive" aria-pressed="false">
+            <span class="dot dot-archive"></span>Internet Archive
+          </button>
+          <button type="button" class="source-chip" data-video-source="coverr" aria-pressed="false">
+            <span class="dot dot-coverr"></span>Coverr
+          </button>
         </div>
       </div>
 
@@ -233,6 +252,40 @@
           </div>
         </div>
       </div>
+
+      <div class="filters-popover-wrap" id="videoFiltersRow" hidden>
+        <button type="button" id="videoFiltersToggle" class="icon-btn" data-i18n-title="filters_title" aria-expanded="false">
+          <span class="icon icon-filters" aria-hidden="true"></span>
+          <span id="videoFiltersBadge" class="filters-badge" hidden></span>
+        </button>
+        <div id="videoFiltersPopover" class="filters-popover" hidden>
+          <div class="filters">
+            <div class="dropdown" data-dropdown="videoOrientation">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="orientation_label">Ориентация</span> <span class="dropdown-value" data-value data-i18n="orientation_any">Любая</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="orientation_any">Любая</button>
+                <button type="button" class="dropdown-item" data-val="horizontal" data-i18n="orientation_horizontal">Горизонтальная</button>
+                <button type="button" class="dropdown-item" data-val="vertical" data-i18n="orientation_vertical">Вертикальная</button>
+                <button type="button" class="dropdown-item" data-val="square" data-i18n="orientation_square">Квадрат</button>
+              </div>
+            </div>
+
+            <div class="dropdown" data-dropdown="videoSort">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="sort_label">Сортировка</span> <span class="dropdown-value" data-value data-i18n="sort_popular">Популярное</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="popular" data-i18n="sort_popular">Популярное</button>
+                <button type="button" class="dropdown-item" data-val="newest" data-i18n="sort_newest">Новое</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
     </div>
 
     <div class="toolbar-row toolbar-status">
@@ -260,12 +313,16 @@
 
     <div id="grid" class="grid" hidden></div>
     <div id="iconGrid" class="grid icon-grid" hidden></div>
+    <div id="videoGrid" class="grid video-grid" hidden></div>
 
     <div id="loadMoreWrap" class="load-more-wrap" hidden>
       <button id="loadMoreBtn" class="btn btn-secondary" data-i18n="load_more">Показать ещё</button>
     </div>
     <div id="iconLoadMoreWrap" class="load-more-wrap" hidden>
       <button id="iconLoadMoreBtn" class="btn btn-secondary" data-i18n="load_more">Показать ещё</button>
+    </div>
+    <div id="videoLoadMoreWrap" class="load-more-wrap" hidden>
+      <button id="videoLoadMoreBtn" class="btn btn-secondary" data-i18n="load_more">Показать ещё</button>
     </div>
 
     <div id="noResults" class="empty-state" hidden>
@@ -275,6 +332,10 @@
     <div id="iconNoResults" class="empty-state" hidden>
       <h1 data-i18n="no_results_h1">Ничего не найдено</h1>
       <p data-i18n="icon_no_results_p">Попробуйте другое слово — обычно лучше всего работают короткие английские названия (home, user, settings…).</p>
+    </div>
+    <div id="videoNoResults" class="empty-state" hidden>
+      <h1 data-i18n="no_results_h1">Ничего не найдено</h1>
+      <p data-i18n="no_results_p">Попробуйте другой запрос или снимите часть фильтров.</p>
     </div>
   </main>
 
@@ -401,6 +462,56 @@
   </div>
 </div>
 
+<div id="videoLightbox" class="lightbox video-lightbox" hidden>
+  <div class="lightbox-backdrop" data-video-close></div>
+  <div class="lightbox-dialog">
+    <button class="lightbox-close icon-btn" data-video-close data-i18n-title="lightbox_close_title">
+      <span class="icon icon-close" aria-hidden="true"></span>
+    </button>
+    <button class="lightbox-nav lightbox-prev icon-btn" id="vlPrev" data-i18n-title="lightbox_prev_title">
+      <span class="icon icon-arrow-left" aria-hidden="true"></span>
+    </button>
+    <button class="lightbox-nav lightbox-next icon-btn" id="vlNext" data-i18n-title="lightbox_next_title">
+      <span class="icon icon-arrow-right" aria-hidden="true"></span>
+    </button>
+
+    <div class="video-lightbox-wrap">
+      <video id="vlPlayer" class="video-lightbox-player" controls playsinline></video>
+    </div>
+
+    <aside class="lightbox-panel">
+      <div class="lightbox-panel-top">
+        <div class="lightbox-badges-row">
+          <span class="source-badge" id="vlSourceBadge"></span>
+          <span class="lightbox-duration-badge" id="vlDurationBadge" hidden></span>
+        </div>
+        <div class="lightbox-actions">
+          <button class="btn btn-ghost" id="vlCopy" data-i18n-title="lightbox_copy_title">
+            <span class="icon icon-link" aria-hidden="true"></span><span data-i18n="lightbox_copy_label">Ссылка</span>
+          </button>
+          <button class="btn btn-primary" id="vlDownload" data-i18n-title="lightbox_download_title">
+            <span class="icon icon-download" aria-hidden="true"></span><span data-i18n="lightbox_download_label">Скачать</span>
+          </button>
+        </div>
+      </div>
+
+      <h2 id="vlTitle" class="lightbox-title"></h2>
+      <p id="vlDescription" class="lightbox-description"></p>
+
+      <div id="vlLicense" class="license-badge" hidden></div>
+
+      <div id="vlTags" class="lightbox-tags"></div>
+
+      <div class="lightbox-meta">
+        <a id="vlAuthor" class="lightbox-author" target="_blank" rel="noopener noreferrer"></a>
+        <a id="vlSourceLink" class="lightbox-source-link" target="_blank" rel="noopener noreferrer">
+          <span data-i18n="lightbox_source_link">Открыть источник</span> <span class="icon icon-external" aria-hidden="true"></span>
+        </a>
+      </div>
+    </aside>
+  </div>
+</div>
+
 <div id="toast" class="toast" hidden></div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -409,6 +520,7 @@
 <script>window.I18N.applyStaticI18n();</script>
 <script src="js/providers.js"></script>
 <script src="js/icons.js"></script>
+<script src="js/videoProviders.js"></script>
 <script src="js/translate.js"></script>
 <script src="js/queryLogic.js"></script>
 <script src="js/spellcheck.js"></script>

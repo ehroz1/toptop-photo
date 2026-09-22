@@ -26,6 +26,7 @@
 
       mode_photos: "Фото",
       mode_icons: "Иконки",
+      mode_video: "Видео",
 
       translated_hint_prefix: "Ищем как:",
       translated_hint_undo: "искать как есть",
@@ -92,6 +93,9 @@
       hero_h1_before_icons: "Найдите иконку сразу",
       hero_h1_underline_icons: "везде",
       hero_p_icons: "Один запрос — и PhotoSeek ищет иконку сразу по открытым наборам (Material Design Icons, Tabler, Font Awesome и другим) через Iconify — с понятной лицензией у каждого набора.",
+      hero_h1_before_video: "Найдите видео сразу",
+      hero_h1_underline_video: "везде",
+      hero_p_video: "Один запрос — и PhotoSeek ищет видео сразу по Pixabay, Pexels, Wikimedia Commons, Internet Archive и Coverr, собирая всё в одну ленту.",
       try_label: "Попробуйте:",
       recent_label: "Недавние:",
 
@@ -161,6 +165,7 @@
 
       results_found: "Найдено фото: {n}",
       results_icons_found: "Найдено иконок: {n}",
+      results_videos_found: "Найдено видео: {n}",
       results_favorites: "В избранном: {n}",
 
       toast_archiver_missing: "Архиватор не загрузился — скачиваю по одному",
@@ -186,6 +191,7 @@
 
       suggestions: ["природа", "город ночью", "кофе", "океан", "горы", "космос", "еда", "животные"],
       suggestions_icons: ["home", "user", "settings", "search", "heart", "menu", "close", "arrow"],
+      suggestions_video: ["природа", "город", "океан", "дождь", "закат", "горы", "космос", "огонь"],
       locale: "ru-RU",
     },
     en: {
@@ -209,6 +215,7 @@
 
       mode_photos: "Photos",
       mode_icons: "Icons",
+      mode_video: "Video",
 
       translated_hint_prefix: "Searching as:",
       translated_hint_undo: "search as typed",
@@ -275,6 +282,9 @@
       hero_h1_before_icons: "Find an icon",
       hero_h1_underline_icons: "everywhere",
       hero_p_icons: "One search — and PhotoSeek looks for an icon across open icon sets (Material Design Icons, Tabler, Font Awesome and more) via Iconify, each with a clear license.",
+      hero_h1_before_video: "Find a video",
+      hero_h1_underline_video: "everywhere",
+      hero_p_video: "One search — and PhotoSeek queries Pixabay, Pexels, Wikimedia Commons, Internet Archive and Coverr for video at the same time, gathering it all into one feed.",
       try_label: "Try:",
       recent_label: "Recent:",
 
@@ -344,6 +354,7 @@
 
       results_found: "Photos found: {n}",
       results_icons_found: "Icons found: {n}",
+      results_videos_found: "Videos found: {n}",
       results_favorites: "In favorites: {n}",
 
       toast_archiver_missing: "Archiver failed to load — downloading one by one",
@@ -369,6 +380,7 @@
 
       suggestions: ["nature", "city at night", "coffee", "ocean", "mountains", "space", "food", "animals"],
       suggestions_icons: ["home", "user", "settings", "search", "heart", "menu", "close", "arrow"],
+      suggestions_video: ["nature", "city", "ocean", "rain", "sunset", "mountains", "space", "fire"],
       locale: "en-US",
     },
   };

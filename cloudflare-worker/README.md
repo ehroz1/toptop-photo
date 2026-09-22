@@ -34,6 +34,18 @@
    - `PEXAFY_API_KEY` — ключ Pexafy, если используете (необязательно;
      создаётся на pexafy.com/dashboard/api-keys/create — выберите тип
      **Pexafy API**, не **MCP**, это ключ для другого протокола)
+   - `COVERR_API_KEY` — ключ Coverr для поиска видео, если используете
+     (необязательно). ⚠️ Формат авторизации (`Authorization: Bearer …`) и
+     схема ответа в `js/videoProviders.js` реконструированы по памяти и НЕ
+     проверены вживую — после того как добавите ключ, откройте сайт,
+     выполните видео-поиск с включённым только источником Coverr и
+     посмотрите в devtools (вкладка Network), что реально приходит; если
+     поля отличаются — поправьте маппинг в `js/videoProviders.js`
+     (`CoverrVideoProvider`). Источник появится в интерфейсе только после
+     того, как включите `COVERR_ENABLED: true` в `js/config.js`.
+
+   Видео-поиск Pixabay/Pexels отдельных ключей не требует — воркер
+   переиспользует те же `PIXABAY_KEY`/`PEXELS_KEY`, что и у фото.
 
    И одну обычную переменную (тип **Text**, не секрет):
    - `ALLOWED_ORIGINS` — адрес вашего сайта, например
@@ -60,6 +72,7 @@ wrangler secret put FLICKR_API_KEY   # необязательно
 wrangler secret put SHUTTERSTOCK_CONSUMER_KEY   # необязательно
 wrangler secret put SHUTTERSTOCK_CONSUMER_SECRET   # необязательно
 wrangler secret put PEXAFY_API_KEY   # необязательно
+wrangler secret put COVERR_API_KEY   # необязательно, видео-поиск Coverr
 ```
 
 `wrangler deploy` выведет адрес воркера — впишите его в `js/config.js` так же,

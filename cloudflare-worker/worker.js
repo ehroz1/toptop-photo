@@ -140,6 +140,24 @@ export default {
       }, origin, env);
     }
 
+    // Видео — те же ключи, что и у фото-Pixabay/Pexels выше: оба API дают
+    // видео-поиск тем же аккаунтом/ключом, отдельно заводить второй секрет
+    // не нужно.
+    if (url.pathname === "/pixabay-video") {
+      if (!env.PIXABAY_KEY) return jsonError(origin, env, "PIXABAY_KEY is not configured", 500);
+      const params = copyParams(url, ["key"]);
+      params.set("key", env.PIXABAY_KEY);
+      return proxy(`https://pixabay.com/api/videos/?${params}`, {}, origin, env);
+    }
+
+    if (url.pathname === "/pexels-video") {
+      if (!env.PEXELS_KEY) return jsonError(origin, env, "PEXELS_KEY is not configured", 500);
+      const params = copyParams(url);
+      return proxy(`https://api.pexels.com/videos/search?${params}`, {
+        headers: { Authorization: env.PEXELS_KEY },
+      }, origin, env);
+    }
+
     if (url.pathname === "/unsplash/search") {
       if (!env.UNSPLASH_ACCESS_KEY) return jsonError(origin, env, "UNSPLASH_ACCESS_KEY is not configured", 500);
       const params = copyParams(url);
@@ -199,6 +217,21 @@ export default {
       const params = copyParams(url);
       return proxy(`https://api.pexafy.com/api/v1/search/photos?${params}`, {
         headers: { "x-api-key": env.PEXAFY_API_KEY },
+      }, origin, env);
+    }
+
+    // Coverr Search API — по их документации ключ передаётся как Bearer-токен
+    // в заголовке Authorization (тот же паттерн, что у большинства современных
+    // REST API, включая Pexels выше). Проверить это вживую из этой песочницы
+    // нельзя (нет сетевого доступа наружу) — если Coverr в реальности ждёт
+    // ключ иначе (например, query-параметром api_key), понадобится один
+    // правкой этого блока; провайдер на клиенте (js/videoProviders.js)
+    // изначально выключен через config.js, пока не подтверждено, что работает.
+    if (url.pathname === "/coverr") {
+      if (!env.COVERR_API_KEY) return jsonError(origin, env, "COVERR_API_KEY is not configured", 500);
+      const params = copyParams(url);
+      return proxy(`https://api.coverr.co/videos?${params}`, {
+        headers: { Authorization: `Bearer ${env.COVERR_API_KEY}` },
       }, origin, env);
     }
 

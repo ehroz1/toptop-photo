@@ -11,5 +11,10 @@ window.APP_CONFIG = {
   UNSPLASH_APP_NAME: "photoseek",
   // Показывать ли чип Flickr — включите, только если добавили
   // FLICKR_API_KEY в секреты воркера.
-  FLICKR_ENABLED: false
+  FLICKR_ENABLED: false,
+  // Показывать ли источник видео Coverr — включите, только если добавили
+  // COVERR_API_KEY в секреты воркера И проверили, что /coverr в воркере
+  // реально отвечает (их API не тестировался вживую при подключении —
+  // см. комментарий в cloudflare-worker/worker.js).
+  COVERR_ENABLED: false
 };

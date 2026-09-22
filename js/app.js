@@ -3,11 +3,14 @@
 
   const SUGGESTIONS = I18N.t("suggestions");
   const ICON_SUGGESTIONS = I18N.t("suggestions_icons");
+  const VIDEO_SUGGESTIONS = I18N.t("suggestions_video");
   const FAVORITES_KEY = "photoseek-favorites";
   const FILTERS_KEY = "photoseek-filters";
   const ICON_FILTERS_KEY = "photoseek-icon-filters";
+  const VIDEO_FILTERS_KEY = "photoseek-video-filters";
   const HISTORY_KEY = "photoseek-history";
   const ICON_HISTORY_KEY = "photoseek-icon-history";
+  const VIDEO_HISTORY_KEY = "photoseek-video-history";
   const STATS_KEY = "photoseek-stats";
   const THEME_KEY = "photoseek-theme";
   const MODE_KEY = "photoseek-mode";
@@ -20,7 +23,7 @@
   const QUALITY_THRESHOLDS = { any: 0, "2k": 2048, "4k": 3840, "8k": 7680 };
   // Условный вес "качества" источника для более умного чередования в ленте —
   // не более чем эвристика, не претендует на объективность.
-  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1, shutterstock: 1, pexafy: 1, doodl: 0.8 };
+  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1, shutterstock: 1, pexafy: 1, doodl: 0.8, archive: 0.7, coverr: 0.9 };
   // Источник, который завис дольше этого, не держит страницу — остальные
   // источники всё равно уже показаны, а этому просто не достаётся места в
   // текущей странице (сам запрос при этом не отменяется, вдруг всё же ответит).
@@ -119,10 +122,33 @@
     ilSourceLink: document.getElementById("ilSourceLink"),
     ilPrev: document.getElementById("ilPrev"),
     ilNext: document.getElementById("ilNext"),
+    videoSources: document.getElementById("videoSources"),
+    videoFiltersRow: document.getElementById("videoFiltersRow"),
+    videoFiltersToggle: document.getElementById("videoFiltersToggle"),
+    videoFiltersPopover: document.getElementById("videoFiltersPopover"),
+    videoFiltersBadge: document.getElementById("videoFiltersBadge"),
+    videoGrid: document.getElementById("videoGrid"),
+    videoLoadMoreWrap: document.getElementById("videoLoadMoreWrap"),
+    videoLoadMoreBtn: document.getElementById("videoLoadMoreBtn"),
+    videoNoResults: document.getElementById("videoNoResults"),
+    videoLightbox: document.getElementById("videoLightbox"),
+    vlPlayer: document.getElementById("vlPlayer"),
+    vlSourceBadge: document.getElementById("vlSourceBadge"),
+    vlDurationBadge: document.getElementById("vlDurationBadge"),
+    vlCopy: document.getElementById("vlCopy"),
+    vlDownload: document.getElementById("vlDownload"),
+    vlTitle: document.getElementById("vlTitle"),
+    vlDescription: document.getElementById("vlDescription"),
+    vlTags: document.getElementById("vlTags"),
+    vlAuthor: document.getElementById("vlAuthor"),
+    vlSourceLink: document.getElementById("vlSourceLink"),
+    vlLicense: document.getElementById("vlLicense"),
+    vlPrev: document.getElementById("vlPrev"),
+    vlNext: document.getElementById("vlNext"),
   };
 
   const state = {
-    mode: "photos", // "photos" | "icons"
+    mode: "photos", // "photos" | "icons" | "video"
     query: "",
     searchQuery: "",
     view: "search", // "search" | "favorites"
@@ -159,6 +185,21 @@
     // раньше) — в отличие от activeSources у фото, где пусто невозможно.
     activeIconSources: new Set(),
     iconStyle: "any", // "any" | "mono" | "color"
+    // ---- Видео (отдельный пайплайн, но по архитектуре — уменьшенная копия
+    // фото: несколько независимых источников, прогрессивный рендер, тот же
+    // общий AbortController, что и у фото — см. abortCurrentSearch) ----
+    videoQuery: "",
+    videoSearchQuery: "",
+    activeVideoSources: new Set(),
+    videoOrientation: "any",
+    videoSort: "popular",
+    videoPages: {},
+    videoHasMore: {},
+    videoItems: [],
+    videoLoading: false,
+    videoLightboxIndex: -1,
+    videoSeenUrls: new Set(),
+    videoCooldownUntil: {},
   };
 
   const PROVIDER_LABELS = {
@@ -171,6 +212,8 @@
     shutterstock: "Shutterstock",
     pexafy: "Pexafy",
     doodl: "Doodl",
+    archive: "Internet Archive",
+    coverr: "Coverr",
   };
 
   function getActiveList() {
@@ -207,6 +250,11 @@
     state.loading = false;
     el.loadMoreBtn.disabled = false;
     el.loadMoreBtn.textContent = I18N.t("load_more");
+    // Видео делит тот же AbortController/generation-механизм, что и фото
+    // (режимы взаимоисключающие) — та же причина снять блокировку сразу же.
+    state.videoLoading = false;
+    el.videoLoadMoreBtn.disabled = false;
+    el.videoLoadMoreBtn.textContent = I18N.t("load_more");
     return state.abortController.signal;
   }
 
@@ -266,23 +314,43 @@
     el.topbar.classList.toggle("is-scrolled", window.scrollY > 8);
   }, { passive: true });
 
-  // ---------- Mode switch (Фото / Иконки) ----------
-  // Иконки — принципиально другой поиск (Iconify вместо фотостоков, см.
-  // js/icons.js), поэтому у него своя сетка/лайтбокс/история и вместо
-  // фильтров по фото (ориентация/качество/люди/цвет) показывать нечего —
-  // просто прячем эти элементы, а не пытаемся их подстроить под иконки.
+  // ---------- Mode dispatch helpers ----------
+  // Большинство мест в коде (саджесты, история, Enter в пустом поле и т.п.)
+  // хотят одно и то же: "запусти/сбрось поиск в ТЕКУЩЕМ режиме" — вместо
+  // трёхветочного if/else в каждом таком месте, две точки входа здесь.
+  function runSearchForMode(opts) {
+    if (state.mode === "icons") runIconSearch(opts);
+    else if (state.mode === "video") runVideoSearch(opts);
+    else runSearch(opts);
+  }
+  function resetForMode() {
+    if (state.mode === "icons") resetIconToEmpty();
+    else if (state.mode === "video") resetVideoToEmpty();
+    else resetToEmpty();
+  }
+
+  // ---------- Mode switch (Фото / Иконки / Видео) ----------
+  // Иконки и видео — принципиально другой поиск (Iconify / видео-провайдеры
+  // вместо фотостоков, см. js/icons.js и js/videoProviders.js), поэтому у
+  // каждого своя сетка/лайтбокс/история и вместо фильтров по фото
+  // (ориентация/качество/люди/цвет) показывать нечего — просто прячем
+  // элементы других режимов, а не пытаемся их подстроить.
   function applyModeUI(mode) {
     state.mode = mode;
     el.modeSwitch.querySelectorAll(".mode-tab").forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.mode === mode);
     });
     const isIcons = mode === "icons";
-    el.sources.hidden = isIcons;
-    el.filtersRow.hidden = isIcons;
+    const isVideo = mode === "video";
+    const isPhotos = mode === "photos";
+    el.sources.hidden = !isPhotos;
+    el.filtersRow.hidden = !isPhotos;
     el.iconSources.hidden = !isIcons;
     el.iconFiltersRow.hidden = !isIcons;
-    el.favoritesToggle.hidden = isIcons;
-    el.selectModeToggle.hidden = isIcons;
+    el.videoSources.hidden = !isVideo;
+    el.videoFiltersRow.hidden = !isVideo;
+    el.favoritesToggle.hidden = !isPhotos;
+    el.selectModeToggle.hidden = !isPhotos;
     applyHeroForMode();
     renderSuggestionChips();
     renderHistory();
@@ -290,24 +358,32 @@
   function setMode(mode) {
     if (mode === state.mode) return;
     try { localStorage.setItem(MODE_KEY, mode); } catch { /* не критично */ }
-    if (mode === "icons" && state.view === "favorites") {
+    if (mode !== "photos" && state.view === "favorites") {
       state.view = "search";
       el.favoritesToggle.setAttribute("aria-pressed", "false");
     }
     exitSelectMode();
     closeLightbox();
     closeIconLightbox();
+    closeVideoLightbox();
     closeFiltersPopover();
     closeIconFiltersPopover();
-    const wasIcons = state.mode === "icons";
+    closeVideoFiltersPopover();
+    const prevMode = state.mode;
     applyModeUI(mode);
-    if (wasIcons && mode !== "icons") {
+    if (prevMode === "icons" && mode !== "icons") {
       el.iconGrid.hidden = true;
       el.iconGrid.innerHTML = "";
       el.iconLoadMoreWrap.hidden = true;
       el.iconNoResults.hidden = true;
     }
-    if (!wasIcons && mode === "icons") {
+    if (prevMode === "video" && mode !== "video") {
+      el.videoGrid.hidden = true;
+      el.videoGrid.innerHTML = "";
+      el.videoLoadMoreWrap.hidden = true;
+      el.videoNoResults.hidden = true;
+    }
+    if (prevMode === "photos" && mode !== "photos") {
       searchGeneration++; // отменяем фотопоиск, который мог быть в процессе
       abortCurrentSearch(); // и его fetch'и
       el.grid.hidden = true;
@@ -317,29 +393,27 @@
       el.loadMoreWrap.hidden = true;
       el.noResults.hidden = true;
     }
-    const q = el.input.value.trim();
-    if (mode === "icons") {
-      if (q) runIconSearch(); else resetIconToEmpty();
-    } else if (q) {
-      runSearch();
-    } else {
-      resetToEmpty();
+    if (prevMode === "video" && mode !== "video") {
+      videoSearchGeneration++;
+      abortCurrentSearch();
     }
+    const q = el.input.value.trim();
+    if (q) runSearchForMode(); else resetForMode();
   }
   el.modeSwitch.querySelectorAll(".mode-tab").forEach((btn) => {
     btn.addEventListener("click", () => setMode(btn.dataset.mode));
   });
   function applyHeroForMode() {
-    const icons = state.mode === "icons";
-    el.heroH1Before.textContent = I18N.t(icons ? "hero_h1_before_icons" : "hero_h1_before");
-    el.heroH1Underline.textContent = I18N.t(icons ? "hero_h1_underline_icons" : "hero_h1_underline");
-    el.heroP.textContent = I18N.t(icons ? "hero_p_icons" : "hero_p");
+    const suffix = state.mode === "icons" ? "_icons" : state.mode === "video" ? "_video" : "";
+    el.heroH1Before.textContent = I18N.t(`hero_h1_before${suffix}`);
+    el.heroH1Underline.textContent = I18N.t(`hero_h1_underline${suffix}`);
+    el.heroP.textContent = I18N.t(`hero_p${suffix}`);
   }
 
   // ---------- Suggestions ----------
   function renderSuggestionChips() {
     el.suggestions.querySelectorAll(".suggestion-chip").forEach((c) => c.remove());
-    const list = state.mode === "icons" ? ICON_SUGGESTIONS : SUGGESTIONS;
+    const list = state.mode === "icons" ? ICON_SUGGESTIONS : state.mode === "video" ? VIDEO_SUGGESTIONS : SUGGESTIONS;
     list.forEach((term) => {
       const chip = document.createElement("button");
       chip.type = "button";
@@ -348,7 +422,7 @@
       chip.addEventListener("click", () => {
         el.input.value = term;
         el.clearBtn.hidden = false;
-        if (state.mode === "icons") runIconSearch(); else runSearch();
+        runSearchForMode();
       });
       el.suggestions.appendChild(chip);
     });
@@ -356,10 +430,12 @@
   renderSuggestionChips();
 
   // ---------- Search history ----------
-  // У иконок своя история (photoseek-icon-history) — короткие технические
-  // запросы вроде "home"/"user" не должны мешаться с историей поиска фото.
+  // У иконок и видео своя история (короткие технические запросы вроде
+  // "home"/"user" не должны мешаться с историей поиска фото).
   function historyKeyForMode() {
-    return state.mode === "icons" ? ICON_HISTORY_KEY : HISTORY_KEY;
+    if (state.mode === "icons") return ICON_HISTORY_KEY;
+    if (state.mode === "video") return VIDEO_HISTORY_KEY;
+    return HISTORY_KEY;
   }
   function loadHistory() {
     try { return JSON.parse(localStorage.getItem(historyKeyForMode()) || "[]"); } catch { return []; }
@@ -387,7 +463,7 @@
       chip.textContent = term;
       chip.addEventListener("click", () => {
         el.input.value = term;
-        if (state.mode === "icons") runIconSearch(); else runSearch();
+        runSearchForMode();
       });
       el.recentSearches.appendChild(chip);
     });
@@ -416,11 +492,12 @@
   // означает, что 3 и останется; для иконок (allowZero=true) 0 — валидное
   // состояние ("без ограничения"), поэтому его вообще не трогаем.
   function enforceSourceCap(chips, activeSet, cap) {
-    const activeChips = chips.filter((c) => activeSet.has(c.dataset.source || c.dataset.iconSource));
+    const idOf = (c) => c.dataset.source || c.dataset.iconSource || c.dataset.videoSource;
+    const activeChips = chips.filter((c) => activeSet.has(idOf(c)));
     if (activeChips.length <= cap) return false;
     activeChips.slice(cap).forEach((c) => {
       c.setAttribute("aria-pressed", "false");
-      activeSet.delete(c.dataset.source || c.dataset.iconSource);
+      activeSet.delete(idOf(c));
     });
     return true;
   }
@@ -555,6 +632,59 @@
   loadPersistedIconFilters();
   updateIconFiltersBadge();
 
+  // ---------- Persisted video filters ----------
+  // Та же схема, что у фото (disabledSources + минимум 1 активный) — в
+  // отличие от иконок, у видео каждый источник — реальный отдельный запрос,
+  // а не общий каталог, так что "0 активных" тут не осмысленное состояние.
+  function saveVideoFilters() {
+    try {
+      const visibleIds = Array.from(el.videoSources.querySelectorAll(".source-chip[data-video-source]:not([hidden])"))
+        .map((c) => c.dataset.videoSource);
+      localStorage.setItem(VIDEO_FILTERS_KEY, JSON.stringify({
+        videoOrientation: state.videoOrientation,
+        videoSort: state.videoSort,
+        disabledSources: visibleIds.filter((id) => !state.activeVideoSources.has(id)),
+      }));
+    } catch { /* localStorage недоступен — не критично */ }
+  }
+  function loadPersistedVideoFilters() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(VIDEO_FILTERS_KEY) || "null"); } catch { /* битые данные — игнорируем */ }
+    if (!saved) return;
+    ["videoOrientation", "videoSort"].forEach((key) => {
+      if (saved[key]) { state[key] = saved[key]; setDropdownUI(key, saved[key]); }
+    });
+    const disabled = new Set(Array.isArray(saved.disabledSources) ? saved.disabledSources : []);
+    el.videoSources.querySelectorAll(".source-chip[data-video-source]").forEach((chip) => {
+      if (chip.hidden) return;
+      const want = !disabled.has(chip.dataset.videoSource);
+      chip.setAttribute("aria-pressed", String(want));
+      if (want) state.activeVideoSources.add(chip.dataset.videoSource);
+      else state.activeVideoSources.delete(chip.dataset.videoSource);
+    });
+    const visibleChips = Array.from(el.videoSources.querySelectorAll(".source-chip[data-video-source]:not([hidden])"));
+    if (enforceSourceCap(visibleChips, state.activeVideoSources, MAX_ACTIVE_SOURCES)) saveVideoFilters();
+  }
+
+  (function initVideoSourceChips() {
+    const byId = {};
+    (window.VIDEO_PROVIDERS || []).forEach((p) => { byId[p.id] = p; });
+    let activatedCount = 0;
+    el.videoSources.querySelectorAll(".source-chip[data-video-source]").forEach((chip) => {
+      const provider = byId[chip.dataset.videoSource];
+      if (provider && provider.enabled()) {
+        const activate = activatedCount < MAX_ACTIVE_SOURCES;
+        if (activate) { state.activeVideoSources.add(provider.id); activatedCount++; }
+        chip.setAttribute("aria-pressed", String(activate));
+      } else {
+        chip.hidden = true;
+      }
+    });
+  })();
+
+  loadPersistedVideoFilters();
+  updateVideoFiltersBadge();
+
   // ---------- Stats & rate-limit tracking ----------
   const stats = (function loadStats() {
     try { return Object.assign({ searches: 0, downloads: 0, byProvider: {} }, JSON.parse(localStorage.getItem(STATS_KEY) || "{}")); }
@@ -627,18 +757,18 @@
   el.input.addEventListener("input", () => {
     el.clearBtn.hidden = el.input.value.length === 0;
     clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => { if (state.mode === "icons") runIconSearch(); else runSearch(); }, 550);
+    debounceTimer = setTimeout(runSearchForMode, 550);
   });
   el.clearBtn.addEventListener("click", () => {
     el.input.value = "";
     el.clearBtn.hidden = true;
     el.input.focus();
-    if (state.mode === "icons") resetIconToEmpty(); else resetToEmpty();
+    resetForMode();
   });
   el.form.addEventListener("submit", (e) => {
     e.preventDefault();
     clearTimeout(debounceTimer);
-    if (state.mode === "icons") runIconSearch(); else runSearch();
+    runSearchForMode();
   });
 
   // ---------- Voice search ----------
@@ -667,7 +797,7 @@
       if (text) {
         el.input.value = text;
         el.clearBtn.hidden = false;
-        if (state.mode === "icons") runIconSearch(); else runSearch();
+        runSearchForMode();
       }
     });
     recognizer.addEventListener("end", () => {
@@ -684,64 +814,54 @@
     });
   }
 
-  // ---------- Source chips ----------
-  // Обновляет визуальную "притушенность" неактивных чипов, когда лимит
-  // MAX_ACTIVE_SOURCES исчерпан — сам клик при этом не блокируется, чтобы
-  // на притушенный чип всё равно можно было нажать и увидеть тост-объяснение
-  // вместо молчаливого игнорирования.
-  function updateSourceCapVisual(chips, activeSet) {
-    const atCap = activeSet.size >= MAX_ACTIVE_SOURCES;
-    chips.forEach((c) => c.classList.toggle("is-capped", atCap));
-  }
-  el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      const src = chip.dataset.source;
-      const willBeActive = chip.getAttribute("aria-pressed") !== "true";
-      const chips = Array.from(el.sources.querySelectorAll(".source-chip[data-source]:not([hidden])"));
-      if (willBeActive) {
-        if (state.activeSources.size >= MAX_ACTIVE_SOURCES) {
-          showToast(I18N.t("sources_max_reached", { n: MAX_ACTIVE_SOURCES }));
-          return;
+  // ---------- Source chip groups (фото / иконки / видео) ----------
+  // Общая логика лимита MAX_ACTIVE_SOURCES, "притушенных" чипов при
+  // достижении потолка (клик по притушенному всё равно работает — просто
+  // показывает тост-объяснение вместо молчаливого игнорирования) и
+  // правила "минимум 1 активный" — раньше было продублировано отдельно на
+  // фото и иконки, теперь одна функция на все три группы источников.
+  // allowZero=true (иконки) — 0 активных валидно и означает "без сужения";
+  // allowZero=false (фото/видео) — как минимум один источник обязателен,
+  // т.к. у каждого реальный сетевой запрос, а не общий каталог на всех.
+  function bindSourceChipGroup(container, attr, key, activeSet, { allowZero, onChange }) {
+    function chips() { return Array.from(container.querySelectorAll(`.source-chip[${attr}]:not([hidden])`)); }
+    function updateCapVisual() {
+      const atCap = activeSet.size >= MAX_ACTIVE_SOURCES;
+      chips().forEach((c) => c.classList.toggle("is-capped", atCap));
+    }
+    chips().forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const src = chip.dataset[key];
+        const willBeActive = chip.getAttribute("aria-pressed") !== "true";
+        if (willBeActive) {
+          if (activeSet.size >= MAX_ACTIVE_SOURCES) {
+            showToast(I18N.t("sources_max_reached", { n: MAX_ACTIVE_SOURCES }));
+            return;
+          }
+        } else if (!allowZero && activeSet.size <= 1) {
+          return; // хотя бы один источник должен остаться включён
         }
-      } else if (state.activeSources.size <= 1) {
-        return; // хотя бы один источник должен остаться включён
-      }
-      chip.setAttribute("aria-pressed", String(willBeActive));
-      if (willBeActive) state.activeSources.add(src);
-      else state.activeSources.delete(src);
-      updateSourceCapVisual(chips, state.activeSources);
-      saveFilters();
-      if (state.query) runSearch({ keepTranslation: true });
+        chip.setAttribute("aria-pressed", String(willBeActive));
+        if (willBeActive) activeSet.add(src);
+        else activeSet.delete(src);
+        updateCapVisual();
+        onChange();
+      });
     });
-  });
-  updateSourceCapVisual(Array.from(el.sources.querySelectorAll(".source-chip[data-source]:not([hidden])")), state.activeSources);
-
-  // ---------- Icon source chips (наборы иконок Iconify) ----------
-  // В отличие от фото, пустой выбор здесь — валидное и по умолчанию активное
-  // состояние: значит "искать по всем наборам", как и было раньше. До трёх
-  // выбранных чипов сужают поиск конкретными наборами (см. loadIconPage).
-  function updateIconSourceCapVisual() {
-    const chips = Array.from(el.iconSources.querySelectorAll("[data-icon-source]"));
-    const atCap = state.activeIconSources.size >= MAX_ACTIVE_SOURCES;
-    chips.forEach((c) => c.classList.toggle("is-capped", atCap));
+    updateCapVisual();
   }
-  el.iconSources.querySelectorAll("[data-icon-source]").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      const src = chip.dataset.iconSource;
-      const willBeActive = chip.getAttribute("aria-pressed") !== "true";
-      if (willBeActive && state.activeIconSources.size >= MAX_ACTIVE_SOURCES) {
-        showToast(I18N.t("sources_max_reached", { n: MAX_ACTIVE_SOURCES }));
-        return;
-      }
-      chip.setAttribute("aria-pressed", String(willBeActive));
-      if (willBeActive) state.activeIconSources.add(src);
-      else state.activeIconSources.delete(src);
-      updateIconSourceCapVisual();
-      saveIconFilters();
-      rerunIconSearchWithFilters();
-    });
+  bindSourceChipGroup(el.sources, "data-source", "source", state.activeSources, {
+    allowZero: false,
+    onChange: () => { saveFilters(); if (state.query) runSearch({ keepTranslation: true }); },
   });
-  updateIconSourceCapVisual();
+  bindSourceChipGroup(el.iconSources, "data-icon-source", "iconSource", state.activeIconSources, {
+    allowZero: true,
+    onChange: () => { saveIconFilters(); rerunIconSearchWithFilters(); },
+  });
+  bindSourceChipGroup(el.videoSources, "data-video-source", "videoSource", state.activeVideoSources, {
+    allowZero: false,
+    onChange: () => { saveVideoFilters(); rerunVideoSearchWithFilters(); },
+  });
 
   el.yandexBtn.addEventListener("click", () => openExternalSearch("yandex"));
   el.googleBtn.addEventListener("click", () => openExternalSearch("google"));
@@ -778,10 +898,10 @@
       if (!isOpen) dropdown.classList.add("is-open");
     });
 
-    // Единственный дропдаун иконок (data-dropdown="iconStyle") живёт внутри
-    // #iconFiltersPopover и сохраняется/перезапускает поиск по-своему — он
-    // выключен из этого общего блока, чтобы не задеть фото-состояние.
+    // Дропдауны иконок/видео живут в своих popover'ах и сохраняются/
+    // перезапускают поиск по-своему — выключены из общей фото-ветки ниже.
     const isIconDropdown = !!dropdown.closest("#iconFiltersPopover");
+    const isVideoDropdown = !!dropdown.closest("#videoFiltersPopover");
 
     menu.querySelectorAll(".dropdown-item").forEach((item) => {
       item.addEventListener("click", () => {
@@ -794,6 +914,10 @@
           saveIconFilters();
           updateIconFiltersBadge(true);
           rerunIconSearchWithFilters();
+        } else if (isVideoDropdown) {
+          saveVideoFilters();
+          updateVideoFiltersBadge(true);
+          rerunVideoSearchWithFilters();
         } else {
           saveFilters();
           updateFiltersBadge(true);
@@ -839,6 +963,7 @@
   document.addEventListener("click", (e) => {
     if (!el.filtersPopover.hidden && !el.filtersRow.contains(e.target)) closeFiltersPopover();
     if (!el.iconFiltersPopover.hidden && !el.iconFiltersRow.contains(e.target)) closeIconFiltersPopover();
+    if (!el.videoFiltersPopover.hidden && !el.videoFiltersRow.contains(e.target)) closeVideoFiltersPopover();
   });
 
   // ---------- Кнопка фильтров иконок (стиль: любой/одноцветные/цветные) ----------
@@ -862,13 +987,34 @@
     el.iconFiltersToggle.setAttribute("aria-expanded", String(willOpen));
   });
 
+  // ---------- Кнопка фильтров видео (ориентация/сортировка) ----------
+  function updateVideoFiltersBadge(animate = false) {
+    const activeCount = [state.videoOrientation !== "any", state.videoSort !== "popular"].filter(Boolean).length;
+    const changed = el.videoFiltersBadge.textContent !== String(activeCount);
+    el.videoFiltersBadge.textContent = String(activeCount);
+    el.videoFiltersBadge.hidden = activeCount === 0;
+    el.videoFiltersToggle.classList.toggle("has-active-filters", activeCount > 0);
+    if (animate && changed && activeCount > 0) popHeart(el.videoFiltersBadge);
+  }
+  function closeVideoFiltersPopover() {
+    el.videoFiltersPopover.hidden = true;
+    el.videoFiltersToggle.setAttribute("aria-expanded", "false");
+  }
+  el.videoFiltersToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = el.videoFiltersPopover.hidden;
+    document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+    el.videoFiltersPopover.hidden = !willOpen;
+    el.videoFiltersToggle.setAttribute("aria-expanded", String(willOpen));
+  });
+
   // ---------- URL query param (?q=&mode=icons) ----------
   function updateUrlQuery(q) {
     try {
       const url = new URL(location.href);
       if (q) url.searchParams.set("q", q);
       else url.searchParams.delete("q");
-      if (state.mode === "icons") url.searchParams.set("mode", "icons");
+      if (state.mode !== "photos") url.searchParams.set("mode", state.mode);
       else url.searchParams.delete("mode");
       history.replaceState(null, "", url.pathname + url.search);
     } catch { /* недоступно (например, в песочнице без истории) — не критично */ }
@@ -965,8 +1111,7 @@
   }
 
   el.translatedHintUndo.addEventListener("click", () => {
-    if (state.mode === "icons") runIconSearch({ forceOriginal: true });
-    else runSearch({ forceOriginal: true });
+    runSearchForMode({ forceOriginal: true });
   });
   el.spellHintApply.addEventListener("click", () => {
     const suggestion = el.spellHint.dataset.suggestion;
@@ -1680,6 +1825,393 @@
     });
   }
 
+  // ---------- Video search (см. js/videoProviders.js) ----------
+  // По архитектуре — уменьшенная копия фото-пайплайна (loadPage выше):
+  // несколько независимых источников, прогрессивный рендер по мере ответа
+  // каждого, тот же общий AbortController/scoreItem-ранжирование и дедуп
+  // уровня 1 (по URL). Чего нет специально: операторов запроса, спеллчекера,
+  // фильтров качества/цвета/людей (для видео это не осмысленно), избранного
+  // и множественного выбора/ZIP — как и у иконок, второй по значимости
+  // режим сознательно проще первого.
+  let videoSearchGeneration = 0;
+  async function runVideoSearch(opts = {}) {
+    const raw = el.input.value.trim();
+    if (!raw) { resetVideoToEmpty(); return; }
+    const myGeneration = ++videoSearchGeneration;
+    // Как и у фото (runSearch) — отменяем предыдущий поиск СРАЗУ, а не после
+    // перевода, чтобы его сетевые запросы (включая сам перевод) не тянулись
+    // впустую, и чтобы videoLoading гарантированно снялся немедленно, а не
+    // только когда домотает перевод НОВОГО поиска.
+    const signal = abortCurrentSearch();
+    exitSelectMode();
+    state.videoQuery = raw;
+    addToHistory(raw);
+    recordSearch();
+    updateUrlQuery(raw);
+    el.spellHint.hidden = true;
+
+    if (opts.forceOriginal) {
+      state.videoSearchQuery = raw;
+      el.translatedHint.hidden = true;
+    } else {
+      const result = await window.translateQuery(raw, { signal });
+      state.videoSearchQuery = result.translated;
+      if (result.wasTranslated) {
+        el.translatedHintText.textContent = result.translated;
+        el.translatedHint.hidden = false;
+      } else {
+        el.translatedHint.hidden = true;
+      }
+    }
+
+    if (myGeneration !== videoSearchGeneration) return; // отменено более новым поиском
+    await startVideoResultsLoad(myGeneration);
+  }
+
+  async function startVideoResultsLoad(generation) {
+    state.videoItems = [];
+    state.videoPages = {};
+    state.videoHasMore = {};
+    state.videoSeenUrls = new Set();
+    el.videoGrid.innerHTML = "";
+    el.videoGrid.hidden = false;
+    el.emptyState.hidden = true;
+    el.videoNoResults.hidden = true;
+    el.providerWarnings.textContent = "";
+    renderVideoSkeletons(12);
+    await loadVideoPage(true, generation);
+  }
+
+  function rerunVideoSearchWithFilters() {
+    if (!state.videoSearchQuery) return;
+    videoSearchGeneration++;
+    abortCurrentSearch();
+    startVideoResultsLoad(videoSearchGeneration);
+  }
+
+  function renderVideoSkeletons(count) {
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement("div");
+      s.className = "card-skeleton video-card";
+      s.dataset.skeleton = "1";
+      el.videoGrid.appendChild(s);
+    }
+  }
+  function clearVideoSkeletons() {
+    el.videoGrid.querySelectorAll('[data-skeleton="1"]').forEach((s) => s.remove());
+  }
+
+  async function loadVideoPage(isFirst, generation = videoSearchGeneration, autoDepth = 0) {
+    if (state.videoLoading) return;
+    state.videoLoading = true;
+    el.videoLoadMoreBtn.disabled = true;
+    el.videoLoadMoreBtn.textContent = I18N.t("loading");
+
+    const signal = state.abortController?.signal;
+    const now = Date.now();
+    const activeProviders = (window.VIDEO_PROVIDERS || []).filter(
+      (p) => state.activeVideoSources.has(p.id) && p.enabled() && !(state.videoCooldownUntil[p.id] > now)
+    );
+    const skippedForCooldown = (window.VIDEO_PROVIDERS || []).filter(
+      (p) => state.activeVideoSources.has(p.id) && p.enabled() && state.videoCooldownUntil[p.id] > now
+    );
+    const warnings = skippedForCooldown.map((p) => {
+      const mins = Math.max(1, Math.round((state.videoCooldownUntil[p.id] - now) / 60000));
+      return I18N.t("warn_cooldown", { label: p.label, mins });
+    });
+
+    function finishLoading() {
+      state.videoLoading = false;
+      el.videoLoadMoreBtn.disabled = false;
+      el.videoLoadMoreBtn.textContent = I18N.t("load_more");
+    }
+
+    if (activeProviders.length === 0) {
+      if (isFirst) {
+        clearVideoSkeletons();
+        if (state.videoItems.length === 0) {
+          el.videoGrid.hidden = true;
+          el.videoLoadMoreWrap.hidden = true;
+          el.videoNoResults.hidden = false;
+        }
+      }
+      el.providerWarnings.textContent = warnings.join("  ·  ");
+      finishLoading();
+      return;
+    }
+
+    const queryTerms = (state.videoSearchQuery || "").toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
+    const hadItemsBefore = state.videoItems.length > 0;
+    const pageStartIndex = state.videoItems.length;
+    const pageLiveItems = [];
+    const totals = {};
+    let skeletonsCleared = !isFirst;
+    let settledCount = 0;
+
+    function insertScored(scoredItems) {
+      for (const scored of scoredItems) {
+        let idx = pageLiveItems.length;
+        while (idx > 0 && pageLiveItems[idx - 1].score < scored.score) idx--;
+        pageLiveItems.splice(idx, 0, scored);
+        const refNode = el.videoGrid.children[pageStartIndex + idx] || null;
+        el.videoGrid.insertBefore(buildVideoCard(scored.item), refNode);
+      }
+      state.videoItems = state.videoItems.slice(0, pageStartIndex).concat(pageLiveItems.map((x) => x.item));
+    }
+
+    function handleProviderResult(p, page, items, total) {
+      state.videoPages[p.id] = page;
+      state.videoHasMore[p.id] = items.length > 0;
+      totals[p.id] = total;
+
+      const filtered = window.dedupeByUrl ? window.dedupeByUrl(items, state.videoSeenUrls) : items;
+      if (filtered.length === 0) return;
+
+      if (isFirst && !skeletonsCleared) { clearVideoSkeletons(); skeletonsCleared = true; }
+      el.videoNoResults.hidden = true;
+      insertScored(filtered.map((item) => ({ item, score: scoreItem(item, queryTerms) })));
+    }
+
+    function finalizeIfDone() {
+      if (settledCount < activeProviders.length) return;
+      if (generation !== videoSearchGeneration) return;
+      if (isFirst && !skeletonsCleared) { clearVideoSkeletons(); skeletonsCleared = true; }
+
+      if (pageLiveItems.length === 0 && !hadItemsBefore) {
+        el.videoGrid.hidden = true;
+        el.videoLoadMoreWrap.hidden = true;
+        el.videoNoResults.hidden = false;
+      } else {
+        el.videoNoResults.hidden = true;
+        const anyMore = activeProviders.some((p) => state.videoHasMore[p.id]);
+        el.videoLoadMoreWrap.hidden = !anyMore;
+      }
+      if (isFirst) {
+        const knownTotals = Object.values(totals).filter((t) => typeof t === "number");
+        const sum = knownTotals.reduce((a, b) => a + b, 0);
+        const n = sum > 0 ? sum.toLocaleString(I18N.t("locale")) : state.videoItems.length;
+        el.resultsCount.textContent = state.videoItems.length ? I18N.t("results_videos_found", { n }) : "";
+      }
+      el.providerWarnings.textContent = warnings.join("  ·  ");
+      finishLoading();
+
+      if (!el.videoLoadMoreWrap.hidden && autoDepth < 3 && isNearViewport(el.videoLoadMoreWrap)) {
+        loadVideoPage(false, generation, autoDepth + 1);
+      }
+    }
+
+    activeProviders.forEach((p) => {
+      const page = (state.videoPages[p.id] || 0) + 1;
+      let settled = false;
+      const finishOnce = () => {
+        if (settled) return;
+        settled = true;
+        settledCount++;
+        finalizeIfDone();
+      };
+
+      p.search(state.videoSearchQuery, { page, orientation: state.videoOrientation, sort: state.videoSort, signal })
+        .then((result) => {
+          if (settled) return;
+          if (generation === videoSearchGeneration) {
+            handleProviderResult(p, page, result.items || [], result.total ?? null);
+          }
+          finishOnce();
+        }).catch((err) => {
+          if (settled) return;
+          if (generation === videoSearchGeneration && err.name !== "AbortError") {
+            console.error(`[${p.label}]`, err);
+            if (/HTTP 429/.test(err.message)) {
+              state.videoCooldownUntil[p.id] = Date.now() + COOLDOWN_MS;
+              warnings.push(I18N.t("warn_rate_limited", { label: p.label }));
+            } else {
+              warnings.push(I18N.t("warn_with_message", { label: p.label, message: err.message || I18N.t("warn_generic_error") }));
+            }
+            state.videoHasMore[p.id] = false;
+          }
+          finishOnce();
+        });
+
+      setTimeout(() => {
+        if (settled) return;
+        if (generation === videoSearchGeneration) {
+          warnings.push(I18N.t("warn_with_message", { label: p.label, message: I18N.t("warn_timeout") }));
+        }
+        finishOnce();
+      }, PROVIDER_TIMEOUT_MS);
+    });
+  }
+
+  function resetVideoToEmpty() {
+    videoSearchGeneration++;
+    abortCurrentSearch();
+    state.videoQuery = "";
+    state.videoSearchQuery = "";
+    state.videoItems = [];
+    updateUrlQuery("");
+    el.translatedHint.hidden = true;
+    el.videoGrid.hidden = true;
+    el.videoGrid.innerHTML = "";
+    el.videoLoadMoreWrap.hidden = true;
+    el.videoNoResults.hidden = true;
+    el.resultsCount.textContent = "";
+    el.providerWarnings.textContent = "";
+    el.emptyState.hidden = false;
+  }
+
+  el.videoLoadMoreBtn.addEventListener("click", () => loadVideoPage(false));
+  const videoInfiniteScrollObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !state.videoLoading && !el.videoLoadMoreWrap.hidden) {
+      loadVideoPage(false);
+    }
+  }, { rootMargin: "800px" });
+  videoInfiniteScrollObserver.observe(el.videoLoadMoreWrap);
+
+  function formatDuration(sec) {
+    if (!sec || !isFinite(sec) || sec <= 0) return null;
+    const m = Math.floor(sec / 60);
+    const s = Math.round(sec % 60);
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function appendVideoCards(items) {
+    const frag = document.createDocumentFragment();
+    items.forEach((item) => frag.appendChild(buildVideoCard(item)));
+    el.videoGrid.appendChild(frag);
+  }
+
+  function buildVideoCard(item) {
+    const card = document.createElement("div");
+    card.className = "card video-card is-img-loading";
+    card.dataset.id = item.id;
+
+    const img = document.createElement("img");
+    img.alt = item.title || "";
+    img.loading = "lazy";
+    img.decoding = "async";
+    const stopLoading = () => card.classList.remove("is-img-loading");
+    img.addEventListener("load", stopLoading, { once: true });
+    img.addEventListener("error", stopLoading, { once: true });
+    img.src = item.thumb;
+    card.appendChild(img);
+
+    const play = document.createElement("span");
+    play.className = "video-card-play";
+    play.setAttribute("aria-hidden", "true");
+    card.appendChild(play);
+
+    const dur = formatDuration(item.duration);
+    if (dur) {
+      const durBadge = document.createElement("span");
+      durBadge.className = "video-card-duration";
+      durBadge.textContent = dur;
+      card.appendChild(durBadge);
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "card-overlay";
+    const badgesWrap = document.createElement("div");
+    badgesWrap.className = "card-badges";
+    const badge = document.createElement("span");
+    badge.className = "card-source-badge";
+    badge.innerHTML = `<span class="dot dot-${item.provider}"></span>${PROVIDER_LABELS[item.provider]}`;
+    badgesWrap.appendChild(badge);
+    overlay.appendChild(badgesWrap);
+
+    const actionsWrap = document.createElement("div");
+    actionsWrap.className = "card-actions-bottom";
+    const dlBtn = document.createElement("button");
+    dlBtn.type = "button";
+    dlBtn.className = "card-round-btn card-download";
+    dlBtn.title = I18N.t("card_download_title");
+    dlBtn.innerHTML = '<span class="icon"></span>';
+    dlBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      downloadItem(item);
+    });
+    actionsWrap.appendChild(dlBtn);
+    overlay.appendChild(actionsWrap);
+    card.appendChild(overlay);
+
+    card.addEventListener("click", () => openVideoLightbox(state.videoItems.indexOf(item)));
+    return card;
+  }
+
+  // ---------- Video lightbox ----------
+  function openVideoLightbox(index) {
+    state.videoLightboxIndex = index;
+    renderVideoLightbox();
+    el.videoLightbox.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeVideoLightbox() {
+    el.videoLightbox.hidden = true;
+    el.vlPlayer.pause();
+    el.vlPlayer.removeAttribute("src");
+    el.vlPlayer.load();
+    document.body.style.overflow = "";
+  }
+  function renderVideoLightbox() {
+    const item = state.videoItems[state.videoLightboxIndex];
+    if (!item) return;
+
+    el.vlPlayer.poster = item.thumb || "";
+    el.vlPlayer.src = item.videoUrl;
+
+    el.vlSourceBadge.innerHTML = `<span class="dot dot-${item.provider}"></span>${PROVIDER_LABELS[item.provider]}`;
+    const dur = formatDuration(item.duration);
+    el.vlDurationBadge.hidden = !dur;
+    el.vlDurationBadge.textContent = dur || "";
+    el.vlTitle.textContent = item.title || I18N.t("lightbox_untitled");
+    el.vlDescription.textContent = item.description && item.description !== item.title ? item.description : "";
+    el.vlDescription.hidden = !el.vlDescription.textContent;
+
+    renderLicenseBadge(el.vlLicense, item.license);
+
+    el.vlTags.innerHTML = "";
+    (item.tags || []).slice(0, 8).forEach((tag) => {
+      const t = document.createElement("span");
+      t.className = "lightbox-tag";
+      t.textContent = tag;
+      el.vlTags.appendChild(t);
+    });
+
+    el.vlAuthor.textContent = item.author ? `${I18N.t("lightbox_author_prefix")} ${item.author}` : "";
+    el.vlAuthor.href = item.authorUrl || "#";
+    el.vlAuthor.style.visibility = item.author ? "visible" : "hidden";
+    el.vlSourceLink.href = item.pageUrl || "#";
+
+    el.vlPrev.disabled = state.videoLightboxIndex <= 0;
+    el.vlNext.disabled = state.videoLightboxIndex >= state.videoItems.length - 1;
+  }
+  document.querySelectorAll("[data-video-close]").forEach((n) => n.addEventListener("click", closeVideoLightbox));
+  el.vlPrev.addEventListener("click", () => {
+    if (state.videoLightboxIndex > 0) { state.videoLightboxIndex--; renderVideoLightbox(); }
+  });
+  el.vlNext.addEventListener("click", () => {
+    if (state.videoLightboxIndex < state.videoItems.length - 1) { state.videoLightboxIndex++; renderVideoLightbox(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (el.videoLightbox.hidden) return;
+    if (e.key === "Escape") closeVideoLightbox();
+    else if (e.key === "ArrowLeft") el.vlPrev.click();
+    else if (e.key === "ArrowRight") el.vlNext.click();
+  });
+  el.vlCopy.addEventListener("click", async () => {
+    const item = state.videoItems[state.videoLightboxIndex];
+    if (!item) return;
+    try {
+      await navigator.clipboard.writeText(item.videoUrl);
+      showToast(I18N.t("toast_link_copied"));
+    } catch {
+      showToast(I18N.t("toast_copy_failed"));
+    }
+  });
+  el.vlDownload.addEventListener("click", () => {
+    const item = state.videoItems[state.videoLightboxIndex];
+    if (item) downloadItem(item);
+  });
+
   // ---------- Favorites ----------
   function loadFavorites() {
     try {
@@ -2004,7 +2536,8 @@
     // ровно префикс "provider-", а не берём последний "-"-сегмент: у
     // Doodl/Pexafy originalId сам содержит дефисы (UUID), split("-").pop()
     // обрезал бы его до последних 12 символов вместо полного идентификатора.
-    return `${item.provider}-${item.id.slice(item.provider.length + 1)}.jpg`;
+    // fileExt — только у видео (см. js/videoProviders.js), фото всегда .jpg.
+    return `${item.provider}-${item.id.slice(item.provider.length + 1)}.${item.fileExt || "jpg"}`;
   }
 
   // ---------- Lightbox ----------
@@ -2352,21 +2885,21 @@
   loadFavorites();
   initTheme();
 
-  // ---------- Сохранённый режим (Фото/Иконки) ----------
+  // ---------- Сохранённый режим (Фото/Иконки/Видео) ----------
   (function initSavedMode() {
     let saved = null;
     try { saved = localStorage.getItem(MODE_KEY); } catch { /* игнорируем */ }
-    if (saved === "icons") applyModeUI("icons");
+    if (saved === "icons" || saved === "video") applyModeUI(saved);
   })();
 
-  // ---------- Открытие по ссылке ?q=...&mode=icons ----------
+  // ---------- Открытие по ссылке ?q=...&mode=icons|video ----------
   const initialParams = new URLSearchParams(location.search);
   const initialQuery = initialParams.get("q");
-  if (initialParams.get("mode") === "icons") applyModeUI("icons");
+  const initialMode = initialParams.get("mode");
+  if (initialMode === "icons" || initialMode === "video") applyModeUI(initialMode);
   if (initialQuery) {
     el.input.value = initialQuery;
     el.clearBtn.hidden = false;
-    if (state.mode === "icons") runIconSearch();
-    else runSearch({ skipSpellcheck: true });
+    runSearchForMode({ skipSpellcheck: true });
   }
 })();
