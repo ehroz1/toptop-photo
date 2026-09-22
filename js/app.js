@@ -20,6 +20,13 @@
   // Условный вес "качества" источника для более умного чередования в ленте —
   // не более чем эвристика, не претендует на объективность.
   const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1, shutterstock: 1, pexafy: 1, doodl: 0.8 };
+  // Источник, который завис дольше этого, не держит страницу — остальные
+  // источники всё равно уже показаны, а этому просто не достаётся места в
+  // текущей странице (сам запрос при этом не отменяется, вдруг всё же ответит).
+  const PROVIDER_TIMEOUT_MS = 12000;
+  // Перевод — тоже best-effort: если MyMemory не ответил за это время, ищем
+  // как есть на языке оригинала, вместо того чтобы держать весь поиск.
+  const TRANSLATE_TIMEOUT_MS = 2500;
 
   const el = {
     topbar: document.getElementById("topbar"),
@@ -64,6 +71,7 @@
     lbSpinner: document.getElementById("lbSpinner"),
     lbHeart: document.getElementById("lbHeart"),
     lbSourceBadge: document.getElementById("lbSourceBadge"),
+    lbAiBadge: document.getElementById("lbAiBadge"),
     lbCopy: document.getElementById("lbCopy"),
     lbCopyImage: document.getElementById("lbCopyImage"),
     lbShare: document.getElementById("lbShare"),
@@ -125,6 +133,8 @@
     lightboxIndex: -1,
     queryMatcher: null,
     dedupeHashes: [],
+    seenUrls: new Set(), // дедуп уровня 1 (точное совпадение URL) — см. dedupeByUrl
+    abortController: null, // текущий поиск — отменяет fetch'и всех источников при новом поиске
     cooldownUntil: {}, // providerId -> timestamp до которого источник пропускаем
     // ---- Иконки (отдельный от фото пайплайн, см. js/icons.js) ----
     iconQuery: "",
@@ -151,6 +161,39 @@
 
   function getActiveList() {
     return state.view === "favorites" ? state.favoritesList : state.items;
+  }
+
+  // Гонка промиса с таймаутом — не отменяет сам промис (вызывающий код решает,
+  // что делать с "опоздавшим" результатом), просто не заставляет ждать его
+  // дольше ms. Используется и для перевода запроса, и для отдельных источников.
+  function withTimeout(promise, ms) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(Object.assign(new Error("timeout"), { isTimeout: true })), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
+  // Отменяет fetch'и предыдущего поиска (все источники, перевод, спеллчекер —
+  // все берут signal у текущего state.abortController) и заводит новый
+  // контроллер для следующего. Вызывается в начале каждого нового поиска и
+  // при полном сбросе — гарантирует, что устаревшие ответы никогда не смогут
+  // повлиять на состояние текущего поиска, а не просто игнорируются постфактум.
+  function abortCurrentSearch() {
+    if (state.abortController) {
+      try { state.abortController.abort(); } catch { /* уже отменён/недоступно — не критично */ }
+    }
+    state.abortController = new AbortController();
+    // state.loading — это "идёт загрузка СТРАНИЦЫ", а не "идёт загрузка ЭТОГО
+    // поколения поиска": пока отменённые источники ещё не добрались до своего
+    // .catch(AbortError), их старая страница формально "не завершена". Мы её
+    // уже целиком забраковали (см. generation-проверки в loadPage), поэтому
+    // не ждём, пока она сама себя дозавершит — снимаем блокировку сразу же,
+    // чтобы новый поиск мог стартовать loadPage без задержки.
+    state.loading = false;
+    el.loadMoreBtn.disabled = false;
+    el.loadMoreBtn.textContent = I18N.t("load_more");
+    return state.abortController.signal;
   }
 
   function vibrate(ms) {
@@ -248,6 +291,8 @@
       el.iconNoResults.hidden = true;
     }
     if (!wasIcons && mode === "icons") {
+      searchGeneration++; // отменяем фотопоиск, который мог быть в процессе
+      abortCurrentSearch(); // и его fetch'и
       el.grid.hidden = true;
       masonryObserver.disconnect();
       clearImageLoadQueue();
@@ -694,6 +739,7 @@
       return;
     }
     const myGeneration = ++searchGeneration;
+    const signal = abortCurrentSearch(); // отменяет fetch'и предыдущего поиска (все источники, перевод, спеллчекер)
     state.view = "search";
     exitSelectMode();
     state.query = raw;
@@ -703,7 +749,7 @@
 
     // Спеллчекер — только для обычного текста без наших операторов (-слово/"фраза"/ИЛИ).
     if (!opts.skipSpellcheck && !opts.forceOriginal && !/[-"]|\bOR\b/i.test(raw) && window.checkSpelling) {
-      window.checkSpelling(raw).then((suggestion) => {
+      window.checkSpelling(raw, { signal }).then((suggestion) => {
         if (suggestion && el.input.value.trim() === raw) {
           el.spellHintText.textContent = suggestion;
           el.spellHint.dataset.suggestion = suggestion;
@@ -724,12 +770,19 @@
     } else {
       // Основной перевод и перевод терминов операторов (-слово/"фраза"/ИЛИ)
       // друг от друга не зависят — идут одним Promise.all, а не по очереди,
-      // чтобы не ждать два похода к MyMemory подряд.
+      // чтобы не ждать два похода к MyMemory подряд. Перевод — best-effort
+      // с жёстким таймаутом: источники не запускаются, пока не готов итоговый
+      // текст запроса, так что TRANSLATE_TIMEOUT_MS — верхняя граница
+      // задержки перед стартом поиска, а не просто "подождать подольше". При
+      // неудаче/таймауте используем оригинальный текст — как и раньше, сбой
+      // перевода не ломает сам поиск.
       const operatorTerms = [...parsed.mustPhrases, ...parsed.mustNot, ...parsed.orGroups.flat()];
+      const translateWithFallback = (text) => withTimeout(window.translateQuery(text, { signal }), TRANSLATE_TIMEOUT_MS)
+        .catch(() => ({ translated: text, original: text, wasTranslated: false }));
       const [result, translatedTermsEntries] = await Promise.all([
-        window.translateQuery(parsed.apiQuery),
+        translateWithFallback(parsed.apiQuery),
         Promise.all(operatorTerms.map(async (term) => {
-          const r = await window.translateQuery(term);
+          const r = await translateWithFallback(term);
           return [term.toLowerCase(), r.translated.toLowerCase()];
         })),
       ]);
@@ -751,6 +804,7 @@
     state.pages = {};
     state.hasMore = {};
     state.dedupeHashes = [];
+    state.seenUrls = new Set();
     masonryObserver.disconnect();
     clearImageLoadQueue();
     el.grid.innerHTML = "";
@@ -777,6 +831,7 @@
 
   function resetToEmpty() {
     searchGeneration++; // отменяем любой поиск, который мог быть в процессе
+    abortCurrentSearch(); // и его fetch'и — не просто перестаём слушать ответ, а реально обрываем запрос
     state.query = "";
     state.searchQuery = "";
     state.items = [];
@@ -832,12 +887,48 @@
     el.grid.querySelectorAll('[data-skeleton="1"]').forEach((s) => s.remove());
   }
 
+  // Единый слой ранжирования — определяет порядок карточек внутри страницы,
+  // которая собирается по мере ответов источников (см. loadPage), а не то,
+  // какой источник просто ответил раньше остальных. Веса — обычные const,
+  // чтобы баланс было легко подправить, не переписывая саму логику.
+  const RANK_WEIGHTS = {
+    relevance: 3, // доля слов запроса, встретившихся в title/description/tags
+    hasText: 1, // есть непустые title или description
+    resolution: 2, // чем крупнее фото, тем выше (логарифмическая шкала)
+    source: 1.5, // эвристический вес источника, см. SOURCE_WEIGHTS
+  };
+  function scoreItem(item, queryTerms) {
+    let score = 0;
+    if (queryTerms.length) {
+      const haystack = [item.title, item.description, ...(item.tags || [])].filter(Boolean).join(" ").toLowerCase();
+      const hits = queryTerms.filter((t) => haystack.includes(t)).length;
+      score += RANK_WEIGHTS.relevance * (hits / queryTerms.length);
+    }
+    if (item.title || item.description) score += RANK_WEIGHTS.hasText;
+    const maxDim = Math.max(item.width || 0, item.height || 0);
+    if (maxDim > 0) score += RANK_WEIGHTS.resolution * Math.min(1, Math.log10(maxDim) / 4);
+    score += RANK_WEIGHTS.source * ((SOURCE_WEIGHTS[item.provider] ?? 1) - 1);
+    return score;
+  }
+
+  function isNearViewport(elm, margin = 800) {
+    const rect = elm.getBoundingClientRect();
+    return rect.top < (window.innerHeight || document.documentElement.clientHeight) + margin;
+  }
+
+  // ---------- Прогрессивная загрузка страницы ----------
+  // Каждый источник ищет независимо: как только он ответил (успехом,
+  // ошибкой или не уложился в PROVIDER_TIMEOUT_MS), его карточки сразу
+  // вставляются в ленту по рангу (см. scoreItem), не дожидаясь остальных.
+  // Один зависший/упавший источник никогда не блокирует ни отрисовку, ни
+  // остальные источники, ни переход к следующей странице.
   async function loadPage(isFirst, generation = searchGeneration, autoDepth = 0) {
     if (state.loading) return;
     state.loading = true;
     el.loadMoreBtn.disabled = true;
     el.loadMoreBtn.textContent = I18N.t("loading");
 
+    const signal = state.abortController?.signal;
     const now = Date.now();
     // Проактивно не дёргаем Unsplash, если сами видим, что лимит на этот час исчерпан.
     if (getUnsplashRemaining() <= 0 && !(state.cooldownUntil.unsplash > now)) {
@@ -853,25 +944,164 @@
       const mins = Math.max(1, Math.round((state.cooldownUntil[p.id] - now) / 60000));
       return I18N.t("warn_cooldown", { label: p.label, mins });
     });
-    const totals = {};
 
-    const results = await Promise.all(
-      activeProviders.map(async (p) => {
-        const page = (state.pages[p.id] || 0) + 1;
-        try {
-          const { items, total } = await p.search(state.searchQuery, {
-            page,
-            orientation: state.orientation,
-            sort: state.sort,
-            color: state.color,
-            people: state.people,
-          });
+    function finishLoading() {
+      state.loading = false;
+      el.loadMoreBtn.disabled = false;
+      el.loadMoreBtn.textContent = I18N.t("load_more");
+    }
+
+    if (activeProviders.length === 0) {
+      if (isFirst) {
+        clearSkeletons();
+        if (state.items.length === 0) {
+          el.grid.hidden = true;
+          el.loadMoreWrap.hidden = true;
+          el.noResults.hidden = false;
+        }
+      }
+      el.providerWarnings.textContent = warnings.join("  ·  ");
+      finishLoading();
+      return;
+    }
+
+    const queryTerms = (state.searchQuery || "").toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
+    const hadItemsBefore = state.items.length > 0;
+    const pageStartIndex = state.items.length;
+    const pageLiveItems = []; // [{item, score}] — отсортирован по score убыв., зеркалит DOM-порядок этой страницы
+    const totals = {};
+    let skeletonsCleared = !isFirst;
+    let settledCount = 0;
+
+    // Вставляет новые элементы в pageLiveItems по рангу, а в DOM — точечно
+    // (insertBefore), не перестраивая уже показанные карточки этой страницы
+    // целиком: иначе на каждый ответ источника пришлось бы заново создавать
+    // (и заново грузить превью) все карточки страницы с нуля. Пока источники
+    // ещё отвечают, пользователь мог уйти в "Избранное" — там сейчас другая
+    // сетка (см. renderGridFromList), трогать #grid в этом случае нельзя;
+    // state.items всё равно обновляем, чтобы при возврате в поиск всё было
+    // на месте.
+    function insertScored(scoredItems) {
+      const isSearchView = state.view === "search";
+      for (const scored of scoredItems) {
+        let idx = pageLiveItems.length;
+        while (idx > 0 && pageLiveItems[idx - 1].score < scored.score) idx--;
+        pageLiveItems.splice(idx, 0, scored);
+        if (isSearchView) {
+          const refNode = el.grid.children[pageStartIndex + idx] || null;
+          el.grid.insertBefore(buildCard(scored.item), refNode);
+        }
+      }
+      state.items = state.items.slice(0, pageStartIndex).concat(pageLiveItems.map((x) => x.item));
+    }
+
+    function handleProviderResult(p, page, items, total) {
+      state.pages[p.id] = page;
+      state.hasMore[p.id] = items.length > 0;
+      totals[p.id] = total;
+
+      // Дедуп уровня 1 — дёшево, синхронно, без сети: точное совпадение
+      // ссылки на файл. Только то, что прошло его, идёт дальше на рендер;
+      // perceptual hash (уровень 2) запускается позже, в фоне, см. ниже.
+      let filtered = window.dedupeByUrl ? window.dedupeByUrl(items, state.seenUrls) : items;
+      const minPx = QUALITY_THRESHOLDS[state.quality] || 0;
+      if (minPx > 0) filtered = filtered.filter((it) => Math.max(it.width || 0, it.height || 0) >= minPx);
+      if (state.people !== "any" && window.matchesPeopleFilter) {
+        filtered = filtered.filter((it) => window.matchesPeopleFilter(it, state.people));
+      }
+      if (state.queryMatcher) filtered = filtered.filter(state.queryMatcher);
+      if (filtered.length === 0) return;
+
+      if (isFirst && !skeletonsCleared) { clearSkeletons(); skeletonsCleared = true; }
+      el.noResults.hidden = true;
+      insertScored(filtered.map((item) => ({ item, score: scoreItem(item, queryTerms) })));
+    }
+
+    function finalizeIfDone() {
+      if (settledCount < activeProviders.length) return; // ждём остальных
+      // Это поколение уже отменено новым поиском (см. abortCurrentSearch) —
+      // ему нечего дописывать: state.loading/кнопку уже сбросил новый поиск,
+      // а трогать resultsCount/warnings/сетку задним числом значило бы
+      // затереть то, что показывает уже АКТУАЛЬНый поиск.
+      if (generation !== searchGeneration) return;
+      // Как и в insertScored — страница могла доехать до конца уже после
+      // того, как пользователь ушёл в "Избранное"; счётчики/кнопки/пустое
+      // состояние ленты поиска в этом случае трогать нельзя, это не то,
+      // что сейчас видно.
+      const isSearchView = state.view === "search";
+      if (isFirst && !skeletonsCleared) { clearSkeletons(); skeletonsCleared = true; }
+
+      if (isSearchView) {
+        if (pageLiveItems.length === 0 && !hadItemsBefore) {
+          el.grid.hidden = true;
+          el.loadMoreWrap.hidden = true;
+          el.noResults.hidden = false;
+        } else {
+          el.noResults.hidden = true;
+          const anyMore = activeProviders.some((p) => state.hasMore[p.id]);
+          el.loadMoreWrap.hidden = !anyMore;
+        }
+        if (isFirst) {
+          const knownTotals = Object.values(totals).filter((t) => typeof t === "number");
+          const sum = knownTotals.reduce((a, b) => a + b, 0);
+          const n = sum > 0 ? sum.toLocaleString(I18N.t("locale")) : state.items.length;
+          el.resultsCount.textContent = state.items.length ? I18N.t("results_found", { n }) : "";
+        }
+        el.providerWarnings.textContent = warnings.join("  ·  ");
+      }
+      finishLoading();
+
+      // Дедупликация уровня 2 (perceptual hash) качает байты каждого
+      // превью — запускаем в фоне уже после того, как страница показана,
+      // а не до, иначе первая карточка появлялась бы заметно позже.
+      if (window.dedupeItems && pageLiveItems.length > 0) {
+        removeDuplicatesInBackground(pageLiveItems.map((x) => x.item), generation);
+      }
+
+      // IntersectionObserver вызывает колбэк только при ИЗМЕНЕНИИ пересечения,
+      // а не пока оно просто остаётся истинным. Если новая страница добавила
+      // мало карточек (агрессивный дедуп/фильтры) и лента выросла недостаточно,
+      // кнопка "Показать ещё" как была в зоне наблюдателя, так и осталась —
+      // обсервер молчит, и бесконечный скролл выглядит "заглохшим", хотя грузить
+      // ещё есть что. Поэтому после каждой загрузки сами перепроверяем
+      // геометрию и, если сентинел всё ещё рядом с экраном, продолжаем без
+      // ожидания нового события скролла. autoDepth ограничивает такие
+      // самозапуски тремя подряд (сбрасывается любым настоящим кликом/скроллом)
+      // — иначе на очень высоком экране с огромной выдачей это могло бы само
+      // без остановки съедать лимиты API, гоняясь за постоянно "видимым" низом.
+      if (isSearchView && !el.loadMoreWrap.hidden && autoDepth < 3 && isNearViewport(el.loadMoreWrap)) {
+        loadPage(false, generation, autoDepth + 1);
+      }
+    }
+
+    activeProviders.forEach((p) => {
+      const page = (state.pages[p.id] || 0) + 1;
+      let settled = false;
+      const finishOnce = () => {
+        if (settled) return;
+        settled = true;
+        settledCount++;
+        finalizeIfDone();
+      };
+
+      p.search(state.searchQuery, {
+        page, orientation: state.orientation, sort: state.sort, color: state.color, people: state.people, signal,
+      }).then((result) => {
+        if (settled) return; // уже посчитан как timeout — не задваиваем
+        // generation !== searchGeneration: это поколение уже отменено новым
+        // поиском — finishOnce() всё равно вызываем (иначе settledCount для
+        // этой, уже заброшенной, страницы никогда не доберёт нужное число),
+        // но сами результаты никуда не вставляем — finalizeIfDone() для
+        // чужого поколения и так ничего не покажет, insertScored тут просто
+        // лишняя работа.
+        if (generation === searchGeneration) {
           if (p.id === "unsplash") logUnsplashRequest();
-          state.pages[p.id] = page;
-          state.hasMore[p.id] = items.length > 0;
-          totals[p.id] = total;
-          return { id: p.id, items };
-        } catch (err) {
+          handleProviderResult(p, page, result.items || [], result.total ?? null);
+        }
+        finishOnce();
+      }).catch((err) => {
+        if (settled) return; // уже посчитан как timeout — не задваиваем предупреждение
+        if (generation === searchGeneration && err.name !== "AbortError") {
           console.error(`[${p.label}]`, err);
           if (/HTTP 429/.test(err.message)) {
             state.cooldownUntil[p.id] = Date.now() + COOLDOWN_MS;
@@ -880,80 +1110,24 @@
             warnings.push(I18N.t("warn_with_message", { label: p.label, message: err.message || I18N.t("warn_generic_error") }));
           }
           state.hasMore[p.id] = false;
-          return { id: p.id, items: [] };
         }
-      })
-    );
+        finishOnce();
+      });
 
-    if (generation !== searchGeneration) {
-      // Пока грузили эту страницу, пользователь запустил новый поиск —
-      // не показываем устаревшие результаты и не трогаем его состояние.
-      state.loading = false;
-      el.loadMoreBtn.disabled = false;
-      el.loadMoreBtn.textContent = I18N.t("load_more");
-      return;
-    }
-
-    let batch = weightedInterleave(results);
-    const minPx = QUALITY_THRESHOLDS[state.quality] || 0;
-    if (minPx > 0) {
-      batch = batch.filter((it) => Math.max(it.width || 0, it.height || 0) >= minPx);
-    }
-    if (state.people !== "any" && window.matchesPeopleFilter) {
-      batch = batch.filter((it) => window.matchesPeopleFilter(it, state.people));
-    }
-    if (state.queryMatcher) {
-      batch = batch.filter(state.queryMatcher);
-    }
-
-    if (isFirst) clearSkeletons();
-
-    if (batch.length === 0 && state.items.length === 0) {
-      el.grid.hidden = true;
-      el.loadMoreWrap.hidden = true;
-      el.noResults.hidden = false;
-    } else {
-      el.noResults.hidden = true;
-      appendCards(batch);
-      state.items = state.items.concat(batch);
-      const anyMore = activeProviders.some((p) => state.hasMore[p.id]);
-      el.loadMoreWrap.hidden = !anyMore;
-      // Дедупликация по перцептивному хешу качает байты каждого превью —
-      // если ждать её здесь (как было раньше), первая карточка появляется
-      // заметно позже, особенно теперь, когда источников стало больше.
-      // Поэтому показываем карточки сразу, а найденные дубли между стоками
-      // убираем из ленты чуть погодя, в фоне, не блокируя отрисовку.
-      if (window.dedupeItems && batch.length > 0) {
-        removeDuplicatesInBackground(batch, generation);
-      }
-    }
-
-    if (isFirst) {
-      const knownTotals = Object.values(totals).filter((t) => typeof t === "number");
-      const sum = knownTotals.reduce((a, b) => a + b, 0);
-      const n = sum > 0 ? sum.toLocaleString(I18N.t("locale")) : state.items.length;
-      el.resultsCount.textContent = state.items.length ? I18N.t("results_found", { n }) : "";
-    }
-    el.providerWarnings.textContent = warnings.join("  ·  ");
-
-    state.loading = false;
-    el.loadMoreBtn.disabled = false;
-    el.loadMoreBtn.textContent = I18N.t("load_more");
-
-    // IntersectionObserver вызывает колбэк только при ИЗМЕНЕНИИ пересечения,
-    // а не пока оно просто остаётся истинным. Если новая страница добавила
-    // мало карточек (агрессивный дедуп/фильтры) и лента выросла недостаточно,
-    // кнопка "Показать ещё" как была в зоне наблюдателя, так и осталась —
-    // обсервер молчит, и бесконечный скролл выглядит "заглохшим", хотя грузить
-    // ещё есть что. Поэтому после каждой загрузки сами перепроверяем
-    // геометрию и, если сентинел всё ещё рядом с экраном, продолжаем без
-    // ожидания нового события скролла. autoDepth ограничивает такие
-    // самозапуски тремя подряд (сбрасывается любым настоящим кликом/скроллом)
-    // — иначе на очень высоком экране с огромной выдачей это могло бы само
-    // без остановки съедать лимиты API, гоняясь за постоянно "видимым" низом.
-    if (!el.loadMoreWrap.hidden && autoDepth < 3 && isNearViewport(el.loadMoreWrap)) {
-      loadPage(false, generation, autoDepth + 1);
-    }
+      // Таймаут не отменяет сам запрос (вдруг он всё же ответит — тогда
+      // сработает settled-заслон выше и результат тихо проигнорируется), а
+      // лишь не даёт одному зависшему источнику держать открытой "загрузку"
+      // страницы для всех остальных. hasMore для него не трогаем — это не
+      // "у источника больше нет результатов", а просто "не успел в этот раз",
+      // следующий клик "Показать ещё" даст ему ещё один шанс на той же странице.
+      setTimeout(() => {
+        if (settled) return;
+        if (generation === searchGeneration) {
+          warnings.push(I18N.t("warn_with_message", { label: p.label, message: I18N.t("warn_timeout") }));
+        }
+        finishOnce();
+      }, PROVIDER_TIMEOUT_MS);
+    });
   }
 
   // Считает хеши уже показанных карточек и убирает из ленты те, что
@@ -988,33 +1162,6 @@
       if (img) masonryObserver.unobserve(img);
       card.remove();
     });
-  }
-
-  function isNearViewport(elm, margin = 800) {
-    const rect = elm.getBoundingClientRect();
-    return rect.top < (window.innerHeight || document.documentElement.clientHeight) + margin;
-  }
-
-  // Взвешенное чередование источников (smooth weighted round-robin) вместо
-  // простого "по очереди" — источники с большим весом появляются чуть чаще.
-  function weightedInterleave(providerBatches) {
-    const sources = providerBatches
-      .map((p) => ({ id: p.id, items: p.items, idx: 0, credit: 0 }))
-      .filter((p) => p.items.length > 0);
-    const result = [];
-    let remaining = sources.reduce((s, p) => s + p.items.length, 0);
-    while (remaining > 0) {
-      const active = sources.filter((p) => p.idx < p.items.length);
-      const totalWeight = active.reduce((s, p) => s + (SOURCE_WEIGHTS[p.id] ?? 1), 0);
-      active.forEach((p) => { p.credit += SOURCE_WEIGHTS[p.id] ?? 1; });
-      let pick = active[0];
-      for (const p of active) if (p.credit > pick.credit) pick = p;
-      result.push(pick.items[pick.idx]);
-      pick.idx++;
-      pick.credit -= totalWeight;
-      remaining--;
-    }
-    return result;
   }
 
   el.loadMoreBtn.addEventListener("click", () => loadPage(false));
@@ -1515,10 +1662,22 @@
     const overlay = document.createElement("div");
     overlay.className = "card-overlay";
 
+    const badgesWrap = document.createElement("div");
+    badgesWrap.className = "card-badges";
+
     const badge = document.createElement("span");
     badge.className = "card-source-badge";
     badge.innerHTML = `<span class="dot dot-${item.provider}"></span>${PROVIDER_LABELS[item.provider]}`;
-    overlay.appendChild(badge);
+    badgesWrap.appendChild(badge);
+
+    if (item.aiGenerated) {
+      const aiBadge = document.createElement("span");
+      aiBadge.className = "card-ai-badge";
+      aiBadge.title = I18N.t("ai_generated_title");
+      aiBadge.textContent = I18N.t("ai_generated_badge");
+      badgesWrap.appendChild(aiBadge);
+    }
+    overlay.appendChild(badgesWrap);
 
     const actionsWrap = document.createElement("div");
     actionsWrap.className = "card-actions-bottom";
@@ -1740,6 +1899,7 @@
       ? `<a href="https://unsplash.com/?utm_source=${encodeURIComponent(window.APP_CONFIG?.UNSPLASH_APP_NAME || "photoseek")}&utm_medium=referral" target="_blank" rel="noopener noreferrer">${PROVIDER_LABELS[item.provider]}</a>`
       : PROVIDER_LABELS[item.provider];
     el.lbSourceBadge.innerHTML = `<span class="dot dot-${item.provider}"></span>${sourceLabel}`;
+    el.lbAiBadge.hidden = !item.aiGenerated;
     el.lbTitle.textContent = item.title || I18N.t("lightbox_untitled");
     el.lbDescription.textContent = item.description && item.description !== item.title ? item.description : "";
     el.lbDescription.hidden = !el.lbDescription.textContent;

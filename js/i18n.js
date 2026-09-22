@@ -148,6 +148,9 @@
       warn_rate_limited: "{label}: превышен лимит запросов, пауза 10 минут",
       warn_generic_error: "ошибка запроса",
       warn_with_message: "{label}: {message}",
+      warn_timeout: "не ответил вовремя",
+      ai_generated_badge: "AI",
+      ai_generated_title: "Изображение сгенерировано ИИ, это не фотография",
 
       results_found: "Найдено фото: {n}",
       results_icons_found: "Найдено иконок: {n}",
@@ -321,6 +324,9 @@
       warn_rate_limited: "{label}: rate limit exceeded, pausing 10 minutes",
       warn_generic_error: "request error",
       warn_with_message: "{label}: {message}",
+      warn_timeout: "did not respond in time",
+      ai_generated_badge: "AI",
+      ai_generated_title: "This image was AI-generated, not a photograph",
 
       results_found: "Photos found: {n}",
       results_icons_found: "Icons found: {n}",

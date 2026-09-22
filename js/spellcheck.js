@@ -4,11 +4,11 @@
 (function (global) {
   "use strict";
 
-  async function checkSpelling(text) {
+  async function checkSpelling(text, { signal } = {}) {
     if (!text || !text.trim()) return null;
     try {
       const url = `https://speller.yandex.net/services/spellservice.json/checkText?text=${encodeURIComponent(text)}&lang=ru,en`;
-      const res = await fetch(url);
+      const res = await fetch(url, { signal });
       if (!res.ok) return null;
       const errors = await res.json();
       if (!Array.isArray(errors) || errors.length === 0) return null;
@@ -22,7 +22,7 @@
       }
       return corrected !== text ? corrected : null;
     } catch (err) {
-      console.warn("Спеллчекер недоступен:", err);
+      if (err.name !== "AbortError") console.warn("Спеллчекер недоступен:", err);
       return null;
     }
   }

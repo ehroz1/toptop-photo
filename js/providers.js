@@ -37,6 +37,11 @@
     try {
       res = await fetch(url, opts);
     } catch (err) {
+      // AbortError (запрос отменён через signal — новый поиск стартовал раньше,
+      // чем ответил этот) — пробрасываем как есть, не заворачивая в обычную
+      // "сетевую" ошибку: вызывающему коду (app.js) важно отличить намеренную
+      // отмену от настоящего сбоя, чтобы не показывать по ней предупреждение.
+      if (err.name === "AbortError") throw err;
       throw new Error(`сеть/CORS недоступны (${err.message})`);
     }
     if (!res.ok) {
@@ -165,7 +170,7 @@
     id: "pixabay",
     label: "Pixabay",
     enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
-    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", people = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", people = "any", signal } = {}) {
       const orientationMap = { any: "all", horizontal: "horizontal", vertical: "vertical", square: "all" };
       const orderMap = { popular: "popular", newest: "latest" };
       const qs = buildQuery({
@@ -181,7 +186,7 @@
         // а окончательную сверку по тегам всё равно делаем в app.js для всех источников
         category: people === "with" ? "people" : undefined,
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pixabay?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pixabay?${qs}`, { signal });
       let items = (data.hits || []).map((hit) => ({
         id: `pixabay-${hit.id}`,
         provider: "pixabay",
@@ -209,7 +214,7 @@
     id: "pexels",
     label: "Pexels",
     enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
-    async search(query, { page = 1, orientation = "any", color = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", color = "any", signal } = {}) {
       const orientationMap = { any: undefined, horizontal: "landscape", vertical: "portrait", square: "square" };
       const qs = buildQuery({
         query,
@@ -218,7 +223,7 @@
         orientation: orientationMap[orientation],
         color: mapColor(PEXELS_COLOR_MAP, color),
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pexels?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pexels?${qs}`, { signal });
       const items = (data.photos || []).map((p) => ({
         id: `pexels-${p.id}`,
         provider: "pexels",
@@ -246,7 +251,7 @@
     id: "unsplash",
     label: "Unsplash",
     enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
-    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", signal } = {}) {
       const orientationMap = { any: undefined, horizontal: "landscape", vertical: "portrait", square: "squarish" };
       const orderMap = { popular: "relevant", newest: "latest" };
       const qs = buildQuery({
@@ -257,7 +262,7 @@
         order_by: orderMap[sort] || "relevant",
         color: mapColor(UNSPLASH_COLOR_MAP, color),
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/unsplash/search?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/unsplash/search?${qs}`, { signal });
       const items = (data.results || []).map((p) => ({
         id: `unsplash-${p.id}`,
         provider: "unsplash",
@@ -282,7 +287,7 @@
     id: "wikimedia",
     label: "Wikimedia Commons",
     enabled: () => true, // ключ не нужен
-    async search(query, { page = 1, orientation = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", signal } = {}) {
       const limit = 24;
       const qs = buildQuery({
         action: "query",
@@ -301,7 +306,7 @@
         format: "json",
         origin: "*",
       });
-      const data = await fetchJson(`https://commons.wikimedia.org/w/api.php?${qs}`);
+      const data = await fetchJson(`https://commons.wikimedia.org/w/api.php?${qs}`, { signal });
       const pages = Object.values(data.query?.pages || {});
       let items = pages
         .filter((p) => p.imageinfo?.[0]?.mime?.startsWith("image/") && !p.imageinfo[0].mime.includes("svg"))
@@ -340,7 +345,7 @@
     id: "openverse",
     label: "Openverse",
     enabled: () => true, // ключ не нужен (анонимный доступ ограничен по частоте)
-    async search(query, { page = 1, orientation = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", signal } = {}) {
       const aspectMap = { any: undefined, horizontal: "wide", vertical: "tall", square: "square" };
       const qs = buildQuery({
         q: query,
@@ -350,7 +355,7 @@
         page_size: 20,
         aspect_ratio: aspectMap[orientation],
       });
-      const data = await fetchJson(`https://api.openverse.org/v1/images/?${qs}`);
+      const data = await fetchJson(`https://api.openverse.org/v1/images/?${qs}`, { signal });
       const items = (data.results || []).map((p) => ({
         id: `openverse-${p.id}`,
         provider: "openverse",
@@ -384,7 +389,7 @@
     id: "doodl",
     label: "Doodl",
     enabled: () => true, // ключ не нужен
-    async search(query, { page = 1, orientation = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", signal } = {}) {
       if (page === 1) doodlSeeds.delete(query);
       const qs = buildQuery({
         q: query,
@@ -392,7 +397,7 @@
         per_page: 24,
         seed: page > 1 ? doodlSeeds.get(query) : undefined,
       });
-      const data = await fetchJson(`https://www.doodl.co/api/plugin/search?${qs}`);
+      const data = await fetchJson(`https://www.doodl.co/api/plugin/search?${qs}`, { signal });
       if (data.seed) doodlSeeds.set(query, data.seed);
       let items = (data.results || []).map((p) => ({
         id: `doodl-${p.id}`,
@@ -408,6 +413,10 @@
         authorUrl: p.creator?.profile_url,
         pageUrl: p.page_url,
         download: { type: "direct", url: p.urls?.download ? `${p.urls.download}?resolution=large` : p.urls?.large },
+        // Весь каталог Doodl — AI-сгенерированные изображения, а не фотографии
+        // (см. описание сервиса) — явный флаг, чтобы UI не выдавал их за
+        // обычные фото (см. рендер бейджа "AI" в app.js).
+        aiGenerated: true,
         license: {
           name: "Doodl License",
           url: p.license?.url,
@@ -424,7 +433,7 @@
     id: "flickr",
     label: "Flickr",
     enabled: () => Boolean(CONFIG.WORKER_BASE_URL && CONFIG.FLICKR_ENABLED),
-    async search(query, { page = 1, orientation = "any", sort = "popular" } = {}) {
+    async search(query, { page = 1, orientation = "any", sort = "popular", signal } = {}) {
       const sortMap = { popular: "relevance", newest: "date-posted-desc" };
       const qs = buildQuery({
         method: "flickr.photos.search",
@@ -441,7 +450,7 @@
         format: "json",
         nojsoncallback: 1,
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/flickr?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/flickr?${qs}`, { signal });
       if (data.stat !== "ok") throw new Error(data.message || "error");
       let items = (data.photos?.photo || []).map((p) => {
         const width = p.o_width ? Number(p.o_width) : undefined;
@@ -493,7 +502,7 @@
     id: "shutterstock",
     label: "Shutterstock",
     enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
-    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", signal } = {}) {
       const qs = buildQuery({
         query,
         page,
@@ -503,7 +512,7 @@
         orientation: SHUTTERSTOCK_ORIENTATION_MAP[orientation],
         color: hexForColor(color)?.replace("#", ""),
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/shutterstock?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/shutterstock?${qs}`, { signal });
       const items = (data.data || []).map((p) => {
         const assets = p.assets || {};
         const previewFull = assets.preview_1500 || assets.preview_1000 || assets.preview || assets.huge_thumb;
@@ -544,7 +553,7 @@
     id: "pexafy",
     label: "Pexafy",
     enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
-    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", signal } = {}) {
       const cursorKey = JSON.stringify({ query, orientation, sort, color });
       if (page === 1) pexafyCursors.delete(cursorKey);
       const cursor = page > 1 ? pexafyCursors.get(cursorKey) : undefined;
@@ -558,7 +567,7 @@
         color_hex: color !== "bw" ? hexForColor(color) : undefined,
         cursor,
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pexafy?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pexafy?${qs}`, { signal });
       if (data.pagination?.next_cursor) pexafyCursors.set(cursorKey, data.pagination.next_cursor);
       else pexafyCursors.delete(cursorKey);
 

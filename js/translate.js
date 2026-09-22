@@ -8,13 +8,13 @@
     return /[а-яё]/i.test(text);
   }
 
-  async function translateQuery(text) {
+  async function translateQuery(text, { signal } = {}) {
     if (!text || !hasCyrillic(text)) {
       return { translated: text, original: text, wasTranslated: false };
     }
     try {
       const url = `https://api.mymemory.translated.net/get?q=${encodeURIComponent(text)}&langpair=ru|en`;
-      const res = await fetch(url);
+      const res = await fetch(url, { signal });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       const data = await res.json();
       const translated = data?.responseData?.translatedText;
@@ -23,7 +23,7 @@
       const same = cleaned.toLowerCase() === text.trim().toLowerCase();
       return { translated: cleaned, original: text, wasTranslated: !same };
     } catch (err) {
-      console.warn("Перевод запроса не удался, ищем как есть:", err);
+      if (err.name !== "AbortError") console.warn("Перевод запроса не удался, ищем как есть:", err);
       return { translated: text, original: text, wasTranslated: false, error: err.message };
     }
   }

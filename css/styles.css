@@ -803,6 +803,21 @@ body {
   text-overflow: ellipsis;
 }
 .card-source-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+/* Обёртка вместо одиночного badge слева — так бейдж "AI" встаёт рядом с
+   источником, не отнимая место у круглых кнопок справа (justify-content:
+   space-between у .card-overlay всё равно держит их по разным краям). */
+.card-badges { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.card-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(139, 92, 246, 0.92);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
 .card-actions-bottom { display: flex; gap: 6px; }
 .card-round-btn {
   width: 32px;
@@ -1099,6 +1114,8 @@ body {
   gap: 14px;
 }
 .lightbox-panel-top { display: flex; flex-direction: column; gap: 12px; }
+.lightbox-badges-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lightbox-badges-row .card-ai-badge[hidden] { display: none; }
 .source-badge {
   align-self: flex-start;
   display: inline-flex;
