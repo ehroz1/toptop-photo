@@ -76,6 +76,40 @@ async function proxy(targetUrl, init, origin, env) {
   });
 }
 
+// Токен живёт, пока жив этот инстанс воркера (Cloudflare может переиспользовать
+// его между запросами) — обычный module-level кэш, безопасный паттерн для
+// Workers. Если инстанс перезапустится, просто получим новый токен на
+// следующий запрос — не страшно, лишь одна лишняя пара запросов.
+let shutterstockTokenCache = null; // { token, expiresAt }
+
+async function getShutterstockAccessToken(env) {
+  const now = Date.now();
+  if (shutterstockTokenCache && shutterstockTokenCache.expiresAt > now + 30_000) {
+    return shutterstockTokenCache.token;
+  }
+  const basic = btoa(`${env.SHUTTERSTOCK_CONSUMER_KEY}:${env.SHUTTERSTOCK_CONSUMER_SECRET}`);
+  const res = await fetch("https://api.shutterstock.com/v2/oauth/access_token", {
+    method: "POST",
+    headers: {
+      Authorization: `Basic ${basic}`,
+      "Content-Type": "application/x-www-form-urlencoded",
+      "User-Agent": WORKER_USER_AGENT,
+    },
+    body: "grant_type=client_credentials",
+  });
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    throw new Error(`oauth ${res.status} ${text.slice(0, 200)}`);
+  }
+  const data = await res.json();
+  if (!data.access_token) throw new Error("oauth response has no access_token");
+  shutterstockTokenCache = {
+    token: data.access_token,
+    expiresAt: now + (Number(data.expires_in) || 3600) * 1000,
+  };
+  return shutterstockTokenCache.token;
+}
+
 export default {
   async fetch(request, env) {
     const url = new URL(request.url);
@@ -135,14 +169,25 @@ export default {
       return proxy(`https://api.flickr.com/services/rest/?${params}`, {}, origin, env);
     }
 
-    // Shutterstock Content Search API v2 — авторизация Bearer-токеном
-    // (Personal Access Token из личного кабинета разработчика), а не
-    // отдельными client_id/secret, поэтому один секрет и без copyParams(["key"]).
+    // Shutterstock Content Search API v2 — настоящий OAuth 2.0
+    // client_credentials, а не статический токен: токен, который даёт
+    // кнопка "Создать токен" в личном кабинете, получен тем же способом и
+    // так же недолговечен (сгорает через некоторое время), поэтому воркер
+    // сам обменивает Consumer Key/Secret на свежий токен и кэширует его до
+    // истечения — см. getShutterstockAccessToken.
     if (url.pathname === "/shutterstock") {
-      if (!env.SHUTTERSTOCK_TOKEN) return jsonError(origin, env, "SHUTTERSTOCK_TOKEN is not configured", 500);
+      if (!env.SHUTTERSTOCK_CONSUMER_KEY || !env.SHUTTERSTOCK_CONSUMER_SECRET) {
+        return jsonError(origin, env, "SHUTTERSTOCK_CONSUMER_KEY/SHUTTERSTOCK_CONSUMER_SECRET is not configured", 500);
+      }
+      let token;
+      try {
+        token = await getShutterstockAccessToken(env);
+      } catch (err) {
+        return jsonError(origin, env, `shutterstock auth failed: ${err.message}`, 502);
+      }
       const params = copyParams(url);
       return proxy(`https://api.shutterstock.com/v2/images/search?${params}`, {
-        headers: { Authorization: `Bearer ${env.SHUTTERSTOCK_TOKEN}` },
+        headers: { Authorization: `Bearer ${token}` },
       }, origin, env);
     }
 

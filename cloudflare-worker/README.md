@@ -24,10 +24,13 @@
    - `PEXELS_KEY` — ваш ключ Pexels
    - `UNSPLASH_ACCESS_KEY` — ваш Access Key Unsplash
    - `FLICKR_API_KEY` — ключ Flickr, если используете (необязательно)
-   - `SHUTTERSTOCK_TOKEN` — Personal Access Token Shutterstock, если
-     используете (необязательно; создаётся в личном кабинете на
-     shutterstock.com/developers/apps → API Access, отдельный client_id/
-     secret не нужен — токен подставляется сразу как `Bearer`)
+   - `SHUTTERSTOCK_CONSUMER_KEY` и `SHUTTERSTOCK_CONSUMER_SECRET` — если
+     используете Shutterstock (необязательно; берутся на
+     shutterstock.com/account/developers/apps → ваше приложение → вкладка
+     "Аутентификация", поля "Ключ потребителя"/"Секрет потребителя").
+     Воркер сам обменивает их на access-токен через OAuth 2.0
+     client_credentials и кэширует его до истечения — вписывать готовый
+     токен вручную не нужно и не стоит (он короткоживущий).
    - `PEXAFY_API_KEY` — ключ Pexafy, если используете (необязательно;
      создаётся на pexafy.com/dashboard/api-keys/create — выберите тип
      **Pexafy API**, не **MCP**, это ключ для другого протокола)
@@ -54,7 +57,8 @@ wrangler secret put PIXABAY_KEY
 wrangler secret put PEXELS_KEY
 wrangler secret put UNSPLASH_ACCESS_KEY
 wrangler secret put FLICKR_API_KEY   # необязательно
-wrangler secret put SHUTTERSTOCK_TOKEN   # необязательно
+wrangler secret put SHUTTERSTOCK_CONSUMER_KEY   # необязательно
+wrangler secret put SHUTTERSTOCK_CONSUMER_SECRET   # необязательно
 wrangler secret put PEXAFY_API_KEY   # необязательно
 ```
 

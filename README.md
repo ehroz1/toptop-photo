@@ -244,11 +244,17 @@ Shutterstock — единственный источник в общей лен�
 та же водяная картинка. Полноразмерный файл без знака доступен только после
 покупки лицензии на сайте Shutterstock (ссылка на карточку товара — в плашке
 лицензии в просмотре фото, там же явная пометка "Нужна платная лицензия").
-Добавьте свой Personal Access Token как секрет `SHUTTERSTOCK_TOKEN` в
-Cloudflare Worker (создаётся в личном кабинете на
-[shutterstock.com/developers/apps](https://www.shutterstock.com/developers/apps),
-раздел API Access — не нужен отдельный OAuth-обмен client_id/secret) — чип
-"Shutterstock" работает сразу, без изменений в `js/config.js`.
+Авторизация — настоящий OAuth 2.0 client_credentials, а не статический
+токен: воркер сам обменивает Consumer Key/Secret на свежий токен и кэширует
+его до истечения срока (токен, который выдаёт кнопка "Создать токен" в
+личном кабинете, получен тем же способом и так же недолговечен — сгорает,
+и вписанный руками токен рано или поздно перестанет работать). Возьмите
+**Ключ потребителя** и **Секрет потребителя** в личном кабинете на
+[shutterstock.com/account/developers/apps](https://www.shutterstock.com/account/developers/apps)
+(раздел "Разработчикам" → ваше приложение → вкладка "Аутентификация") и
+добавьте их как секреты `SHUTTERSTOCK_CONSUMER_KEY` и
+`SHUTTERSTOCK_CONSUMER_SECRET` в Cloudflare Worker — чип "Shutterstock"
+работает сразу, без изменений в `js/config.js`.
 
 ## Про Pexafy
 
