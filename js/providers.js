@@ -52,7 +52,12 @@
       // "сетевую" ошибку: вызывающему коду (app.js) важно отличить намеренную
       // отмену от настоящего сбоя, чтобы не показывать по ней предупреждение.
       if (err.name === "AbortError") throw err;
-      throw new Error(`сеть/CORS недоступны (${err.message})`);
+      // Запрос не дошёл или браузер не пустил ответ (CORS) — в обоих случаях
+      // это TypeError без подробностей. Помечаем, чтобы app.js показал
+      // одну понятную строку на все такие источники сразу.
+      const netErr = new Error(`сеть/CORS недоступны (${err.message})`);
+      netErr.isNetwork = true;
+      throw netErr;
     }
     if (!res.ok) {
       let detail = "";

@@ -13,6 +13,8 @@ compatibility_date = "2024-01-01"
 # ALLOWED_ORIGINS, SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY не секретные —
 # заданы прямо тут, через vars (Publishable key по дизайну Supabase не даёт
 # доступа в обход RLS, светить его на клиенте и здесь — нормально).
+# ALLOWED_ORIGINS только добавляет адреса к встроенным в worker.js
+# (picta.cc, www.picta.cc, ehroz1.github.io), а не заменяет их.
 [vars]
 ALLOWED_ORIGINS = "https://picta.cc,https://www.picta.cc,https://ehroz1.github.io"
 SUPABASE_URL = "https://stmjykymgtijghbcullm.supabase.co"

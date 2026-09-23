@@ -43,6 +43,9 @@ const { buildPage, sleep, setActiveSources } = require("../harness");
   if (cards !== 0) { console.error("FAIL: ожидали 0 карточек во втором раунде"); ok = false; }
   if (!warn.includes("Wikimedia")) { console.error("FAIL: нет предупреждения про Wikimedia (500)"); ok = false; }
   if (!warn.includes("Openverse")) { console.error("FAIL: нет предупреждения про Openverse (network)"); ok = false; }
+  // Сетевой сбой — понятной фразой, без технического "сеть/CORS (Load failed)"
+  if (/CORS|network down/.test(warn)) { console.error("FAIL: на экран попал технический текст сетевой ошибки"); ok = false; }
+  if (!/нет связи|can't reach/.test(warn)) { console.error("FAIL: нет понятной фразы про отсутствие связи"); ok = false; }
   console.log(warn.includes("Doodl") ? "странно: Doodl тоже в предупреждениях (не должно, это просто пусто)" : "OK: Doodl (пустой ответ без ошибки) не считается предупреждением");
 
   console.log(ok ? "\n=== TEST3 OK (раунды с ошибками) ===" : "\n=== TEST3 FAILED (раунды с ошибками) ===");
