@@ -825,48 +825,6 @@ body {
   max-width: 600px;
   margin: 0 auto;
 }
-.empty-state-logo {
-  width: 60px;
-  height: 60px;
-  margin: 0 auto 22px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.empty-state-logo::before {
-  content: "";
-  width: 30px;
-  height: 30px;
-  background-color: var(--text);
-  -webkit-mask: url("../icons/logo-mark.png") center / contain no-repeat;
-  mask: url("../icons/logo-mark.png") center / contain no-repeat;
-}
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 14px;
-}
-.eyebrow::before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--text);
-  flex-shrink: 0;
-}
-.underline-accent {
-  text-decoration: underline;
-  text-decoration-color: currentColor;
-  text-decoration-thickness: 3px;
-  text-underline-offset: 6px;
-}
 .empty-state h1 {
   font-family: var(--font-display);
   font-size: clamp(28px, 4vw, 44px);
@@ -896,6 +854,174 @@ body {
   transition: background 0.15s ease, transform 0.1s ease;
 }
 .suggestion-chip:hover { background: var(--accent-soft); transform: translateY(-1px); }
+
+/* ---------- Главный экран (body.is-home, см. applyHomeLayout в app.js) ----------
+   По центру — надпись, подзаголовок, крупная строка поиска, вкладки режимов
+   и "Источники"; внизу — "Попробуйте:" простыми ссылками. Строка поиска,
+   вкладки и "Источники" — те же узлы, что в шапке/панели, просто перенесены
+   сюда, пока нет результатов. */
+.home-hero {
+  max-width: none;
+  padding: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: calc(100svh - 150px);
+}
+/* display:flex выше перебил бы атрибут hidden — без этого главный экран
+   оставался бы на месте после поиска, а выдача уезжала вниз. */
+.home-hero[hidden] { display: none; }
+.home-main {
+  margin-top: auto;
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: homeIn 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+@keyframes homeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.home-hero .home-wordmark {
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  font-size: clamp(40px, 5.5vw, 60px);
+  font-weight: 300;
+  letter-spacing: -0.02em;
+  line-height: 1.05;
+  margin: 0;
+}
+.home-wordmark-strong { font-weight: 600; }
+.home-hero .home-tagline {
+  margin: 10px 0 34px;
+  font-size: clamp(15px, 1.6vw, 18px);
+  color: var(--text-muted);
+}
+.home-search-slot { width: 100%; }
+.is-home .searchbar {
+  width: 100%;
+  max-width: none;
+  height: 58px;
+  padding: 6px 8px 6px 20px;
+  background: color-mix(in srgb, var(--bg-elevated) 55%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.16);
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.is-home .searchbar:focus-within {
+  background: color-mix(in srgb, var(--bg-elevated) 78%, transparent);
+  border-color: color-mix(in srgb, var(--text) 32%, transparent);
+}
+.is-home .searchbar-input { font-size: 16px; }
+.is-home .searchbar-submit { width: 42px; height: 42px; }
+.is-home .searchbar-submit .icon { -webkit-mask-image: var(--icon-arrow-right); mask-image: var(--icon-arrow-right); }
+
+.home-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-top: 26px;
+}
+.home-controls-sep {
+  width: 1px;
+  height: 26px;
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+}
+.home-controls-sep[hidden] { display: none; }
+.is-home .mode-switch { background: transparent; padding: 0; gap: 14px; }
+.is-home .mode-tab {
+  position: relative;
+  padding: 8px 10px;
+  border-radius: 0;
+  font-size: 14.5px;
+}
+.is-home .mode-tab.is-active { background: transparent; }
+.is-home .mode-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: -5px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text);
+}
+.is-home .sources-menu-toggle { background: transparent; color: var(--text); font-size: 14.5px; }
+.is-home .sources-menu-toggle:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.is-home .sources-menu-badge {
+  position: static;
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+  color: var(--text);
+}
+.is-home .sources-menu-toggle::after {
+  content: "";
+  width: 11px;
+  height: 11px;
+  background-color: currentColor;
+  opacity: 0.7;
+  -webkit-mask: var(--icon-chevron) center / contain no-repeat;
+  mask: var(--icon-chevron) center / contain no-repeat;
+}
+.is-home .sources-menu-popover { right: auto; left: 50%; margin-left: -125px; text-align: left; }
+.home-hero .home-sources-list {
+  margin: 18px 0 0;
+  min-height: 1.4em;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.home-suggest {
+  margin-top: auto;
+  padding-top: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.is-home .suggestions { margin-top: 0; gap: 2px; }
+.is-home .suggestion-chip {
+  background: transparent;
+  padding: 4px 4px;
+  font-size: 13.5px;
+  opacity: 0.85;
+}
+.is-home .suggestion-chip:hover {
+  background: transparent;
+  transform: none;
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.is-home .suggestion-chip + .suggestion-chip::before {
+  content: "·";
+  display: inline-block;
+  margin-right: 10px;
+  color: var(--text-muted);
+}
+
+.is-home .topbar .icon-btn { background: transparent; }
+.is-home .topbar .icon-btn:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.is-home .toolbar,
+.is-home #translatedHint,
+.is-home #spellHint { display: none; }
+
+@media (max-width: 680px) {
+  .home-hero { min-height: calc(100svh - 110px); }
+  .home-hero .home-tagline { margin-bottom: 26px; }
+  .is-home .searchbar { height: 54px; }
+  .home-controls { gap: 8px 12px; margin-top: 20px; }
+  .home-controls-sep { display: none; }
+  .is-home .mode-switch { gap: 4px; }
+  .home-suggest { padding-top: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-main { animation: none; }
+}
 
 /* ---------- Grid ---------- */
 .grid {

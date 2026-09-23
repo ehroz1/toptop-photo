@@ -120,9 +120,12 @@
     iconFiltersToggle: document.getElementById("iconFiltersToggle"),
     iconFiltersPopover: document.getElementById("iconFiltersPopover"),
     iconFiltersBadge: document.getElementById("iconFiltersBadge"),
-    heroH1Before: document.getElementById("heroH1Before"),
-    heroH1Underline: document.getElementById("heroH1Underline"),
     heroP: document.getElementById("heroP"),
+    homeSearchSlot: document.getElementById("homeSearchSlot"),
+    homeModeSlot: document.getElementById("homeModeSlot"),
+    homeSourcesSlot: document.getElementById("homeSourcesSlot"),
+    homeControlsSep: document.getElementById("homeControlsSep"),
+    homeSourcesList: document.getElementById("homeSourcesList"),
     iconGrid: document.getElementById("iconGrid"),
     iconLoadMoreWrap: document.getElementById("iconLoadMoreWrap"),
     iconLoadMoreBtn: document.getElementById("iconLoadMoreBtn"),
@@ -441,10 +444,60 @@
   });
   function applyHeroForMode() {
     const suffix = state.mode === "icons" ? "_icons" : state.mode === "video" ? "_video" : "";
-    el.heroH1Before.textContent = I18N.t(`hero_h1_before${suffix}`);
-    el.heroH1Underline.textContent = I18N.t(`hero_h1_underline${suffix}`);
-    el.heroP.textContent = I18N.t(`hero_p${suffix}`);
+    el.heroP.textContent = I18N.t(`home_tagline${suffix}`);
+    el.homeControlsSep.hidden = state.mode !== "photos";
+    updateHomeSourcesList();
   }
+
+  // Строка активных источников под поиском на главном экране:
+  // "Pixabay · Pexels · Wikimedia Commons".
+  function updateHomeSourcesList() {
+    let names;
+    if (state.mode === "icons") {
+      names = Array.from(el.iconSources.querySelectorAll("[data-icon-source]"))
+        .filter((b) => state.activeIconSources.has(b.dataset.iconSource))
+        .map((b) => b.textContent.trim());
+      if (names.length === 0) names = [I18N.t("home_sources_icons_all")];
+    } else {
+      const providers = state.mode === "video" ? (window.VIDEO_PROVIDERS || []) : (window.PROVIDERS || []);
+      const active = state.mode === "video" ? state.activeVideoSources : state.activeSources;
+      names = providers.filter((p) => active.has(p.id) && p.enabled()).map((p) => p.label);
+    }
+    el.homeSourcesList.textContent = names.join("  ·  ");
+  }
+
+  // ---------- Главный экран ↔ выдача ----------
+  // Пока нет результатов (виден #emptyState), строка поиска, вкладки режимов
+  // и "Источники" живут в центре главного экрана; после поиска возвращаются
+  // в шапку и панель над выдачей. Узлы переносятся целиком (со всеми
+  // обработчиками), на исходных местах остаются невидимые метки-якоря.
+  const homeMoves = [
+    [el.form, el.homeSearchSlot],
+    [el.modeSwitch, el.homeModeSlot],
+    [el.sourcesMenuWrap, el.homeSourcesSlot],
+  ].map(([node, slot]) => {
+    const anchor = document.createComment("home-anchor");
+    node.parentNode.insertBefore(anchor, node);
+    return { node, slot, anchor };
+  });
+  let isHomeLayout = null;
+  function applyHomeLayout() {
+    const home = !el.emptyState.hidden;
+    if (home === isHomeLayout) return;
+    isHomeLayout = home;
+    const hadFocus = document.activeElement === el.input;
+    for (const { node, slot, anchor } of homeMoves) {
+      if (home) slot.appendChild(node);
+      else anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    }
+    document.body.classList.toggle("is-home", home);
+    // Перенос узла сбрасывает фокус — возвращаем, если человек печатал.
+    if (hadFocus && !(window.matchMedia && window.matchMedia("(pointer: coarse)").matches)) {
+      el.input.focus({ preventScroll: true });
+    }
+  }
+  new MutationObserver(applyHomeLayout).observe(el.emptyState, { attributes: true, attributeFilter: ["hidden"] });
+  applyHomeLayout();
 
   // ---------- Suggestions ----------
   function renderSuggestionChips() {
@@ -924,8 +977,9 @@
     updateCapVisual();
   }
   bindSourceCheckboxGroup(el.sources, state.activeSources, {
-    onChange: () => { saveFilters(); if (state.query) runSearch({ keepTranslation: true }); },
+    onChange: () => { saveFilters(); updateHomeSourcesList(); if (state.query) runSearch({ keepTranslation: true }); },
   });
+  updateHomeSourcesList();
 
   // ---------- Popover "Источники" (фото) ----------
   function updateSourcesMenuBadge() {
@@ -1018,11 +1072,11 @@
 
   bindSourceChipGroup(el.iconSources, "data-icon-source", "iconSource", state.activeIconSources, {
     allowZero: true,
-    onChange: () => { saveIconFilters(); rerunIconSearchWithFilters(); },
+    onChange: () => { saveIconFilters(); updateHomeSourcesList(); rerunIconSearchWithFilters(); },
   });
   bindSourceChipGroup(el.videoSources, "data-video-source", "videoSource", state.activeVideoSources, {
     allowZero: false,
-    onChange: () => { saveVideoFilters(); rerunVideoSearchWithFilters(); },
+    onChange: () => { saveVideoFilters(); updateHomeSourcesList(); rerunVideoSearchWithFilters(); },
   });
 
   el.yandexBtn.addEventListener("click", () => openExternalSearch("yandex"));
@@ -3095,6 +3149,7 @@
   const initialQuery = initialParams.get("q");
   const initialMode = initialParams.get("mode");
   if (initialMode === "icons" || initialMode === "video") applyModeUI(initialMode);
+  updateHomeSourcesList();
   if (initialQuery) {
     el.input.value = initialQuery;
     el.clearBtn.hidden = false;
