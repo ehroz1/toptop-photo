@@ -791,11 +791,9 @@
   });
 
   // ---------- Search input ----------
-  let debounceTimer = null;
+  // Поиск стартует только по Enter / кнопке поиска, а не на каждую букву.
   el.input.addEventListener("input", () => {
     el.clearBtn.hidden = el.input.value.length === 0;
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(runSearchForMode, 550);
   });
   el.clearBtn.addEventListener("click", () => {
     el.input.value = "";
@@ -805,7 +803,9 @@
   });
   el.form.addEventListener("submit", (e) => {
     e.preventDefault();
-    clearTimeout(debounceTimer);
+    // На телефоне прячем экранную клавиатуру, чтобы она не закрывала
+    // результаты. На компьютере фокус оставляем — удобно сразу уточнить запрос.
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) el.input.blur();
     runSearchForMode();
   });
 
