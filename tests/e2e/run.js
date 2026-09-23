@@ -222,16 +222,17 @@ async function testThemeSwitch(browser, base) {
   }));
 
   await page.click("#mainMenuToggle"); // тема — пункт меню в шапке
-  await page.click("#themeToggle"); // авто (светлая) → светлая
+  await page.click('#themeSeg [data-theme-set="light"]'); // авто (светлая) → светлая
   let s = await theme();
   check(s.mode === "light" && s.vt === 0, `тема: «авто» → «светлая» при светлой системе меняет только иконку (переходов: ${s.vt})`);
 
-  await page.click("#themeToggle"); // светлая → тёмная
+  await page.click('#themeSeg [data-theme-set="dark"]'); // светлая → тёмная
   // Анимация стартует на следующем кадре после клика — ждём её появления.
   const anim = await page.waitForFunction(() => {
     const a = document.getAnimations().find((x) => x.effect && x.effect.pseudoElement === "::view-transition-new(root)");
-    return a && { sizes: a.effect.getKeyframes().map((k) => k.maskSize), reveal: document.documentElement.classList.contains("theme-reveal") };
+    return a && { sizes: a.effect.getKeyframes().map((k) => k.maskSize), fill: a.effect.getTiming().fill, reveal: document.documentElement.classList.contains("theme-reveal") };
   }, null, { timeout: 2000 }).then((h) => h.jsonValue()).catch(() => null);
+  check(!!anim && anim.fill === "forwards", `тема: последний кадр круга держится до конца перехода — без мигания (fill: ${anim && anim.fill})`);
   check(!!anim && anim.reveal && anim.sizes[0] === "0px 0px" && parseInt(anim.sizes[1], 10) > 1280,
     `тема: светлая → тёмная — новая тема растёт кругом от кнопки (${anim ? anim.sizes.join(" → ") : "анимации нет"})`);
   await page.waitForTimeout(1200);
@@ -246,8 +247,7 @@ async function testThemeSwitch(browser, base) {
   await installMocks(cp);
   await cp.goto(base, { waitUntil: "load" });
   await cp.click("#mainMenuToggle");
-  await cp.click("#themeToggle");
-  await cp.click("#themeToggle");
+  await cp.click('#themeSeg [data-theme-set="dark"]');
   const c = await cp.evaluate(() => ({ theme: document.documentElement.getAttribute("data-theme"), vt: window.__vtCalls }));
   check(c.theme === "dark" && c.vt === 0, `тема: при «уменьшить движение» меняется сразу, без анимации (переходов: ${c.vt})`);
   await calm.close();

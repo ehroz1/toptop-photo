@@ -46,7 +46,8 @@
     form: document.getElementById("searchForm"),
     input: document.getElementById("searchInput"),
     clearBtn: document.getElementById("clearBtn"),
-    themeToggle: document.getElementById("themeToggle"),
+    themeSeg: document.getElementById("themeSeg"),
+    gridSeg: document.getElementById("gridSeg"),
     favoritesToggle: document.getElementById("favoritesToggle"),
     selectModeToggle: document.getElementById("selectModeToggle"),
     translatedHint: document.getElementById("translatedHint"),
@@ -79,7 +80,6 @@
     mainMenuToggle: document.getElementById("mainMenuToggle"),
     mainMenu: document.getElementById("mainMenu"),
     favoritesCount: document.getElementById("favoritesCount"),
-    themeModeLabel: document.getElementById("themeModeLabel"),
     donateLink: document.getElementById("donateLink"),
     backToTop: document.getElementById("backToTop"),
     recentSearches: document.getElementById("recentSearches"),
@@ -330,7 +330,7 @@
       localStorage.setItem(THEME_KEY, mode);
       document.documentElement.setAttribute("data-theme", mode);
     }
-    el.themeModeLabel.textContent = I18N.t(`theme_mode_${mode}`);
+    el.themeSeg.querySelectorAll("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeSet === mode)));
   }
   function initTheme() {
     applyThemeMode(currentThemeMode());
@@ -375,31 +375,46 @@
         duration: THEME_REVEAL_MS,
         easing: "cubic-bezier(0.4, 0, 0.2, 1)",
         pseudoElement: "::view-transition-new(root)",
+        // Держим конечный кадр до конца перехода: иначе в Chrome между концом
+        // анимации и удалением снимков на один кадр возвращалась маска
+        // "круг нулевого размера" — и экран моргал старой темой.
+        fill: "forwards",
       });
     }).catch(() => { /* переход пропущен (например, второй клик подряд) — тема уже применена */ });
     transition.finished.catch(() => {}).then(() => root.classList.remove("theme-reveal"));
   }
 
-  el.themeToggle.addEventListener("click", () => {
-    const mode = currentThemeMode();
-    const next = mode === "auto" ? "light" : mode === "light" ? "dark" : "auto";
-    // Иконка режима появляется с лёгким поворотом (класс снимается сам,
-    // чтобы следующий клик запускал анимацию заново).
-    el.themeToggle.classList.remove("is-switching");
-    void el.themeToggle.offsetWidth;
-    el.themeToggle.classList.add("is-switching");
-    // "Авто" может совпасть с текущей темой — тогда меняется только иконка.
+  // Переключатель темы в меню: светлая / тёмная / авто.
+  el.themeSeg.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-theme-set]");
+    if (!btn) return;
+    const next = btn.dataset.themeSet;
+    if (next === currentThemeMode()) return;
+    // "Авто" может совпасть с текущей темой — тогда меняется только выбор.
     if (resolveTheme(next) === document.documentElement.getAttribute("data-theme")) {
       applyThemeMode(next);
       return;
     }
-    // Круг новой темы растёт от иконки пункта меню (видна только иконка
-    // текущего режима, у остальных нулевой размер).
-    const icon = [...el.themeToggle.querySelectorAll(".icon")].find((n) => n.getBoundingClientRect().width > 0);
-    const r = (icon || el.themeToggle).getBoundingClientRect();
+    // Круг новой темы растёт от нажатой кнопки.
+    const r = btn.getBoundingClientRect();
     transitionTheme(() => applyThemeMode(next), { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
   });
-  el.themeToggle.addEventListener("animationend", () => el.themeToggle.classList.remove("is-switching"));
+
+  // ---------- Размер сетки (крупные / средние / мелкие фото) ----------
+  const GRID_SIZE_KEY = "photoseek-grid-size";
+  function applyGridSize(size) {
+    document.documentElement.setAttribute("data-grid", size);
+    el.gridSeg.querySelectorAll("[data-grid-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.gridSet === size)));
+  }
+  let savedGrid = "2";
+  try { savedGrid = localStorage.getItem(GRID_SIZE_KEY) || "2"; } catch { /* не критично */ }
+  applyGridSize(["1", "2", "3"].includes(savedGrid) ? savedGrid : "2");
+  el.gridSeg.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-grid-set]");
+    if (!btn) return;
+    applyGridSize(btn.dataset.gridSet);
+    try { localStorage.setItem(GRID_SIZE_KEY, btn.dataset.gridSet); } catch { /* не критично */ }
+  });
   // Пока режим "авто" — живо следуем за системной темой (например, автоночь
   // по расписанию ОС), без перезагрузки страницы.
   systemThemeQuery.addEventListener("change", (e) => {
@@ -1529,7 +1544,7 @@
   // ResizeObserver сам пересчитывает span при любом изменении высоты:
   // догрузилась картинка, изменилась ширина колонки при ресайзе и т.п.
   const GRID_ROW_UNIT = 4;
-  const GRID_GAP = 8;
+  const GRID_GAP = 12;
   const masonryObserver = new ResizeObserver((entries) => {
     for (const entry of entries) {
       // Для карточек наблюдаем за <img>, а не за .card: у .card стоит

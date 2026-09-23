@@ -3,8 +3,24 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Picta — поиск фото сразу везде</title>
-<meta name="description" content="Универсальный поиск фото по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr одновременно, с быстрым переходом в Яндекс, Google и Pinterest.">
+<title>Picta — поиск фото, иконок и видео по всем бесплатным стокам</title>
+<meta name="description" content="Один поиск сразу по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и другим бесплатным фотостокам. Фото, иконки и видео для работы — бесплатно и без регистрации.">
+<!-- SEO: главный адрес сайта (www и старый github.io — его копии) и карточка
+     для ссылок в соцсетях и мессенджерах (картинка — og-image.jpg). -->
+<link rel="canonical" href="https://picta.cc/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Picta">
+<meta property="og:url" content="https://picta.cc/">
+<meta property="og:title" content="Picta — поиск фото, иконок и видео по всем бесплатным стокам">
+<meta property="og:description" content="Один поиск сразу по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и другим бесплатным фотостокам. Фото, иконки и видео для работы — бесплатно и без регистрации.">
+<meta property="og:image" content="https://picta.cc/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ru_RU">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"WebSite","name":"Picta","url":"https://picta.cc/","description":"Один поиск сразу по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и другим бесплатным фотостокам. Фото, иконки и видео для работы — бесплатно и без регистрации.","inLanguage":["ru","en"],"potentialAction":{"@type":"SearchAction","target":"https://picta.cc/?q={search_term_string}","query-input":"required name=search_term_string"}}
+</script>
 <meta name="theme-color" content="#0b0b0f">
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icons/favicon-32.png" sizes="32x32">
@@ -123,13 +139,23 @@
             <span class="icon icon-chevron menu-item-chevron" aria-hidden="true"></span>
           </button>
           <div id="insightsPanel" class="insights-panel" hidden></div>
-          <button type="button" id="themeToggle" class="menu-item" role="menuitem">
-            <span class="icon icon-auto" data-theme-icon="auto" aria-hidden="true"></span>
-            <span class="icon icon-sun" data-theme-icon="light" aria-hidden="true"></span>
-            <span class="icon icon-moon" data-theme-icon="dark" aria-hidden="true"></span>
-            <span class="menu-item-label" data-i18n="menu_theme">Тема</span>
-            <span class="menu-item-value" id="themeModeLabel"></span>
-          </button>
+          <!-- Переключатели-«таблетки»: выбранный вариант — белый кружок. -->
+          <div class="menu-row">
+            <span class="menu-row-label" data-i18n="menu_theme">Тема</span>
+            <div class="seg" id="themeSeg" role="group">
+              <button type="button" class="seg-btn" data-theme-set="light" data-i18n-title="theme_mode_light" aria-pressed="false"><span class="icon icon-sun" aria-hidden="true"></span></button>
+              <button type="button" class="seg-btn" data-theme-set="dark" data-i18n-title="theme_mode_dark" aria-pressed="false"><span class="icon icon-moon" aria-hidden="true"></span></button>
+              <button type="button" class="seg-btn" data-theme-set="auto" data-i18n-title="theme_mode_auto" aria-pressed="false"><span class="icon icon-auto" aria-hidden="true"></span></button>
+            </div>
+          </div>
+          <div class="menu-row">
+            <span class="menu-row-label" data-i18n="menu_grid">Размер сетки</span>
+            <div class="seg" id="gridSeg" role="group">
+              <button type="button" class="seg-btn" data-grid-set="1" data-i18n-title="grid_size_1" aria-pressed="false"><span class="seg-bars" aria-hidden="true"><i></i></span></button>
+              <button type="button" class="seg-btn" data-grid-set="2" data-i18n-title="grid_size_2" aria-pressed="false"><span class="seg-bars" aria-hidden="true"><i></i><i></i></span></button>
+              <button type="button" class="seg-btn" data-grid-set="3" data-i18n-title="grid_size_3" aria-pressed="false"><span class="seg-bars" aria-hidden="true"><i></i><i></i><i></i></span></button>
+            </div>
+          </div>
           <div class="menu-sep" role="separator"></div>
           <a id="donateLink" class="menu-item" role="menuitem" href="#" target="_blank" rel="noopener">
             <span class="icon icon-coffee" aria-hidden="true"></span>
