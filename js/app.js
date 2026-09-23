@@ -70,6 +70,18 @@
     authEmailLabel: document.getElementById("authEmailLabel"),
     authAdminLink: document.getElementById("authAdminLink"),
     authSignOutBtn: document.getElementById("authSignOutBtn"),
+    authSoon: document.getElementById("authSoon"),
+    aboutWrap: document.getElementById("aboutWrap"),
+    aboutToggle: document.getElementById("aboutToggle"),
+    aboutPopover: document.getElementById("aboutPopover"),
+    aboutContacts: document.getElementById("aboutContacts"),
+    mainMenuWrap: document.getElementById("mainMenuWrap"),
+    mainMenuToggle: document.getElementById("mainMenuToggle"),
+    mainMenu: document.getElementById("mainMenu"),
+    favoritesCount: document.getElementById("favoritesCount"),
+    themeModeLabel: document.getElementById("themeModeLabel"),
+    donateLink: document.getElementById("donateLink"),
+    backToTop: document.getElementById("backToTop"),
     recentSearches: document.getElementById("recentSearches"),
     sourcesRow: document.getElementById("sourcesRow"),
     sourcesMenuWrap: document.getElementById("sourcesMenuWrap"),
@@ -318,6 +330,7 @@
       localStorage.setItem(THEME_KEY, mode);
       document.documentElement.setAttribute("data-theme", mode);
     }
+    el.themeModeLabel.textContent = I18N.t(`theme_mode_${mode}`);
   }
   function initTheme() {
     applyThemeMode(currentThemeMode());
@@ -380,7 +393,10 @@
       applyThemeMode(next);
       return;
     }
-    const r = el.themeToggle.getBoundingClientRect();
+    // Круг новой темы растёт от иконки пункта меню (видна только иконка
+    // текущего режима, у остальных нулевой размер).
+    const icon = [...el.themeToggle.querySelectorAll(".icon")].find((n) => n.getBoundingClientRect().width > 0);
+    const r = (icon || el.themeToggle).getBoundingClientRect();
     transitionTheme(() => applyThemeMode(next), { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
   });
   el.themeToggle.addEventListener("animationend", () => el.themeToggle.classList.remove("is-switching"));
@@ -391,10 +407,21 @@
     transitionTheme(() => document.documentElement.setAttribute("data-theme", e.matches ? "dark" : "light"));
   });
 
-  // ---------- Sticky header on scroll ----------
-  window.addEventListener("scroll", () => {
+  // ---------- Прокрутка: шапка и кнопка «Наверх» ----------
+  // Кнопка «Наверх» появляется, когда ушли вниз дальше полутора экранов.
+  function onScroll() {
     el.topbar.classList.toggle("is-scrolled", window.scrollY > 8);
-  }, { passive: true });
+    const showTop = window.scrollY > window.innerHeight * 1.5;
+    if (showTop !== el.backToTop.classList.contains("is-visible")) {
+      el.backToTop.classList.toggle("is-visible", showTop);
+      el.backToTop.tabIndex = showTop ? 0 : -1;
+      el.backToTop.setAttribute("aria-hidden", String(!showTop));
+    }
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  el.backToTop.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: reducedMotionQuery.matches ? "auto" : "smooth" });
+  });
 
   // ---------- Mode dispatch helpers ----------
   // Большинство мест в коде (саджесты, история, Enter в пустом поле и т.п.)
@@ -448,7 +475,6 @@
     el.iconFiltersRow.hidden = !isIcons;
     el.videoSources.hidden = !isVideo;
     el.videoFiltersRow.hidden = !isVideo;
-    el.favoritesToggle.hidden = !isPhotos;
     el.selectModeToggle.hidden = !isPhotos;
     applyHeroForMode();
     renderSuggestionChips();
@@ -891,19 +917,82 @@
       ${cooldownLines}
     `;
   }
-  el.insightsToggle.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const isOpen = !el.insightsPanel.hidden;
-    document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
-    if (isOpen) { el.insightsPanel.hidden = true; return; }
-    renderInsights();
-    el.insightsPanel.hidden = false;
+  // Статистика раскрывается прямо в меню, под своим пунктом.
+  function setInsightsOpen(open) {
+    if (open) renderInsights();
+    el.insightsPanel.hidden = !open;
+    el.insightsToggle.setAttribute("aria-expanded", String(open));
+  }
+  el.insightsToggle.addEventListener("click", () => setInsightsOpen(el.insightsPanel.hidden));
+
+  // ---------- Шапка: «молния», профиль, меню ----------
+  // Открыто не больше одного окна; клик мимо или Esc закрывает.
+  const topbarPopovers = [
+    { wrap: el.aboutWrap, toggle: el.aboutToggle, popover: el.aboutPopover },
+    { wrap: el.authWrap, toggle: el.authToggle, popover: el.authPopover },
+    { wrap: el.mainMenuWrap, toggle: el.mainMenuToggle, popover: el.mainMenu, onClose: () => setInsightsOpen(false) },
+  ];
+  function closeTopbarPopover(p) {
+    if (p.popover.hidden) return;
+    p.popover.hidden = true;
+    p.toggle.setAttribute("aria-expanded", "false");
+    if (p.onClose) p.onClose();
+  }
+  function closeTopbarPopovers() {
+    topbarPopovers.forEach(closeTopbarPopover);
+  }
+  topbarPopovers.forEach((p) => {
+    p.toggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const willOpen = p.popover.hidden;
+      closeTopbarPopovers();
+      if (!willOpen) return;
+      document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+      p.popover.hidden = false;
+      p.toggle.setAttribute("aria-expanded", "true");
+    });
   });
   document.addEventListener("click", (e) => {
-    if (!el.insightsPanel.hidden && e.target !== el.insightsToggle && !el.insightsToggle.contains(e.target)) {
-      el.insightsPanel.hidden = true;
-    }
+    topbarPopovers.forEach((p) => { if (!p.wrap.contains(e.target)) closeTopbarPopover(p); });
   });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const open = topbarPopovers.find((p) => !p.popover.hidden);
+    if (!open) return;
+    closeTopbarPopover(open);
+    open.toggle.focus();
+  });
+
+  // Контакты — из APP_CONFIG.CONTACTS (см. js/config.js).
+  (function renderContacts() {
+    const contacts = (window.APP_CONFIG?.CONTACTS || []).filter((c) => c && c.url);
+    el.aboutContacts.replaceChildren(...contacts.map((c) => {
+      const a = document.createElement("a");
+      a.className = "about-contact";
+      a.href = c.url;
+      a.textContent = c.label || c.url;
+      if (!/^mailto:/i.test(c.url)) { a.target = "_blank"; a.rel = "noopener"; }
+      return a;
+    }));
+    if (contacts.length === 0) {
+      const p = document.createElement("p");
+      p.className = "about-text";
+      p.textContent = I18N.t("about_no_contacts");
+      el.aboutContacts.append(p);
+    }
+  })();
+
+  const DONATE_URL = window.APP_CONFIG?.DONATE_URL || "";
+  if (DONATE_URL) el.donateLink.href = DONATE_URL;
+  el.donateLink.addEventListener("click", (e) => {
+    if (DONATE_URL) { closeTopbarPopovers(); return; }
+    e.preventDefault();
+    showToast(I18N.t("donate_soon"));
+  });
+
+  function updateFavoritesCount() {
+    el.favoritesCount.textContent = state.favorites.size ? String(state.favorites.size) : "";
+  }
 
   // ---------- Search input ----------
   // Поиск стартует только по Enter / кнопке поиска, а не на каждую букву.
@@ -1074,32 +1163,25 @@
   });
 
   // ---------- Вход (Supabase) ----------
+  // Кнопка профиля видна всегда. Пока вход выключен (ACCOUNTS_ENABLED в
+  // js/config.js), её окно просто говорит, что регистрация скоро появится.
   if (window.PhotoSeekAuth && window.PhotoSeekAuth.isConfigured()) {
-    el.authWrap.hidden = false;
-
-    function closeAuthPopover() {
-      el.authPopover.hidden = true;
-      el.authToggle.setAttribute("aria-expanded", "false");
-    }
-    el.authToggle.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const willOpen = el.authPopover.hidden;
-      document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
-      el.authPopover.hidden = !willOpen;
-      el.authToggle.setAttribute("aria-expanded", String(willOpen));
-    });
-    document.addEventListener("click", (e) => {
-      if (!el.authPopover.hidden && !el.authWrap.contains(e.target)) closeAuthPopover();
-    });
+    el.authSoon.hidden = true;
+    el.authLoggedOut.hidden = false;
 
     window.PhotoSeekAuth.onChange((session) => {
       const user = session && session.user;
       el.authLoggedOut.hidden = Boolean(user);
       el.authLoggedIn.hidden = !user;
+      el.authSignOutBtn.hidden = !user;
+      el.authToggle.classList.toggle("is-signed-in", Boolean(user));
       if (user) {
         const label = user.email || "";
         el.authEmailLabel.textContent = label;
-        el.authAvatar.textContent = label.slice(0, 1) || "?";
+        // Фото из Google-аккаунта, если есть, иначе первая буква почты.
+        const photo = user.user_metadata && user.user_metadata.avatar_url;
+        el.authAvatar.textContent = photo ? "" : (label.slice(0, 1) || "?");
+        el.authAvatar.style.backgroundImage = photo ? `url("${String(photo).replace(/["\\]/g, "")}")` : "";
         el.authAvatar.hidden = false;
         el.authToggle.querySelector(".icon-user").hidden = true;
         el.authAdminLink.hidden = false;
@@ -1128,7 +1210,7 @@
         await window.PhotoSeekAuth.signInWithEmail(email);
         showToast("Ссылка для входа отправлена на почту");
         el.authEmailInput.value = "";
-        closeAuthPopover();
+        closeTopbarPopovers();
       } catch (err) {
         showToast(`Не удалось отправить ссылку: ${err.message}`);
       } finally {
@@ -1137,7 +1219,7 @@
     });
 
     el.authSignOutBtn.addEventListener("click", async () => {
-      closeAuthPopover();
+      closeTopbarPopovers();
       await window.PhotoSeekAuth.signOut();
     });
   }
@@ -2520,6 +2602,7 @@
       const raw = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
       raw.forEach((item) => state.favorites.set(item.id, item));
     } catch { /* битые данные — начинаем с пустого списка */ }
+    updateFavoritesCount();
   }
   function persistFavorites() {
     try {
@@ -2534,6 +2617,7 @@
     if (state.favorites.has(item.id)) state.favorites.delete(item.id);
     else state.favorites.set(item.id, item);
     persistFavorites();
+    updateFavoritesCount();
     vibrate(15);
     const nowActive = isFavorited(item.id);
     document.querySelectorAll(`.card-heart[data-id="${cssEscape(item.id)}"]`).forEach((btn) => {
@@ -2551,6 +2635,10 @@
   }
 
   el.favoritesToggle.addEventListener("click", () => {
+    closeTopbarPopovers();
+    // Сохранённые — это фото: из режимов «Иконки»/«Видео» сначала
+    // переключаемся на фото.
+    if (state.mode !== "photos") setMode("photos");
     const goingToFavorites = state.view !== "favorites";
     state.view = goingToFavorites ? "favorites" : "search";
     el.favoritesToggle.setAttribute("aria-pressed", String(goingToFavorites));

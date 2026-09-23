@@ -3,8 +3,9 @@
 //  2) каждый свой скрипт/стиль из index.html существует и лежит в офлайн-
 //     кэше service worker'а (SHELL_FILES в sw.js);
 //  3) адрес воркера в preconnect совпадает с WORKER_BASE_URL в config.js;
-//  4) у каждой data-i18n-надписи в HTML есть перевод и на русском, и на
-//     английском.
+//  4) у каждой data-i18n-надписи в HTML и у каждого I18N.t("…") в скриптах
+//     есть перевод и на русском, и на английском;
+//  5) в стилях нет размытия (backdrop-filter / blur()).
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
@@ -63,6 +64,20 @@ for (const lang of ["ru", "en"]) {
     if (!Object.prototype.hasOwnProperty.call(DICT[lang], k)) problems.push(`нет перевода "${k}" для языка ${lang} (используется в index.html)`);
   }
 }
+
+// 4б. Ключи, которые скрипты берут через I18N.t("…"), тоже есть в обоих языках
+for (const f of jsFiles.filter((f) => f.startsWith("js/"))) {
+  for (const [, k] of read(f).matchAll(/I18N\.t\("([a-z0-9_]+)"/g)) {
+    for (const lang of ["ru", "en"]) {
+      if (!Object.prototype.hasOwnProperty.call(DICT[lang], k)) problems.push(`нет перевода "${k}" для языка ${lang} (используется в ${f})`);
+    }
+  }
+}
+
+// 5. Размытия на сайте нет нигде (решение владельца): ни стеклянных
+//    подложек (backdrop-filter), ни filter: blur().
+const css = read("css/styles.css");
+if (/backdrop-filter|blur\(/.test(css)) problems.push("в css/styles.css снова появилось размытие (backdrop-filter или blur()) — на сайте его быть не должно");
 
 if (problems.length) {
   console.log(`✗ Найдено проблем: ${problems.length}`);

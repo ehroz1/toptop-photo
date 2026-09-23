@@ -25,8 +25,18 @@ window.APP_CONFIG = {
   // Supabase — вход через Google/почту, профили, статистика. Project URL и
   // Publishable key НЕ секретные (Publishable по дизайну Supabase безопасно
   // светить на клиенте — доступ к данным ограничивает RLS в базе), поэтому
-  // хранятся прямо тут. Если оставить пустыми — кнопка входа на сайте
-  // просто не появится, остальной функционал не пострадает.
+  // хранятся прямо тут. Если оставить пустыми (или ACCOUNTS_ENABLED: false),
+  // окно профиля в шапке покажет «регистрация скоро появится», остальной
+  // функционал не пострадает.
   SUPABASE_URL: "https://stmjykymgtijghbcullm.supabase.co",
-  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_TUerYlzR3Z6Ap4rNdXV5IA_lv1XJMdz"
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_TUerYlzR3Z6Ap4rNdXV5IA_lv1XJMdz",
+  // Контакты в окне «молния» в шапке (текст «об авторе» — ключ about_text в
+  // js/i18n.js). Каждая строка — { label: "как подписать", url: "ссылка" };
+  // для почты url вида "mailto:имя@почта.ru".
+  CONTACTS: [
+    { label: "GitHub", url: "https://github.com/ehroz1" },
+  ],
+  // Ссылка для доната (пункт «Поддержать проект» в меню). Пока пусто, пункт
+  // показывает «ссылка скоро появится».
+  DONATE_URL: "",
 };

@@ -59,26 +59,31 @@
       </button>
     </form>
 
+    <!-- Справа три кнопки: "молния" (об авторе и контакты), профиль (вход и
+         регистрация) и меню со всем остальным. Всплывающие окна открывает и
+         закрывает bindTopbarPopover() в app.js. -->
     <div class="topbar-actions">
-      <button id="favoritesToggle" class="icon-btn" data-i18n-title="favorites_title" aria-pressed="false">
-        <span class="icon icon-heart" aria-hidden="true"></span>
-      </button>
-      <button id="selectModeToggle" class="icon-btn" data-i18n-title="select_mode_title" aria-pressed="false">
-        <span class="icon icon-check-square" aria-hidden="true"></span>
-      </button>
-      <div class="insights-wrap">
-        <button id="insightsToggle" class="icon-btn" data-i18n-title="insights_title">
-          <span class="icon icon-chart" aria-hidden="true"></span>
+      <div class="topbar-pop-wrap" id="aboutWrap">
+        <button type="button" id="aboutToggle" class="icon-btn topbar-bolt" data-i18n-title="about_title" aria-expanded="false" aria-controls="aboutPopover">
+          <span class="icon icon-bolt" aria-hidden="true"></span>
         </button>
-        <div id="insightsPanel" class="insights-panel" hidden></div>
+        <div id="aboutPopover" class="topbar-popover about-popover" hidden>
+          <p class="about-heading" data-i18n="about_heading">Об авторе</p>
+          <p class="about-text" data-i18n="about_text">Привет! Я делаю PhotoSeek — поиск фото, иконок и видео сразу по многим бесплатным стокам. Пишите, если есть идея или нашли ошибку.</p>
+          <p class="about-heading" data-i18n="about_contacts">Контакты</p>
+          <div class="about-contacts" id="aboutContacts"></div>
+        </div>
       </div>
-      <div class="auth-wrap" id="authWrap" hidden>
-        <button type="button" id="authToggle" class="icon-btn" data-i18n-title="auth_toggle_title" aria-expanded="false">
+
+      <div class="topbar-pop-wrap auth-wrap" id="authWrap">
+        <button type="button" id="authToggle" class="icon-btn topbar-avatar" data-i18n-title="auth_toggle_title" aria-expanded="false" aria-controls="authPopover">
           <span class="icon icon-user" aria-hidden="true"></span>
           <span id="authAvatar" class="auth-avatar" hidden aria-hidden="true"></span>
         </button>
-        <div id="authPopover" class="filters-popover auth-popover" hidden>
-          <div id="authLoggedOut">
+        <div id="authPopover" class="topbar-popover auth-popover" hidden>
+          <p class="about-heading" data-i18n="auth_heading">Вход и регистрация</p>
+          <p id="authSoon" class="auth-soon" data-i18n="auth_soon">Регистрация скоро появится — сейчас она на доработке. Всё остальное работает без входа.</p>
+          <div id="authLoggedOut" hidden>
             <button type="button" id="authGoogleBtn" class="btn btn-secondary auth-google-btn">
               <svg class="auth-google-icon" viewBox="0 0 18 18" aria-hidden="true">
                 <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.87 2.7-6.62z"/>
@@ -98,15 +103,44 @@
           <div id="authLoggedIn" hidden>
             <p id="authEmailLabel" class="auth-email-label"></p>
             <a id="authAdminLink" href="admin.html" class="btn btn-ghost auth-admin-link" hidden data-i18n="auth_admin_link">Админка</a>
-            <button type="button" id="authSignOutBtn" class="btn btn-ghost auth-sign-out-btn" data-i18n="auth_sign_out">Выйти</button>
           </div>
         </div>
       </div>
-      <button id="themeToggle" class="icon-btn" data-i18n-title="theme_toggle_title">
-        <span class="icon icon-auto" data-theme-icon="auto" aria-hidden="true"></span>
-        <span class="icon icon-sun" data-theme-icon="light" aria-hidden="true"></span>
-        <span class="icon icon-moon" data-theme-icon="dark" aria-hidden="true"></span>
-      </button>
+
+      <div class="topbar-pop-wrap" id="mainMenuWrap">
+        <button type="button" id="mainMenuToggle" class="icon-btn topbar-chevron" data-i18n-title="menu_title" aria-expanded="false" aria-controls="mainMenu" aria-haspopup="menu">
+          <span class="icon icon-chevron" aria-hidden="true"></span>
+        </button>
+        <div id="mainMenu" class="topbar-popover main-menu" role="menu" hidden>
+          <button type="button" id="favoritesToggle" class="menu-item" role="menuitem" aria-pressed="false">
+            <span class="icon icon-heart" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_favorites">Сохранённые фото</span>
+            <span class="menu-item-value" id="favoritesCount"></span>
+          </button>
+          <button type="button" id="insightsToggle" class="menu-item" role="menuitem" aria-expanded="false" aria-controls="insightsPanel">
+            <span class="icon icon-chart" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_insights">Статистика и лимиты</span>
+            <span class="icon icon-chevron menu-item-chevron" aria-hidden="true"></span>
+          </button>
+          <div id="insightsPanel" class="insights-panel" hidden></div>
+          <button type="button" id="themeToggle" class="menu-item" role="menuitem">
+            <span class="icon icon-auto" data-theme-icon="auto" aria-hidden="true"></span>
+            <span class="icon icon-sun" data-theme-icon="light" aria-hidden="true"></span>
+            <span class="icon icon-moon" data-theme-icon="dark" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_theme">Тема</span>
+            <span class="menu-item-value" id="themeModeLabel"></span>
+          </button>
+          <div class="menu-sep" role="separator"></div>
+          <a id="donateLink" class="menu-item" role="menuitem" href="#" target="_blank" rel="noopener">
+            <span class="icon icon-coffee" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_donate">Поддержать проект</span>
+          </a>
+          <button type="button" id="authSignOutBtn" class="menu-item" role="menuitem" hidden>
+            <span class="icon icon-logout" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="auth_sign_out_full">Выйти из аккаунта</span>
+          </button>
+        </div>
+      </div>
     </div>
   </header>
 
@@ -297,6 +331,10 @@
         </div>
       </div>
 
+      <button type="button" id="selectModeToggle" class="icon-btn" data-i18n-title="select_mode_title" aria-pressed="false">
+        <span class="icon icon-check-square" aria-hidden="true"></span>
+      </button>
+
       <div class="filters-popover-wrap" id="iconFiltersRow" hidden>
         <button type="button" id="iconFiltersToggle" class="icon-btn" data-i18n-title="filters_title" aria-expanded="false">
           <span class="icon icon-filters" aria-hidden="true"></span>
@@ -428,6 +466,10 @@
     </button>
   </div>
 </div>
+
+<button type="button" id="backToTop" class="back-to-top" tabindex="-1" aria-hidden="true">
+  <span class="icon icon-chevron-up" aria-hidden="true"></span><span data-i18n="back_to_top">Наверх</span>
+</button>
 
 <div id="lightbox" class="lightbox" hidden>
   <div class="lightbox-backdrop" data-close></div>
@@ -605,5 +647,6 @@
 <script src="js/dedupe.js"></script>
 <script src="js/app.js"></script>
 <script src="js/background.js"></script>
+<script src="js/cursor.js"></script>
 </body>
 </html>
