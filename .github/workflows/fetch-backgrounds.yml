@@ -23,15 +23,19 @@ jobs:
       - name: Download and optimize
         run: |
           set -e
+          UA="photoseek-bg-fetch/1.0 (+https://github.com/ehroz1/toptop-photo)"
           mkdir -p /tmp/bg images/bg
           cd /tmp/bg
           npm init -y >/dev/null
           npm install --silent sharp@0.33.5
           for id in 5hvn-2WW6rY HxCl2w7pKy0 vCzuG3W3ucA; do
-            curl -sSL -A "Mozilla/5.0" -o "$id.jpg" -w "$id http=%{http_code} bytes=%{size_download} url=%{url_effective}\n" \
+            # Без браузерного User-Agent: защита сайта от ботов показывает
+            # "проверку браузера" именно тем, кто представляется браузером.
+            curl -sSL -A "$UA" -o "$id.jpg" -w "$id http=%{http_code} bytes=%{size_download} url=%{url_effective}\n" \
               "https://unsplash.com/photos/$id/download?force=true"
             file "$id.jpg"
-            title=$(curl -sSL -A "Mozilla/5.0" "https://unsplash.com/photos/$id" | grep -o '<title>[^<]*' | head -1 | sed 's/<title>//') || true
+            if ! file "$id.jpg" | grep -qi "image data"; then head -c 400 "$id.jpg"; echo; exit 1; fi
+            title=$(curl -sSL -A "$UA" "https://unsplash.com/photos/$id" | grep -o '<title>[^<]*' | head -1 | sed 's/<title>//') || true
             echo "$id | $title" >> credits.txt
           done
           cat > build.mjs <<'EOF'
