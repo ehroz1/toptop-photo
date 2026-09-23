@@ -12,7 +12,7 @@ const { buildPage, sleep, setActiveSources } = require("../harness");
   if (!doc.getElementById("sourcesRow").hidden) { console.error("FAIL: фото-sources должен быть скрыт в режиме видео"); ok = false; }
   if (!doc.getElementById("iconSources").hidden) { console.error("FAIL: iconSources должен быть скрыт в режиме видео"); ok = false; }
   if (doc.getElementById("videoFiltersRow").hidden) { console.error("FAIL: videoFiltersRow должен быть виден в режиме видео"); ok = false; }
-  if (!doc.getElementById("favoritesToggle").hidden) { console.error("FAIL: избранное должно быть скрыто в режиме видео (как и у иконок)"); ok = false; }
+  if (!doc.getElementById("selectModeToggle").hidden) { console.error("FAIL: «выбрать несколько фото» должно быть скрыто в режиме видео (как и у иконок)"); ok = false; }
 
   // ---- 2. Дефолтные активные источники видео = первые 3 видимых (pixabay/pexels/wikimedia); archive выключен, coverr скрыт (нет ключа) ----
   const videoChips = Array.from(doc.querySelectorAll('#videoSources .source-chip[data-video-source]'));

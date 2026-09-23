@@ -212,6 +212,7 @@ async function testThemeSwitch(browser, base) {
     vt: window.__vtCalls,
   }));
 
+  await page.click("#mainMenuToggle"); // тема — пункт меню в шапке
   await page.click("#themeToggle"); // авто (светлая) → светлая
   let s = await theme();
   check(s.mode === "light" && s.vt === 0, `тема: «авто» → «светлая» при светлой системе меняет только иконку (переходов: ${s.vt})`);
@@ -235,11 +236,116 @@ async function testThemeSwitch(browser, base) {
   const cp = await calm.newPage();
   await installMocks(cp);
   await cp.goto(base, { waitUntil: "load" });
+  await cp.click("#mainMenuToggle");
   await cp.click("#themeToggle");
   await cp.click("#themeToggle");
   const c = await cp.evaluate(() => ({ theme: document.documentElement.getAttribute("data-theme"), vt: window.__vtCalls }));
   check(c.theme === "dark" && c.vt === 0, `тема: при «уменьшить движение» меняется сразу, без анимации (переходов: ${c.vt})`);
   await calm.close();
+}
+
+// Прокрутка выдачи: подложка шапки — градиент цвета фона на всю ширину
+// экрана (без размытия), появляется кнопка «Наверх» и возвращает наверх.
+// Наведение на фото — ровная тёмная заливка, карточка не двигается.
+async function testScrollHeaderAndCards(browser, base) {
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 }, colorScheme: "dark" });
+  const page = await context.newPage();
+  await installMocks(page, { imgDelay: 10 });
+  await page.goto(base);
+  await page.fill("#searchInput", "cat");
+  await page.press("#searchInput", "Enter");
+  await page.waitForSelector("#grid .card:not(.is-img-loading)");
+  // В моках все превью одинаковые (1×1 px), и склейка дублей оставляет одну
+  // карточку — страницу удлиняем сами, чтобы было что прокручивать.
+  await page.evaluate(() => { const d = document.createElement("div"); d.style.height = "4000px"; document.querySelector("main").append(d); });
+
+  await page.hover("#grid .card");
+  await page.waitForTimeout(350);
+  const hover = await page.evaluate(() => {
+    const card = document.querySelector("#grid .card");
+    const overlay = getComputedStyle(card.querySelector(".card-overlay"));
+    return {
+      cardTransform: getComputedStyle(card).transform,
+      imgTransform: getComputedStyle(card.querySelector("img")).transform,
+      overlayBg: overlay.backgroundColor, overlayImage: overlay.backgroundImage, overlayOpacity: overlay.opacity,
+    };
+  });
+  check(hover.cardTransform === "none" && (hover.imgTransform === "none" || hover.imgTransform === "matrix(1, 0, 0, 1, 0, 0)"),
+    `наведение на фото: карточка не подпрыгивает и не увеличивается (${hover.cardTransform} / ${hover.imgTransform})`);
+  check(hover.overlayImage === "none" && /rgba\(0, 0, 0, 0\.\d+\)/.test(hover.overlayBg) && hover.overlayOpacity === "1",
+    `наведение на фото: ровная тёмная заливка без градиента (${hover.overlayBg}, ${hover.overlayImage})`);
+
+  const before = await page.evaluate(() => document.getElementById("backToTop").classList.contains("is-visible"));
+  await page.mouse.wheel(0, 2600);
+  await page.waitForTimeout(700);
+  const s = await page.evaluate(() => {
+    const bar = document.getElementById("topbar");
+    const cs = getComputedStyle(bar, "::before");
+    const blurred = [...document.querySelectorAll("*")].filter((n) => {
+      const c = getComputedStyle(n);
+      return (c.backdropFilter && c.backdropFilter !== "none") || /blur/.test(c.filter);
+    }).map((n) => n.id || n.className);
+    return {
+      scrolled: bar.classList.contains("is-scrolled"),
+      width: parseFloat(cs.width), vw: document.documentElement.clientWidth,
+      opacity: cs.opacity, image: cs.backgroundImage, blurred,
+      btt: document.getElementById("backToTop").classList.contains("is-visible"),
+    };
+  });
+  check(s.scrolled && s.width >= s.vw && s.opacity === "1" && /linear-gradient/.test(s.image),
+    `шапка при прокрутке: градиент на всю ширину экрана (${s.width} из ${s.vw} px)`);
+  check(s.blurred.length === 0, `на странице нет размытия (${s.blurred.join(", ") || "нет"})`);
+  check(!before && s.btt, "кнопка «Наверх» появляется только после прокрутки");
+  await page.click("#backToTop");
+  await page.waitForFunction(() => window.scrollY === 0, null, { timeout: 3000 }).catch(() => {});
+  check(await page.evaluate(() => window.scrollY === 0), "кнопка «Наверх» возвращает в начало страницы");
+  await context.close();
+}
+
+// Курсор-точка: только на главном экране и только с мышью. Догоняет
+// указатель, над полем ввода уступает место обычному текстовому курсору,
+// после поиска — обычная стрелка.
+async function testMagicCursor(browser, base) {
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  await installMocks(page, { imgDelay: 10 });
+  await page.goto(base);
+  await page.mouse.move(300, 620);
+  await page.mouse.move(900, 640, { steps: 5 });
+  await page.waitForTimeout(700);
+  const home = await page.evaluate(() => {
+    const n = document.querySelector(".magic-cursor");
+    const m = n && new DOMMatrix(getComputedStyle(n).transform);
+    return n && { visible: n.classList.contains("is-visible"), x: m.m41, y: m.m42, cursor: getComputedStyle(document.body).cursor };
+  });
+  check(!!home && home.visible && home.cursor === "none" && Math.abs(home.x - 900) < 2 && Math.abs(home.y - 640) < 2,
+    `курсор-точка на главной: видна и догоняет указатель (${home ? `${Math.round(home.x)},${Math.round(home.y)}` : "нет точки"})`);
+  const inp = await page.locator("#searchInput").boundingBox();
+  await page.mouse.move(inp.x + 80, inp.y + inp.height / 2, { steps: 3 });
+  const overInput = await page.evaluate(() => ({
+    text: document.querySelector(".magic-cursor").classList.contains("is-text"),
+    cursor: getComputedStyle(document.getElementById("searchInput")).cursor,
+  }));
+  check(overInput.text && overInput.cursor === "text", "курсор-точка: над полем поиска обычный текстовый курсор");
+  await page.fill("#searchInput", "cat");
+  await page.press("#searchInput", "Enter");
+  await page.waitForSelector("#grid .card");
+  await page.waitForTimeout(200);
+  const results = await page.evaluate(() => ({
+    on: document.body.classList.contains("magic-cursor-on"),
+    visible: document.querySelector(".magic-cursor").classList.contains("is-visible"),
+  }));
+  check(!results.on && !results.visible, "курсор-точка: в выдаче выключена, обычная стрелка");
+  await context.close();
+
+  const phone = await browser.newContext({ serviceWorkers: "block", isMobile: true, hasTouch: true, viewport: { width: 390, height: 844 } });
+  const pp = await phone.newPage();
+  await installMocks(pp);
+  await pp.goto(base);
+  await pp.tap(".home-wordmark");
+  check(await pp.evaluate(() => !document.querySelector(".magic-cursor") && !document.body.classList.contains("magic-cursor-on")),
+    "курсор-точка: на телефоне не появляется");
+  await phone.close();
 }
 
 // Иконки рисуются CSS-маской (.icon + mask: var(--icon-…)). Если для
@@ -257,6 +363,13 @@ async function testIconsHaveMasks(browser, base) {
     return r.width > 0 && r.height > 0 && cs.maskImage === "none" && cs.webkitMaskImage === "none";
   }).map((n) => `${n.className} (#${n.closest("[id]")?.id})`))).forEach((x) => found.add(x));
   await scan();
+  // Иконки окон шапки: меню (с раскрытой статистикой), «молния», профиль.
+  for (const [toggle, extra] of [["#mainMenuToggle", "#insightsToggle"], ["#aboutToggle"], ["#authToggle"]]) {
+    await page.click(toggle);
+    if (extra) await page.click(extra);
+    await scan();
+    await page.keyboard.press("Escape");
+  }
   await page.fill("#searchInput", "cat");
   await page.press("#searchInput", "Enter");
   await page.waitForSelector("#grid .card");
@@ -314,6 +427,8 @@ async function measure(browser, base, runs = 5) {
     await testKeyboardHidesOnMobile(browser, base);
     await testDarkThemeBackground(browser, base);
     await testThemeSwitch(browser, base);
+    await testScrollHeaderAndCards(browser, base);
+    await testMagicCursor(browser, base);
     await testHomeLayout(browser, base);
     const m = await measure(browser, base);
     console.log(`\nСкорость (мобильный 4G, процессор x4, медиана из 5):`);
