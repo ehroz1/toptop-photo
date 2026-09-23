@@ -11,7 +11,7 @@ const { chromium } = require("playwright");
 const { installMocks } = require("./mock");
 
 const ROOT = path.resolve(__dirname, "../..");
-const TYPES = { ".html": "text/html", ".js": "application/javascript", ".css": "text/css", ".png": "image/png", ".webmanifest": "application/manifest+json", ".json": "application/json" };
+const TYPES = { ".html": "text/html", ".js": "application/javascript", ".css": "text/css", ".png": "image/png", ".webmanifest": "application/manifest+json", ".json": "application/json", ".woff2": "font/woff2", ".webp": "image/webp" };
 
 function startServer() {
   const server = http.createServer((req, res) => {
@@ -46,6 +46,18 @@ async function testNoHeavyThirdPartyOnLoad(browser, base) {
   await page.waitForTimeout(1500);
   check(thirdParty.length === 0, `при открытии не грузятся сторонние библиотеки (${thirdParty.join(", ") || "нет"})`);
   check(errors.length === 0, `нет JS-ошибок при загрузке (${errors.join("; ") || "нет"})`);
+  const fonts = await page.evaluate(async () => {
+    await document.fonts.ready;
+    return {
+      body: getComputedStyle(document.body).fontFamily.split(",")[0].replace(/"/g, ""),
+      heading: getComputedStyle(document.querySelector(".home-wordmark")).fontFamily.split(",")[0].replace(/"/g, ""),
+      manrope: document.fonts.check('500 16px "Manrope"', "Поиск"),
+      unbounded: document.fonts.check('900 40px "Unbounded"', "Picta"),
+      loaded: [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replace(/"/g, "")),
+    };
+  });
+  check(fonts.body === "Manrope" && fonts.heading === "Unbounded" && fonts.loaded.includes("Manrope") && fonts.loaded.includes("Unbounded"),
+    `шрифты: текст — Manrope, заголовок — Unbounded, оба загрузились (${[...new Set(fonts.loaded)].join(", ") || "ничего"})`);
   await context.close();
 }
 

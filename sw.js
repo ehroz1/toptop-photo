@@ -9,7 +9,7 @@
 // сайта старая версия могла показываться ещё один-два захода, пока кэш не
 // обновится в фоне. CACHE_NAME нужно поднимать при каждом заметном релизе,
 // чтобы гарантированно почистить старый кэш при активации.
-const CACHE_NAME = "picta-shell-v24";
+const CACHE_NAME = "picta-shell-v25";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -28,6 +28,10 @@ const SHELL_FILES = [
   "./js/background.js",
   "./js/cursor.js",
   "./manifest.webmanifest",
+  "./fonts/manrope-cyrillic.woff2",
+  "./fonts/manrope-latin.woff2",
+  "./fonts/unbounded-black-cyrillic.woff2",
+  "./fonts/unbounded-black-latin.woff2",
   // ?v=2 — те же байты логотипа на диске уже давно верные, но у CDN/браузера
   // мог остаться закэшированным старый файл под тем же именем (иконка на
   // телефоне не обновлялась именно поэтому); версия в URL заставляет
