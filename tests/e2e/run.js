@@ -176,6 +176,15 @@ async function testDarkThemeBackground(browser, base) {
   await page.reload();
   await page.waitForSelector("#bgPhoto.is-shown", { timeout: 8000 }).catch(() => {});
   check(first && first === await page.getAttribute("#bgPhoto", "data-photo"), `тёмная тема: в рамках сеанса фон один и тот же (${first})`);
+  await page.fill("#searchInput", "cat");
+  await page.press("#searchInput", "Enter");
+  await page.waitForSelector("#grid .card");
+  await page.waitForTimeout(600);
+  const inResults = await page.evaluate(() => getComputedStyle(document.getElementById("bgPhoto")).opacity);
+  check(inResults === "0", `тёмная тема: в результатах поиска фонового фото нет (прозрачность ${inResults})`);
+  await page.click(".brand");
+  const back = await page.waitForSelector("#bgPhoto.is-shown", { timeout: 4000 }).then(() => true).catch(() => false);
+  check(back, "тёмная тема: на главной фон снова проявляется");
   await dark.close();
 
   const light = await browser.newContext({ serviceWorkers: "block", colorScheme: "light" });
@@ -259,6 +268,14 @@ async function testScrollHeaderAndCards(browser, base) {
   // карточку — страницу удлиняем сами, чтобы было что прокручивать.
   await page.evaluate(() => { const d = document.createElement("div"); d.style.height = "4000px"; document.querySelector("main").append(d); });
 
+  const sizes = await page.evaluate(() => [...document.querySelectorAll("#grid .card")].map((c) => ({
+    // offsetHeight — размер по разметке, без transform (пока превью
+    // грузится, оно нарисовано на 96% и getBoundingClientRect занизил бы его).
+    card: c.offsetHeight, img: c.querySelector("img").offsetHeight,
+  })));
+  const gaps = sizes.filter((x) => x.card > x.img + 0.5);
+  check(sizes.length > 0 && gaps.length === 0, `карточки без полоски под фото (выше картинки: ${gaps.length} из ${sizes.length})`);
+
   await page.hover("#grid .card");
   await page.waitForTimeout(350);
   const hover = await page.evaluate(() => {
@@ -281,7 +298,7 @@ async function testScrollHeaderAndCards(browser, base) {
   const s = await page.evaluate(() => {
     const bar = document.getElementById("topbar");
     const cs = getComputedStyle(bar, "::before");
-    const blurred = [...document.querySelectorAll("*")].filter((n) => {
+    const blurred = [...document.querySelectorAll("*")].filter((n) => n.id !== "bgPhoto").filter((n) => {
       const c = getComputedStyle(n);
       return (c.backdropFilter && c.backdropFilter !== "none") || /blur/.test(c.filter);
     }).map((n) => n.id || n.className);
@@ -294,7 +311,7 @@ async function testScrollHeaderAndCards(browser, base) {
   });
   check(s.scrolled && s.width >= s.vw && s.opacity === "1" && /linear-gradient/.test(s.image),
     `шапка при прокрутке: градиент на всю ширину экрана (${s.width} из ${s.vw} px)`);
-  check(s.blurred.length === 0, `на странице нет размытия (${s.blurred.join(", ") || "нет"})`);
+  check(s.blurred.length === 0, `на странице нет размытия, кроме появления фонового фото (${s.blurred.join(", ") || "нет"})`);
   check(!before && s.btt, "кнопка «Наверх» появляется только после прокрутки");
   await page.click("#backToTop");
   await page.waitForFunction(() => window.scrollY === 0, null, { timeout: 3000 }).catch(() => {});
@@ -322,11 +339,17 @@ async function testMagicCursor(browser, base) {
     `курсор-точка на главной: видна и догоняет указатель (${home ? `${Math.round(home.x)},${Math.round(home.y)}` : "нет точки"})`);
   const inp = await page.locator("#searchInput").boundingBox();
   await page.mouse.move(inp.x + 80, inp.y + inp.height / 2, { steps: 3 });
-  const overInput = await page.evaluate(() => ({
-    text: document.querySelector(".magic-cursor").classList.contains("is-text"),
-    cursor: getComputedStyle(document.getElementById("searchInput")).cursor,
-  }));
-  check(overInput.text && overInput.cursor === "text", "курсор-точка: над полем поиска обычный текстовый курсор");
+  await page.waitForTimeout(400);
+  const overInput = await page.evaluate(() => {
+    const dot = getComputedStyle(document.querySelector(".magic-cursor-dot"));
+    return {
+      text: document.querySelector(".magic-cursor").classList.contains("is-text"),
+      cursor: getComputedStyle(document.getElementById("searchInput")).cursor,
+      w: parseFloat(dot.width), h: parseFloat(dot.height),
+    };
+  });
+  check(overInput.text && overInput.cursor === "none" && overInput.w <= 3 && overInput.h >= 20,
+    `курсор-точка: над полем поиска превращается в свой текстовый курсор (${overInput.w}×${overInput.h}, системный: ${overInput.cursor})`);
   await page.fill("#searchInput", "cat");
   await page.press("#searchInput", "Enter");
   await page.waitForSelector("#grid .card");
@@ -342,9 +365,22 @@ async function testMagicCursor(browser, base) {
   const pp = await phone.newPage();
   await installMocks(pp);
   await pp.goto(base);
-  await pp.tap(".home-wordmark");
-  check(await pp.evaluate(() => !document.querySelector(".magic-cursor") && !document.body.classList.contains("magic-cursor-on")),
-    "курсор-точка: на телефоне не появляется");
+  const cdp = await phone.newCDPSession(pp);
+  const touch = (type, x, y) => cdp.send("Input.dispatchTouchEvent", { type, touchPoints: type === "touchEnd" ? [] : [{ x, y }] });
+  await touch("touchStart", 200, 640);
+  for (let i = 1; i <= 5; i++) await touch("touchMove", 200 + i * 20, 640 - i * 12);
+  await pp.waitForTimeout(400);
+  const held = await pp.evaluate(() => {
+    const n = document.querySelector(".magic-cursor");
+    const m = new DOMMatrix(getComputedStyle(n).transform);
+    return { cls: n.className, x: m.m41, y: m.m42, dot: document.querySelector(".magic-cursor-dot").getBoundingClientRect().width, native: document.body.classList.contains("magic-cursor-on") };
+  });
+  check(/is-visible/.test(held.cls) && /is-touch/.test(held.cls) && Math.abs(held.x - 300) < 3 && Math.abs(held.y - 580) < 3 && held.dot > 14 && !held.native,
+    `курсор-точка на телефоне: появляется под пальцем, крупнее и тянется за ним (${Math.round(held.x)},${Math.round(held.y)}, ${Math.round(held.dot)} px)`);
+  await touch("touchEnd");
+  await pp.waitForTimeout(1300);
+  check(await pp.evaluate(() => !document.querySelector(".magic-cursor").classList.contains("is-visible")),
+    "курсор-точка на телефоне: после отпускания гаснет");
   await phone.close();
 }
 

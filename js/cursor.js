@@ -1,10 +1,15 @@
 // Курсор-точка на главном экране. Вместо стрелки мыши — маленькая точка,
 // которая догоняет указатель "на пружине" (с лёгким перелётом),
 // вытягивается по направлению движения, раздувается над кнопками и ссылками
-// и сжимается при нажатии. Над полем ввода прячется — там нужен обычный
-// текстовый курсор. Работает только с мышью/тачпадом, только пока открыт
-// главный экран (body.is-home) и не при «уменьшить движение» в системе.
-// Внешний вид — .magic-cursor в css/styles.css.
+// и сжимается при нажатии. Над полем ввода точка перетекает в тонкую
+// вертикальную черту — свой текстовый курсор.
+//
+// На телефоне точка (чуть крупнее — под палец) появляется там, где коснулись,
+// тянется за пальцем, если его зажать и повести, а после отпускания ещё
+// мгновение видна и гаснет.
+//
+// Работает только на главном экране (body.is-home) и не при «уменьшить
+// движение» в системе. Внешний вид — .magic-cursor в css/styles.css.
 (function (global) {
   "use strict";
 
@@ -17,12 +22,17 @@
   // критического (2·√900 = 60) — поэтому точка слегка "перелетает" цель.
   const STIFFNESS = 900;
   const DAMPING = 38;
+  // Сколько точка ещё видна после того, как палец отпустили.
+  const TOUCH_LINGER_MS = 700;
   const INTERACTIVE = "a, button, label, select, summary, [role='button'], [role='menuitem']";
   const TEXT_INPUT = "input[type='text'], input[type='email'], input[type='search'], textarea";
 
   let node = null;
-  let enabled = false;
+  let active = false; // главный экран и движение не отключено
+  let mouseMode = false; // есть мышь/тачпад — прячем системный курсор
   let visible = false;
+  let touching = false;
+  let lingerTimer = 0;
   let raf = 0;
   let last = 0;
   let x = 0, y = 0, vx = 0, vy = 0, tx = 0, ty = 0;
@@ -38,42 +48,30 @@
     doc.body.appendChild(node);
   }
 
-  function shouldRun() {
-    return finePointer.matches && !reducedMotion.matches && doc.body.classList.contains("is-home");
-  }
-
   function sync() {
-    const run = shouldRun();
-    if (run === enabled) return;
-    enabled = run;
-    if (run) {
-      build();
-      doc.body.classList.add("magic-cursor-on");
-    } else {
-      doc.body.classList.remove("magic-cursor-on");
-      hide();
-    }
+    active = doc.body.classList.contains("is-home") && !reducedMotion.matches;
+    mouseMode = active && finePointer.matches;
+    doc.body.classList.toggle("magic-cursor-on", mouseMode);
+    if (active) build();
+    else hide();
   }
 
   function hide() {
     visible = false;
-    if (node) node.classList.remove("is-visible", "is-hover", "is-down", "is-text");
+    clearTimeout(lingerTimer);
+    if (node) node.classList.remove("is-visible", "is-hover", "is-down", "is-text", "is-touch");
   }
 
-  function onMove(e) {
-    if (!enabled || e.pointerType === "touch") return;
-    tx = e.clientX;
-    ty = e.clientY;
+  // Точка появляется сразу в точке касания/под указателем, а если уже была
+  // видна — летит к новой цели по пружине.
+  function aim(clientX, clientY) {
+    tx = clientX;
+    ty = clientY;
     if (!visible) {
-      // Появляемся сразу под указателем, а не прилетаем из угла экрана.
       x = tx; y = ty; vx = 0; vy = 0;
       visible = true;
       node.classList.add("is-visible");
     }
-    const target = e.target instanceof Element ? e.target : null;
-    const overText = Boolean(target && target.closest(TEXT_INPUT));
-    node.classList.toggle("is-text", overText);
-    node.classList.toggle("is-hover", !overText && Boolean(target && target.closest(INTERACTIVE)));
     if (!raf) {
       last = global.performance.now();
       raf = global.requestAnimationFrame(step);
@@ -96,19 +94,63 @@
       raf = 0;
       return;
     }
-    // Чем быстрее движется, тем сильнее вытягивается вдоль движения.
-    const stretch = Math.min(speed / 2600, 0.6);
-    const angle = Math.atan2(vy, vx);
-    node.style.transform =
-      `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0) rotate(${angle.toFixed(3)}rad) scale(${(1 + stretch).toFixed(3)}, ${(1 - stretch * 0.45).toFixed(3)})`;
+    const move = `translate3d(${x.toFixed(2)}px, ${y.toFixed(2)}px, 0)`;
+    if (node.classList.contains("is-text")) {
+      // Текстовый курсор не вытягиваем и не поворачиваем — он всегда ровный.
+      node.style.transform = move;
+    } else {
+      // Чем быстрее движется, тем сильнее вытягивается вдоль движения.
+      const stretch = Math.min(speed / 2600, 0.6);
+      const angle = Math.atan2(vy, vx);
+      node.style.transform = `${move} rotate(${angle.toFixed(3)}rad) scale(${(1 + stretch).toFixed(3)}, ${(1 - stretch * 0.45).toFixed(3)})`;
+    }
     raf = global.requestAnimationFrame(step);
   }
 
-  doc.addEventListener("pointermove", onMove, { passive: true });
-  doc.addEventListener("pointerdown", () => { if (node && enabled) node.classList.add("is-down"); });
-  doc.addEventListener("pointerup", () => { if (node) node.classList.remove("is-down"); });
+  // ---- Мышь / тачпад ----
+  doc.addEventListener("pointermove", (e) => {
+    if (!mouseMode || e.pointerType === "touch" || touching) return;
+    node.classList.remove("is-touch");
+    const target = e.target instanceof Element ? e.target : null;
+    const overText = Boolean(target && target.closest(TEXT_INPUT));
+    node.classList.toggle("is-text", overText);
+    node.classList.toggle("is-hover", !overText && Boolean(target && target.closest(INTERACTIVE)));
+    aim(e.clientX, e.clientY);
+  }, { passive: true });
+  doc.addEventListener("pointerdown", (e) => {
+    if (node && mouseMode && e.pointerType !== "touch") node.classList.add("is-down");
+  });
+  doc.addEventListener("pointerup", (e) => {
+    if (node && e.pointerType !== "touch") node.classList.remove("is-down");
+  });
   // Указатель ушёл за пределы окна — точка гаснет, вернётся вместе с ним.
-  doc.documentElement.addEventListener("mouseleave", hide);
+  doc.documentElement.addEventListener("mouseleave", () => { if (!touching) hide(); });
+
+  // ---- Палец ----
+  // Touch-события, а не pointer: они продолжают приходить, даже если
+  // страница начала прокручиваться под пальцем.
+  doc.addEventListener("touchstart", (e) => {
+    if (!active || !e.touches.length) return;
+    touching = true;
+    clearTimeout(lingerTimer);
+    node.classList.remove("is-text", "is-hover");
+    node.classList.add("is-touch", "is-down");
+    aim(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  doc.addEventListener("touchmove", (e) => {
+    if (!active || !touching || !e.touches.length) return;
+    aim(e.touches[0].clientX, e.touches[0].clientY);
+  }, { passive: true });
+  const release = (e) => {
+    if (!touching || (e.touches && e.touches.length)) return;
+    touching = false;
+    if (!node) return;
+    node.classList.remove("is-down");
+    clearTimeout(lingerTimer);
+    lingerTimer = setTimeout(hide, TOUCH_LINGER_MS);
+  };
+  doc.addEventListener("touchend", release, { passive: true });
+  doc.addEventListener("touchcancel", release, { passive: true });
 
   new MutationObserver(sync).observe(doc.body, { attributes: true, attributeFilter: ["class"] });
   [finePointer, reducedMotion].forEach((q) => {

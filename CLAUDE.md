@@ -1,4 +1,4 @@
-# PhotoSeek — заметки для Claude
+# Picta — заметки для Claude
 
 ## Порядок работы (решение владельца проекта)
 
@@ -26,3 +26,8 @@
   false` в `js/config.js`. Включать только после деплоя нового
   `cloudflare-worker/worker.js` на Cloudflare — старый воркер отклоняет
   заголовок `Authorization`.
+- Имя проекта — **Picta**, домен **picta.cc** (подключается к GitHub Pages).
+  Воркер принимает запросы только с адресов из `ALLOWED_ORIGINS` (настройка
+  воркера) или `DEFAULT_ALLOWED_ORIGIN` в `cloudflare-worker/worker.js` —
+  при смене адреса сайта обновлять там. Ключи localStorage `photoseek-*` не
+  переименовывать: у посетителей пропадут избранное и история.

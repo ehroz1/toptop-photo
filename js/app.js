@@ -1530,7 +1530,13 @@
       // (через aspect-ratio), поэтому измеряем её и назначаем span карточке.
       const target = entry.target.tagName === "IMG" ? entry.target.closest(".card") : entry.target;
       if (!target) continue;
-      const span = Math.ceil((entry.contentRect.height + GRID_GAP) / (GRID_ROW_UNIT + GRID_GAP));
+      // Округляем ВНИЗ: карточка выходит на 0–11 px короче картинки и чуть
+      // подрезает её низ (overflow:hidden). С округлением вверх было
+      // наоборот — под фото оставалась полоска фона карточки, будто фото
+      // съехало. Скелетоны (у них своя явная высота) — по-прежнему вверх,
+      // чтобы не залезали на соседа снизу.
+      const round = entry.target.tagName === "IMG" ? Math.floor : Math.ceil;
+      const span = round((entry.contentRect.height + GRID_GAP) / (GRID_ROW_UNIT + GRID_GAP));
       target.style.gridRowEnd = `span ${Math.max(span, 1)}`;
     }
   });

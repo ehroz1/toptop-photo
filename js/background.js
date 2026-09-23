@@ -1,6 +1,7 @@
-// Фоновое фото в тёмной теме: одно из нескольких, случайное на сеанс
-// (вкладку браузера), и плавно "проявляется" из размытия после загрузки
-// страницы. В светлой теме не показывается и даже не скачивается.
+// Фоновое фото в тёмной теме на главном экране: одно из нескольких,
+// случайное на сеанс (вкладку браузера), и плавно "проявляется" из размытия
+// после загрузки страницы. В светлой теме и в результатах поиска не
+// показывается (и, пока не понадобилось, даже не скачивается).
 // Файлы — оптимизированные WebP-копии фото с Unsplash (см. images/bg).
 (function (global) {
   "use strict";
@@ -38,34 +39,59 @@
   layer.dataset.photo = id;
 
   let pageLoaded = false;
-  let started = false;
+  let loaded = false;
+  let loading = false;
 
   function isDark() {
     return root.getAttribute("data-theme") === "dark";
   }
+  // Фото только на главном экране: в результатах поиска оно лишь отвлекает.
+  function isHome() {
+    return document.body.classList.contains("is-home");
+  }
+  function wanted() {
+    return pageLoaded && isDark() && isHome();
+  }
 
-  function reveal() {
-    if (started || !pageLoaded || !isDark()) return;
-    started = true;
+  // Показывает/прячет фото по текущему состоянию. Скачивается оно только в
+  // первый раз, когда реально понадобилось; при каждом возвращении на
+  // главную заново проявляется из дымки.
+  function sync() {
+    if (!wanted()) {
+      layer.classList.remove("is-shown");
+      return;
+    }
+    if (loaded) {
+      if (layer.classList.contains("is-shown")) return;
+      // Два кадра подряд: сначала браузер применяет исходное (размытое,
+      // прозрачное) состояние, потом — переход.
+      global.requestAnimationFrame(() => global.requestAnimationFrame(() => {
+        if (wanted()) layer.classList.add("is-shown");
+      }));
+      return;
+    }
+    if (loading) return;
+    loading = true;
     const img = new Image();
     img.decoding = "async";
     if ("fetchPriority" in img) img.fetchPriority = "low";
     img.onload = () => {
+      loading = false;
+      loaded = true;
       layer.style.backgroundImage = `url("${url}")`;
-      // Два кадра подряд: сначала браузер применяет исходное (размытое,
-      // прозрачное) состояние с уже готовой картинкой, потом — переход.
-      global.requestAnimationFrame(() => global.requestAnimationFrame(() => layer.classList.add("is-shown")));
+      sync();
     };
-    img.onerror = () => { started = false; };
+    img.onerror = () => { loading = false; };
     img.src = url;
   }
 
-  // Тему переключили на тёмную уже после загрузки — фон появляется тогда же.
-  new MutationObserver(reveal).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+  // Смена темы и переход главная ↔ выдача.
+  new MutationObserver(sync).observe(root, { attributes: true, attributeFilter: ["data-theme"] });
+  new MutationObserver(sync).observe(document.body, { attributes: true, attributeFilter: ["class"] });
 
   // Фон не должен отнимать канал у самой страницы: начинаем, только когда
   // она полностью загрузилась.
-  const onLoad = () => { pageLoaded = true; reveal(); };
+  const onLoad = () => { pageLoaded = true; sync(); };
   if (document.readyState === "complete") onLoad();
   else global.addEventListener("load", onLoad, { once: true });
 })(window);

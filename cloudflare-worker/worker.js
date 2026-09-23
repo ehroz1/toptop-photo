@@ -1,4 +1,4 @@
-// PhotoSeek — прокси для API-ключей фотостоков + авторизация/лимиты/админка.
+// Picta — прокси для API-ключей фотостоков + авторизация/лимиты/админка.
 //
 // Держит Pixabay/Pexels/Unsplash/Flickr/... ключи как секреты воркера (либо,
 // после подключения Cloudflare KV, как записи в KV — чтобы админка могла
@@ -14,7 +14,10 @@
 // Деплой и переменные окружения — см. README в корне репозитория и
 // cloudflare-worker/README.md.
 
-const DEFAULT_ALLOWED_ORIGIN = "https://ehroz1.github.io";
+// Адреса сайта, с которых воркер принимает запросы: домен picta.cc (с www и
+// без) и старый адрес на GitHub Pages. Переменная ALLOWED_ORIGINS в
+// настройках воркера, если задана, заменяет этот список целиком.
+const DEFAULT_ALLOWED_ORIGIN = "https://picta.cc,https://www.picta.cc,https://ehroz1.github.io";
 
 function allowedOrigins(env) {
   const raw = env.ALLOWED_ORIGINS || DEFAULT_ALLOWED_ORIGIN;
@@ -69,7 +72,7 @@ function copyParams(url, exclude = []) {
 // Некоторые API (замечено на Shutterstock) отклоняют запрос без заголовка
 // User-Agent — fetch() из Cloudflare Worker не подставляет браузерный UA
 // сам по себе. Задаём его один раз здесь для всех проксируемых запросов.
-const WORKER_USER_AGENT = "PhotoSeek/1.0 (+https://ehroz1.github.io/toptop-photo/; Cloudflare Worker proxy)";
+const WORKER_USER_AGENT = "Picta/1.0 (+https://picta.cc/; Cloudflare Worker proxy)";
 
 async function proxy(targetUrl, init, origin, env) {
   let res;
