@@ -1,0 +1,54 @@
+name: Проверка сайта и воркера
+
+# Живая проверка "снаружи": открывается ли picta.cc и пускает ли воркер на
+# Cloudflare запросы с этого адреса (если нет — в браузере все источники,
+# которые идут через воркер, падают с "сеть/CORS недоступны").
+# Запускается раз в день, при изменении этого файла и вручную
+# (Actions → "Проверка сайта и воркера" → Run workflow).
+on:
+  schedule:
+    - cron: "0 6 * * *"
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/health.yml
+
+jobs:
+  health:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      WORKER: https://photoseek-proxy.safarimax777.workers.dev
+    steps:
+      - name: Сайт
+        run: |
+          for url in https://picta.cc/ https://www.picta.cc/ https://ehroz1.github.io/toptop-photo/; do
+            code=$(curl -s -o /dev/null -w '%{http_code} → %{redirect_url}' -m 20 "$url" || echo "нет ответа")
+            echo "$url — $code" | tee -a "$GITHUB_STEP_SUMMARY"
+          done
+
+      - name: Воркер пускает запросы с сайта
+        run: |
+          fail=0
+          echo "" >> "$GITHUB_STEP_SUMMARY"
+          echo "| Origin | Путь | Статус | Access-Control-Allow-Origin | Ответ |" >> "$GITHUB_STEP_SUMMARY"
+          echo "|---|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
+          for origin in https://picta.cc https://www.picta.cc https://ehroz1.github.io; do
+            for path in "/pixabay?q=cat&per_page=3" "/pexels?query=cat&per_page=3" "/unsplash/search/photos?query=cat&per_page=3" "/shutterstock?query=cat&per_page=3" "/pexafy?query=cat&per_page=3"; do
+              headers=$(mktemp); body=$(mktemp)
+              status=$(curl -s -m 25 -D "$headers" -o "$body" -w '%{http_code}' -H "Origin: $origin" "$WORKER$path" || echo "000")
+              acao=$(grep -i '^access-control-allow-origin:' "$headers" | tr -d '\r' | cut -d' ' -f2-)
+              snippet=$(head -c 160 "$body" | tr '\n|' '  ')
+              echo "$origin $path → $status, ACAO: ${acao:-нет}"
+              echo "| $origin | ${path%%\?*} | $status | ${acao:-нет} | \`$snippet\` |" >> "$GITHUB_STEP_SUMMARY"
+              if [ "$acao" != "$origin" ]; then fail=1; fi
+            done
+            # Предзапрос (preflight), который браузер шлёт перед запросом с заголовком авторизации
+            pre=$(curl -s -m 20 -o /dev/null -D - -X OPTIONS -H "Origin: $origin" -H "Access-Control-Request-Method: GET" -H "Access-Control-Request-Headers: authorization" "$WORKER/pixabay" | grep -i '^access-control-allow-headers:' | tr -d '\r')
+            echo "$origin preflight: ${pre:-нет заголовка}"
+          done
+          if [ "$fail" = 1 ]; then
+            echo "" >> "$GITHUB_STEP_SUMMARY"
+            echo "**Воркер не пускает запросы с какого-то адреса сайта** — обновите код воркера и ALLOWED_ORIGINS на Cloudflare (см. cloudflare-worker/README.md)." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
+          fi
