@@ -15,13 +15,15 @@
 // cloudflare-worker/README.md.
 
 // Адреса сайта, с которых воркер принимает запросы: домен picta.cc (с www и
-// без) и старый адрес на GitHub Pages. Переменная ALLOWED_ORIGINS в
-// настройках воркера, если задана, заменяет этот список целиком.
+// без) и старый адрес на GitHub Pages. Они разрешены ВСЕГДА. Переменная
+// ALLOWED_ORIGINS в настройках воркера только ДОБАВЛЯЕТ к ним адреса, а не
+// заменяет список: раньше там стоял лишь старый адрес, и после переезда на
+// picta.cc воркер отклонял все запросы сайта (в браузере — "Load failed").
 const DEFAULT_ALLOWED_ORIGIN = "https://picta.cc,https://www.picta.cc,https://ehroz1.github.io";
 
 function allowedOrigins(env) {
-  const raw = env.ALLOWED_ORIGINS || DEFAULT_ALLOWED_ORIGIN;
-  return raw.split(",").map((s) => s.trim()).filter(Boolean);
+  const raw = `${DEFAULT_ALLOWED_ORIGIN},${env.ALLOWED_ORIGINS || ""}`;
+  return [...new Set(raw.split(",").map((s) => s.trim().replace(/\/+$/, "")).filter(Boolean))];
 }
 
 function isAllowedOrigin(origin, env) {

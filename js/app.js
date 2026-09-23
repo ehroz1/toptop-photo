@@ -1513,6 +1513,16 @@
     if (state.view === "favorites") renderFavoritesView();
   }
 
+  // Источники, до которых не удалось достучаться (сеть оборвалась или
+  // сервер-посредник не пустил ответ — браузер пишет лишь "Load failed"),
+  // собираем в одну строку вместо одинаковой фразы на каждый.
+  function formatWarnings(warnings, networkFailed) {
+    const all = networkFailed.length
+      ? [...warnings, I18N.t("warn_network_failed", { labels: networkFailed.join(", ") })]
+      : warnings;
+    return all.join("  ·  ");
+  }
+
   // Настоящий CSS masonry (grid-template-rows: masonry) пока не везде
   // поддерживается, поэтому считаем высоту карточки в мелких строках грида
   // (шаг GRID_ROW_UNIT) сами — см. .grid/.card-skeleton в styles.css.
@@ -1612,6 +1622,7 @@
       const mins = Math.max(1, Math.round((state.cooldownUntil[p.id] - now) / 60000));
       return I18N.t("warn_cooldown", { label: p.label, mins });
     });
+    const networkFailed = []; // источники, до которых не достучались (сеть/CORS)
 
     function finishLoading() {
       state.loading = false;
@@ -1715,7 +1726,7 @@
           const n = sum > 0 ? sum.toLocaleString(I18N.t("locale")) : state.items.length;
           el.resultsCount.textContent = state.items.length ? I18N.t("results_found", { n }) : "";
         }
-        el.providerWarnings.textContent = warnings.join("  ·  ");
+        el.providerWarnings.textContent = formatWarnings(warnings, networkFailed);
       }
       finishLoading();
 
@@ -1785,6 +1796,8 @@
             // не скажет — он остаётся в консоли выше, а на экран короткая фраза.
             state.cooldownUntil[p.id] = Date.now() + SOURCE_BROKEN_COOLDOWN_MS;
             warnings.push(I18N.t("warn_source_unavailable", { label: p.label }));
+          } else if (err.isNetwork) {
+            networkFailed.push(p.label);
           } else {
             warnings.push(I18N.t("warn_with_message", { label: p.label, message: err.message || I18N.t("warn_generic_error") }));
           }
@@ -2306,6 +2319,7 @@
       const mins = Math.max(1, Math.round((state.videoCooldownUntil[p.id] - now) / 60000));
       return I18N.t("warn_cooldown", { label: p.label, mins });
     });
+    const networkFailed = [];
 
     function finishLoading() {
       state.videoLoading = false;
@@ -2379,7 +2393,7 @@
         const n = sum > 0 ? sum.toLocaleString(I18N.t("locale")) : state.videoItems.length;
         el.resultsCount.textContent = state.videoItems.length ? I18N.t("results_videos_found", { n }) : "";
       }
-      el.providerWarnings.textContent = warnings.join("  ·  ");
+      el.providerWarnings.textContent = formatWarnings(warnings, networkFailed);
       finishLoading();
 
       if (!el.videoLoadMoreWrap.hidden && autoDepth < 3 && isNearViewport(el.videoLoadMoreWrap)) {
@@ -2414,6 +2428,8 @@
             } else if (SOURCE_BROKEN_RE.test(err.message)) {
               state.videoCooldownUntil[p.id] = Date.now() + SOURCE_BROKEN_COOLDOWN_MS;
               warnings.push(I18N.t("warn_source_unavailable", { label: p.label }));
+            } else if (err.isNetwork) {
+              networkFailed.push(p.label);
             } else {
               warnings.push(I18N.t("warn_with_message", { label: p.label, message: err.message || I18N.t("warn_generic_error") }));
             }

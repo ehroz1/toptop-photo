@@ -78,6 +78,18 @@ function memoryKV() {
     if (!allowed && r.status !== 403) fail(`запрос с ${origin} должен отклоняться (статус ${r.status})`);
   }
 
+  // 4. В настройках воркера на Cloudflare осталось старое ALLOWED_ORIGINS
+  //    (только github.io) — picta.cc всё равно должен проходить: переменная
+  //    добавляет адреса, а не заменяет встроенный список. Именно так сайт и
+  //    сломался после переезда на домен.
+  const oldDashboard = { PIXABAY_KEY: "k", ALLOWED_ORIGINS: "https://ehroz1.github.io/" };
+  for (const origin of ["https://picta.cc", "https://ehroz1.github.io"]) {
+    const r = await worker.fetch(new Request("https://photoseek-proxy.example.workers.dev/pixabay?q=cat", { headers: { Origin: origin } }), oldDashboard);
+    if (r.status !== 200 || r.headers.get("Access-Control-Allow-Origin") !== origin) fail(`со старым ALLOWED_ORIGINS в настройках запрос с ${origin} не проходит (${r.status})`);
+  }
+  const extra = await worker.fetch(new Request("https://photoseek-proxy.example.workers.dev/pixabay?q=cat", { headers: { Origin: "https://preview.example" } }), { PIXABAY_KEY: "k", ALLOWED_ORIGINS: "https://preview.example" });
+  if (extra.status !== 200) fail("адрес из ALLOWED_ORIGINS не добавился к встроенным");
+
   console.log(ok ? "\n=== TEST19 OK ===" : "\n=== TEST19 FAILED ===");
   if (!ok) process.exitCode = 1;
 })().catch((err) => { console.error("EXCEPTION:", err); process.exit(1); });
