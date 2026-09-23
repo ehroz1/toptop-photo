@@ -872,13 +872,19 @@ body {
    оставался бы на месте после поиска, а выдача уезжала вниз. */
 .home-hero[hidden] { display: none; }
 .home-main {
+  /* Выше блока подсказок: иначе строки "Недавние"/"Попробуйте" рисуются
+     поверх открытого окна "Источники". fill-mode backwards (не both) —
+     после анимации она не должна держать отдельный слой (stacking context),
+     внутри которого z-index окна ничего бы не значил. */
+  position: relative;
+  z-index: 2;
   margin-top: auto;
   width: 100%;
   max-width: 720px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  animation: homeIn 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  animation: homeIn 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
 }
 @keyframes homeIn {
   from { opacity: 0; transform: translateY(12px); }

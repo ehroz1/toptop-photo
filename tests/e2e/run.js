@@ -138,6 +138,29 @@ async function testHomeLayout(browser, base) {
   s = await state();
   check(s.home && s.formInHero && s.heroShown, "после очистки: снова главная");
   await context.close();
+
+  // Окно "Источники" на главной: поверх строк "Недавние"/"Попробуйте" и не
+  // уходит за нижний край экрана (невысокий экран + заполненная история).
+  const small = await browser.newContext({ serviceWorkers: "block", viewport: { width: 840, height: 700 } });
+  await small.addInitScript(() => localStorage.setItem("photoseek-history", JSON.stringify(["sunset", "water", "sport", "run", "marathon", "soldier", "cats"])));
+  const sp = await small.newPage();
+  await installMocks(sp);
+  await sp.goto(base);
+  await sp.click("#sourcesMenuToggle");
+  await sp.waitForTimeout(200);
+  const pop = await sp.evaluate(() => {
+    const popover = document.getElementById("sourcesMenuPopover");
+    const rect = popover.getBoundingClientRect();
+    const covered = [...popover.querySelectorAll(".source-check-row")].filter((row) => {
+      const r = row.getBoundingClientRect();
+      if (!row.offsetParent || r.bottom > rect.bottom || r.top < rect.top) return false;
+      return !popover.contains(document.elementFromPoint(r.left + r.width / 2, r.top + r.height / 2));
+    }).length;
+    return { bottom: rect.bottom, vh: innerHeight, covered };
+  });
+  check(pop.covered === 0, `главная: окно «Источники» не перекрыто подсказками (перекрыто строк: ${pop.covered})`);
+  check(pop.bottom <= pop.vh, `главная: окно «Источники» помещается на экране (низ ${Math.round(pop.bottom)} из ${pop.vh})`);
+  await small.close();
 }
 
 // Фоновое фото: в тёмной теме проявляется и не меняется в рамках сеанса

@@ -996,7 +996,18 @@
     document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
     el.sourcesMenuPopover.hidden = !willOpen;
     el.sourcesMenuToggle.setAttribute("aria-expanded", String(willOpen));
+    if (willOpen) fitSourcesListToViewport();
   });
+  // Список не должен уходить за нижний край экрана (на главной окно
+  // открывается посреди экрана) — подгоняем высоту под свободное место,
+  // остальное прокручивается внутри окна.
+  function fitSourcesListToViewport() {
+    el.sources.style.maxHeight = "";
+    const top = el.sources.getBoundingClientRect().top;
+    const available = window.innerHeight - top - 24;
+    const natural = el.sources.scrollHeight;
+    if (natural > available) el.sources.style.maxHeight = `${Math.max(160, Math.floor(available))}px`;
+  }
   document.addEventListener("click", (e) => {
     if (!el.sourcesMenuPopover.hidden && !el.sourcesMenuWrap.contains(e.target)) closeSourcesMenuPopover();
   });
