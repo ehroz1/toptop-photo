@@ -276,16 +276,18 @@ body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, 
 }
 .brand:hover { opacity: 0.7; }
 .brand:active { transform: scale(0.97); }
+/* Логотип — icons/logo.svg как маска: цвет берётся из темы (белый в тёмной,
+   чёрный в светлой). Пропорции файла ~2.86:1. */
 .brand-mark {
-  width: 26px;
-  height: 26px;
+  width: 72px;
+  height: 25px;
   background-color: var(--text);
-  -webkit-mask: url("../icons/logo-mark.png") center / contain no-repeat;
-  mask: url("../icons/logo-mark.png") center / contain no-repeat;
+  -webkit-mask: url("../icons/logo.svg") left center / contain no-repeat;
+  mask: url("../icons/logo.svg") left center / contain no-repeat;
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
-.brand:hover .brand-mark { transform: rotate(-6deg); }
+.brand:hover .brand-mark { transform: rotate(-3deg); }
 
 .topbar-actions {
   flex: 1 1 0;
@@ -1073,17 +1075,26 @@ body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, 
   from { opacity: 0; transform: translateY(12px); }
   to { opacity: 1; transform: none; }
 }
-.home-hero .home-wordmark {
-  font-family: var(--font-display);
-  font-size: clamp(40px, 5.5vw, 64px);
-  font-weight: 900;
-  letter-spacing: -0.03em;
-  line-height: 1.05;
-  margin: 0;
+.home-hero .home-wordmark { margin: 0; line-height: 0; }
+.home-logo {
+  display: inline-block;
+  width: clamp(190px, 24vw, 300px);
+  aspect-ratio: 1089 / 381;
+  background-color: var(--text);
+  -webkit-mask: url("../icons/logo.svg") center / contain no-repeat;
+  mask: url("../icons/logo.svg") center / contain no-repeat;
 }
-.home-wordmark-strong { font-weight: 900; }
+/* Текст только для поисковиков и экранных дикторов — на экране его нет. */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
 .home-hero .home-tagline {
-  margin: 10px 0 34px;
+  margin: 18px 0 34px;
   font-size: clamp(15px, 1.6vw, 18px);
   color: var(--text-muted);
 }

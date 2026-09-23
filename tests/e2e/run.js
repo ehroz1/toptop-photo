@@ -50,14 +50,17 @@ async function testNoHeavyThirdPartyOnLoad(browser, base) {
     await document.fonts.ready;
     return {
       body: getComputedStyle(document.body).fontFamily.split(",")[0].replace(/"/g, ""),
-      heading: getComputedStyle(document.querySelector(".home-wordmark")).fontFamily.split(",")[0].replace(/"/g, ""),
-      manrope: document.fonts.check('500 16px "Manrope"', "Поиск"),
-      unbounded: document.fonts.check('900 40px "Unbounded"', "Picta"),
+      heading: getComputedStyle(document.querySelector("#noResults h1")).fontFamily.split(",")[0].replace(/"/g, ""),
+      // Unbounded на главной не виден (там логотип) — грузим его явно, как
+      // браузер сделает при первом заголовке "Ничего не найдено".
+      unboundedFaces: (await document.fonts.load('900 40px "Unbounded"', "Ничего Nothing")).length,
+      logo: getComputedStyle(document.querySelector(".home-logo")).maskImage || getComputedStyle(document.querySelector(".home-logo")).webkitMaskImage,
       loaded: [...document.fonts].filter((f) => f.status === "loaded").map((f) => f.family.replace(/"/g, "")),
     };
   });
-  check(fonts.body === "Manrope" && fonts.heading === "Unbounded" && fonts.loaded.includes("Manrope") && fonts.loaded.includes("Unbounded"),
-    `шрифты: текст — Manrope, заголовок — Unbounded, оба загрузились (${[...new Set(fonts.loaded)].join(", ") || "ничего"})`);
+  check(fonts.body === "Manrope" && fonts.heading === "Unbounded" && fonts.loaded.includes("Manrope") && fonts.unboundedFaces > 0,
+    `шрифты: текст — Manrope, заголовки — Unbounded, оба загружаются (${[...new Set(fonts.loaded)].join(", ") || "ничего"})`);
+  check(/logo\.svg/.test(fonts.logo), `главная: вместо надписи — логотип (${fonts.logo})`);
   await context.close();
 }
 
