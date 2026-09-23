@@ -86,7 +86,7 @@ async function buildPage(opts = {}) {
 
   // ---- Подменный fetch: маршрутизируем по URL на синтетические ответы ----
   window.__fetchLog = [];
-  window.__providerBehavior = {}; // providerId -> {delayMs, items, total, status, throwNetwork, aiGenerated}
+  window.__providerBehavior = {}; // providerId -> {delayMs, items, total, status, errorBody, throwNetwork, aiGenerated}
   window.__iconifyBehavior = {}; // {delayMs, icons, collectionInfo, respectPrefixes, respectPalette}
   window.fetch = (url, opts) => {
     const u = String(url);
@@ -134,7 +134,7 @@ async function buildPage(opts = {}) {
         const status = behavior.status || 200;
         let page = 1;
         try { page = Number(new URL(u).searchParams.get("page")) || 1; } catch {}
-        const body = buildBody(providerId, behavior, page);
+        const body = behavior.errorBody || buildBody(providerId, behavior, page);
         resolve({
           ok: status >= 200 && status < 300,
           status,

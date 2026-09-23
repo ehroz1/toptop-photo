@@ -17,9 +17,11 @@ compatibility_date = "2024-01-01"
 ALLOWED_ORIGINS = "https://ehroz1.github.io"
 SUPABASE_URL = "https://stmjykymgtijghbcullm.supabase.co"
 SUPABASE_PUBLISHABLE_KEY = "sb_publishable_TUerYlzR3Z6Ap4rNdXV5IA_lv1XJMdz"
-# Необязательно: сколько запросов в сутки на IP разрешено гостям (без входа).
-# Если не задать — используется значение по умолчанию из worker.js (150).
-# ANON_DAILY_LIMIT = "150"
+# Необязательно: сколько запросов к источникам в сутки на IP разрешено гостям
+# (без входа). Если не задать — лимита нет вовсе (даже при привязанном KV
+# LIMITS). Включайте только вместе со входом на сайте: один поиск — это 6–8
+# запросов, так что считайте примерно 10 запросов на поиск.
+# ANON_DAILY_LIMIT = "300"
 
 # Cloudflare KV — хранилище ключей фотостоков (пишет админка) и счётчиков
 # дневного лимита для гостей. Если деплоите через сайт Cloudflare (Quick

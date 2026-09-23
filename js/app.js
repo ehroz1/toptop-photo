@@ -21,6 +21,10 @@
   const UNSPLASH_HOURLY_LIMIT = 50;
   const COOLDOWN_MS = 10 * 60 * 1000; // 10 минут паузы для источника при 429
   const UNSPLASH_FORBIDDEN_COOLDOWN_MS = 30 * 60 * 1000; // пауза Unsplash при 403 (лимит ключа в час)
+  // Воркер не смог авторизоваться у источника или ключ не задан — это не
+  // лечится повтором через секунду, поэтому источник тоже ставим на паузу.
+  const SOURCE_BROKEN_COOLDOWN_MS = 30 * 60 * 1000;
+  const SOURCE_BROKEN_RE = /auth failed|is not configured|HTTP 401\b/i;
   const QUALITY_THRESHOLDS = { any: 0, "2k": 2048, "4k": 3840, "8k": 7680 };
   // Условный вес "качества" источника для более умного чередования в ленте —
   // не более чем эвристика, не претендует на объективность.
@@ -318,16 +322,73 @@
   function initTheme() {
     applyThemeMode(currentThemeMode());
   }
+  function resolveTheme(mode) {
+    return mode === "auto" ? (systemThemeQuery.matches ? "dark" : "light") : mode;
+  }
+
+  // Смена темы с анимацией. Браузер делает снимок страницы в старой теме, а
+  // новая "проявляется" поверх него кругом с мягким краем, который растёт от
+  // точки origin (центр кнопки) до дальнего угла экрана — View Transitions
+  // API + маска с радиальным градиентом (см. .theme-reveal в styles.css).
+  // Без origin (тема ОС сменилась сама) — просто плавная смена кадра.
+  // Браузеры без View Transitions получают плавное перетекание цветов, а
+  // при "уменьшить движение" в настройках системы тема меняется сразу.
+  const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const THEME_REVEAL_MS = 720;
+  // Сплошная часть круга маски (остальное — мягкий край, см. styles.css).
+  const THEME_REVEAL_SOLID = 0.7;
+  let themeFadeTimer = 0;
+  function transitionTheme(update, origin) {
+    const root = document.documentElement;
+    if (reducedMotionQuery.matches) { update(); return; }
+    if (typeof document.startViewTransition !== "function") {
+      root.classList.add("theme-fading");
+      update();
+      clearTimeout(themeFadeTimer);
+      themeFadeTimer = setTimeout(() => root.classList.remove("theme-fading"), 600);
+      return;
+    }
+    if (!origin) { document.startViewTransition(update); return; }
+    const { x, y } = origin;
+    const reach = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+    const radius = Math.ceil(reach / THEME_REVEAL_SOLID);
+    root.classList.add("theme-reveal");
+    const transition = document.startViewTransition(update);
+    transition.ready.then(() => {
+      root.animate({
+        maskSize: ["0px 0px", `${radius * 2}px ${radius * 2}px`],
+        maskPosition: [`${x}px ${y}px`, `${x - radius}px ${y - radius}px`],
+      }, {
+        duration: THEME_REVEAL_MS,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        pseudoElement: "::view-transition-new(root)",
+      });
+    }).catch(() => { /* переход пропущен (например, второй клик подряд) — тема уже применена */ });
+    transition.finished.catch(() => {}).then(() => root.classList.remove("theme-reveal"));
+  }
+
   el.themeToggle.addEventListener("click", () => {
     const mode = currentThemeMode();
     const next = mode === "auto" ? "light" : mode === "light" ? "dark" : "auto";
-    applyThemeMode(next);
+    // Иконка режима появляется с лёгким поворотом (класс снимается сам,
+    // чтобы следующий клик запускал анимацию заново).
+    el.themeToggle.classList.remove("is-switching");
+    void el.themeToggle.offsetWidth;
+    el.themeToggle.classList.add("is-switching");
+    // "Авто" может совпасть с текущей темой — тогда меняется только иконка.
+    if (resolveTheme(next) === document.documentElement.getAttribute("data-theme")) {
+      applyThemeMode(next);
+      return;
+    }
+    const r = el.themeToggle.getBoundingClientRect();
+    transitionTheme(() => applyThemeMode(next), { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
   });
+  el.themeToggle.addEventListener("animationend", () => el.themeToggle.classList.remove("is-switching"));
   // Пока режим "авто" — живо следуем за системной темой (например, автоночь
   // по расписанию ОС), без перезагрузки страницы.
   systemThemeQuery.addEventListener("change", (e) => {
     if (currentThemeMode() !== "auto") return;
-    document.documentElement.setAttribute("data-theme", e.matches ? "dark" : "light");
+    transitionTheme(() => document.documentElement.setAttribute("data-theme", e.matches ? "dark" : "light"));
   });
 
   // ---------- Sticky header on scroll ----------
@@ -1631,6 +1692,11 @@
             // поиске, а ставим на паузу до следующей попытки.
             state.cooldownUntil[p.id] = Date.now() + UNSPLASH_FORBIDDEN_COOLDOWN_MS;
             warnings.push(I18N.t("warn_unsplash_forbidden"));
+          } else if (SOURCE_BROKEN_RE.test(err.message)) {
+            // Сырой текст ответа (JSON с переносами строк) посетителю ничего
+            // не скажет — он остаётся в консоли выше, а на экран короткая фраза.
+            state.cooldownUntil[p.id] = Date.now() + SOURCE_BROKEN_COOLDOWN_MS;
+            warnings.push(I18N.t("warn_source_unavailable", { label: p.label }));
           } else {
             warnings.push(I18N.t("warn_with_message", { label: p.label, message: err.message || I18N.t("warn_generic_error") }));
           }
@@ -2257,6 +2323,9 @@
             if (/HTTP 429/.test(err.message)) {
               state.videoCooldownUntil[p.id] = Date.now() + COOLDOWN_MS;
               warnings.push(I18N.t("warn_rate_limited", { label: p.label }));
+            } else if (SOURCE_BROKEN_RE.test(err.message)) {
+              state.videoCooldownUntil[p.id] = Date.now() + SOURCE_BROKEN_COOLDOWN_MS;
+              warnings.push(I18N.t("warn_source_unavailable", { label: p.label }));
             } else {
               warnings.push(I18N.t("warn_with_message", { label: p.label, message: err.message || I18N.t("warn_generic_error") }));
             }
