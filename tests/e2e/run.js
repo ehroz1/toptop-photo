@@ -107,6 +107,39 @@ async function testKeyboardHidesOnMobile(browser, base) {
   }
 }
 
+// Главный экран ↔ выдача: пока нет результатов, поиск в центре главного
+// экрана; после поиска главный экран реально скрыт (а не остаётся поверх
+// выдачи), поиск в шапке, первая карточка видна; очистка — снова главная.
+async function testHomeLayout(browser, base) {
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  await installMocks(page, { imgDelay: 20 });
+  await page.goto(base);
+  const state = () => page.evaluate(() => ({
+    home: document.body.classList.contains("is-home"),
+    formInHero: !!document.querySelector("#homeSearchSlot #searchForm"),
+    formInTopbar: !!document.querySelector(".topbar #searchForm"),
+    heroShown: getComputedStyle(document.getElementById("emptyState")).display !== "none",
+    sources: document.getElementById("homeSourcesList").textContent,
+    firstCardTop: document.querySelector("#grid .card")?.getBoundingClientRect().top ?? null,
+  }));
+  let s = await state();
+  check(s.home && s.formInHero && s.heroShown, "главная: строка поиска в центре главного экрана");
+  check(/Pixabay/.test(s.sources), `главная: строка активных источников (${s.sources})`);
+  await page.fill("#searchInput", "cat");
+  await page.press("#searchInput", "Enter");
+  await page.waitForSelector("#grid .card");
+  await page.waitForTimeout(200);
+  s = await state();
+  check(!s.home && s.formInTopbar && !s.heroShown, "после поиска: главный экран скрыт, поиск в шапке");
+  check(s.firstCardTop !== null && s.firstCardTop < 800, `после поиска: выдача видна сразу (верх первой карточки ${Math.round(s.firstCardTop)} px)`);
+  await page.click("#clearBtn");
+  await page.waitForTimeout(200);
+  s = await state();
+  check(s.home && s.formInHero && s.heroShown, "после очистки: снова главная");
+  await context.close();
+}
+
 // Фоновое фото: в тёмной теме проявляется и не меняется в рамках сеанса
 // (перезагрузка), в светлой — не скачивается вовсе.
 async function testDarkThemeBackground(browser, base) {
@@ -204,6 +237,7 @@ async function measure(browser, base, runs = 5) {
     await testIconsHaveMasks(browser, base);
     await testKeyboardHidesOnMobile(browser, base);
     await testDarkThemeBackground(browser, base);
+    await testHomeLayout(browser, base);
     const m = await measure(browser, base);
     console.log(`\nСкорость (мобильный 4G, процессор x4, медиана из 5):`);
     console.log(`  первая отрисовка ${m.fcp} мс · сайт готов ${m.ready} мс · первое превью после Enter ${m.firstThumb} мс`);

@@ -361,14 +361,26 @@
   </div>
 
   <main class="content">
-    <div id="emptyState" class="empty-state">
-      <div class="empty-state-logo" aria-hidden="true"></div>
-      <span class="eyebrow">Photoseek</span>
-      <h1><span id="heroH1Before" data-i18n="hero_h1_before">Найдите фото сразу</span> <span id="heroH1Underline" class="underline-accent" data-i18n="hero_h1_underline">везде</span></h1>
-      <p id="heroP" data-i18n="hero_p">Один запрос — и PhotoSeek одновременно спрашивает Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr, собирая всё в одну ленту.</p>
-      <div class="suggestions" id="recentSearches" hidden></div>
-      <div class="suggestions" id="suggestions">
-        <span class="suggestions-label" data-i18n="try_label">Попробуйте:</span>
+    <!-- Главный экран. Пока нет результатов, строка поиска, вкладки режимов и
+         "Источники" переносятся сюда из шапки/панели (см. applyHomeLayout в
+         app.js), после поиска — возвращаются на свои места. -->
+    <div id="emptyState" class="empty-state home-hero">
+      <div class="home-main">
+        <h1 class="home-wordmark"><span class="home-wordmark-strong">Photo</span>Seek</h1>
+        <p id="heroP" class="home-tagline" data-i18n="home_tagline">Найдите изображение в одном поиске</p>
+        <div class="home-search-slot" id="homeSearchSlot"></div>
+        <div class="home-controls">
+          <div id="homeModeSlot"></div>
+          <span class="home-controls-sep" id="homeControlsSep" aria-hidden="true"></span>
+          <div id="homeSourcesSlot"></div>
+        </div>
+        <p class="home-sources-list" id="homeSourcesList"></p>
+      </div>
+      <div class="home-suggest">
+        <div class="suggestions" id="recentSearches" hidden></div>
+        <div class="suggestions" id="suggestions">
+          <span class="suggestions-label" data-i18n="try_label">Попробуйте:</span>
+        </div>
       </div>
     </div>
 
