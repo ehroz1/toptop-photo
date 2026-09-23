@@ -64,6 +64,17 @@ for (const [, f] of read("css/styles.css").matchAll(/url\("\.\.\/(fonts\/[^"]+)"
   if (!fs.existsSync(path.join(ROOT, f))) problems.push(`нет файла шрифта ${f} (подключён в css/styles.css)`);
 }
 
+// 3д. Иконки и логотип: всё, на что ссылаются страница, админка и манифест, есть
+const manifest = JSON.parse(read("manifest.webmanifest"));
+const iconRefs = [
+  ...[...indexHtml.matchAll(/href="(icons\/[^"]+)"/g), ...read("admin.html").matchAll(/href="(icons\/[^"]+)"/g)].map((m) => m[1]),
+  ...manifest.icons.map((i) => i.src),
+  ...[...read("css/styles.css").matchAll(/url\("\.\.\/(icons\/[^"]+)"\)/g)].map((m) => m[1]),
+];
+for (const ref of iconRefs) {
+  if (!fs.existsSync(path.join(ROOT, ref.split("?")[0]))) problems.push(`нет файла иконки/логотипа ${ref}`);
+}
+
 // 4. Переводы
 const sandbox = { window: {}, navigator: { language: "ru" }, document: { documentElement: {} } };
 vm.runInNewContext(read("js/i18n.js").replace("global.I18N = {", "global.__DICT = DICT; global.I18N = {"), sandbox);
