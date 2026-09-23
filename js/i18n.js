@@ -170,6 +170,7 @@
 
       warn_cooldown: "{label}: пауза ~{mins} мин (лимит запросов)",
       warn_rate_limited: "{label}: превышен лимит запросов, пауза 10 минут",
+      warn_unsplash_forbidden: "Unsplash: исчерпан часовой лимит ключа (или ключ отключён) — источник на паузе 30 минут",
       warn_generic_error: "ошибка запроса",
       warn_with_message: "{label}: {message}",
       warn_timeout: "не ответил вовремя",
@@ -372,6 +373,7 @@
 
       warn_cooldown: "{label}: cooldown ~{mins} min (rate limit)",
       warn_rate_limited: "{label}: rate limit exceeded, pausing 10 minutes",
+      warn_unsplash_forbidden: "Unsplash: hourly key limit reached (or key disabled) — source paused for 30 minutes",
       warn_generic_error: "request error",
       warn_with_message: "{label}: {message}",
       warn_timeout: "did not respond in time",

@@ -86,6 +86,27 @@ async function testLightboxDownload(browser, base) {
   await context.close();
 }
 
+// На телефоне после Enter поле поиска теряет фокус — экранная клавиатура
+// прячется и не закрывает результаты. На компьютере фокус остаётся.
+async function testKeyboardHidesOnMobile(browser, base) {
+  for (const mobile of [true, false]) {
+    const context = await browser.newContext({ serviceWorkers: "block", isMobile: mobile, hasTouch: mobile, viewport: mobile ? { width: 390, height: 844 } : { width: 1280, height: 800 } });
+    const page = await context.newPage();
+    await installMocks(page, { imgDelay: 10 });
+    await page.goto(base);
+    await page.fill("#searchInput", "cat");
+    await page.waitForTimeout(900);
+    const cardsBeforeEnter = await page.locator("#grid .card").count();
+    await page.press("#searchInput", "Enter");
+    await page.waitForSelector("#grid .card");
+    const focused = await page.evaluate(() => document.activeElement === document.getElementById("searchInput"));
+    const label = mobile ? "телефон" : "компьютер";
+    check(cardsBeforeEnter === 0, `${label}: набор текста без Enter не запускает поиск`);
+    check(mobile ? !focused : focused, `${label}: после Enter ${mobile ? "клавиатура прячется (поле без фокуса)" : "фокус остаётся в поле"}`);
+    await context.close();
+  }
+}
+
 // Иконки рисуются CSS-маской (.icon + mask: var(--icon-…)). Если для
 // конкретной кнопки правило маски забыли, вместо иконки виден сплошной
 // чёрный квадрат — ищем такие во всех режимах и в окне просмотра.
@@ -155,6 +176,7 @@ async function measure(browser, base, runs = 5) {
     await testThumbnailsAfterInterruptedSearches(browser, base);
     await testLightboxDownload(browser, base);
     await testIconsHaveMasks(browser, base);
+    await testKeyboardHidesOnMobile(browser, base);
     const m = await measure(browser, base);
     console.log(`\nСкорость (мобильный 4G, процессор x4, медиана из 5):`);
     console.log(`  первая отрисовка ${m.fcp} мс · сайт готов ${m.ready} мс · первое превью после Enter ${m.firstThumb} мс`);

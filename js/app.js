@@ -20,6 +20,7 @@
   const MAX_HISTORY = 8;
   const UNSPLASH_HOURLY_LIMIT = 50;
   const COOLDOWN_MS = 10 * 60 * 1000; // 10 минут паузы для источника при 429
+  const UNSPLASH_FORBIDDEN_COOLDOWN_MS = 30 * 60 * 1000; // пауза Unsplash при 403 (лимит ключа в час)
   const QUALITY_THRESHOLDS = { any: 0, "2k": 2048, "4k": 3840, "8k": 7680 };
   // Условный вес "качества" источника для более умного чередования в ленте —
   // не более чем эвристика, не претендует на объективность.
@@ -791,11 +792,9 @@
   });
 
   // ---------- Search input ----------
-  let debounceTimer = null;
+  // Поиск стартует только по Enter / кнопке поиска, а не на каждую букву.
   el.input.addEventListener("input", () => {
     el.clearBtn.hidden = el.input.value.length === 0;
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(runSearchForMode, 550);
   });
   el.clearBtn.addEventListener("click", () => {
     el.input.value = "";
@@ -805,7 +804,9 @@
   });
   el.form.addEventListener("submit", (e) => {
     e.preventDefault();
-    clearTimeout(debounceTimer);
+    // На телефоне прячем экранную клавиатуру, чтобы она не закрывала
+    // результаты. На компьютере фокус оставляем — удобно сразу уточнить запрос.
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) el.input.blur();
     runSearchForMode();
   });
 
@@ -1559,6 +1560,12 @@
           if (/HTTP 429/.test(err.message)) {
             state.cooldownUntil[p.id] = Date.now() + COOLDOWN_MS;
             warnings.push(I18N.t("warn_rate_limited", { label: p.label }));
+          } else if (p.id === "unsplash" && /HTTP 403/.test(err.message)) {
+            // Unsplash сообщает об исчерпанном часовом лимите ключа (общем на
+            // всех посетителей) кодом 403, а не 429. Не долбим его на каждом
+            // поиске, а ставим на паузу до следующей попытки.
+            state.cooldownUntil[p.id] = Date.now() + UNSPLASH_FORBIDDEN_COOLDOWN_MS;
+            warnings.push(I18N.t("warn_unsplash_forbidden"));
           } else {
             warnings.push(I18N.t("warn_with_message", { label: p.label, message: err.message || I18N.t("warn_generic_error") }));
           }
