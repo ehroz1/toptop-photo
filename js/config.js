@@ -34,7 +34,9 @@ window.APP_CONFIG = {
   // js/i18n.js). Каждая строка — { label: "как подписать", url: "ссылка" };
   // для почты url вида "mailto:имя@почта.ru".
   CONTACTS: [
-    { label: "GitHub", url: "https://github.com/ehroz1" },
+    { label: "Telegram", url: "https://t.me/ehroz_dsgn" },
+    { label: "Instagram", url: "https://www.instagram.com/ehroz1/" },
+    { label: "ehrozbekisharifzoda@gmail.com", url: "mailto:ehrozbekisharifzoda@gmail.com" },
   ],
   // Ссылка для доната (пункт «Поддержать проект» в меню). Пока пусто, пункт
   // показывает «ссылка скоро появится».

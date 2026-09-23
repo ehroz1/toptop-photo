@@ -6,7 +6,7 @@
 
   const DICT = {
     ru: {
-      meta_title: "PhotoSeek — поиск фото сразу везде",
+      meta_title: "Picta — поиск фото сразу везде",
       meta_description: "Универсальный поиск фото по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr одновременно, с быстрым переходом в Яндекс, Google и Pinterest.",
 
       brand_home_title: "На главный экран",
@@ -26,7 +26,7 @@
 
       about_title: "Об авторе и контакты",
       about_heading: "Об авторе",
-      about_text: "Привет! Я делаю PhotoSeek — поиск фото, иконок и видео сразу по многим бесплатным стокам. Пишите, если есть идея или нашли ошибку.",
+      about_text: "Я делаю Picta — поиск фото, иконок и видео сразу по многим бесплатным стокам. Пишите, если есть идея, предложения или нашли ошибку.",
       about_contacts: "Контакты",
       about_no_contacts: "Контакты скоро появятся",
       menu_title: "Меню",
@@ -221,8 +221,8 @@
       toast_icon_id_copied: "Идентификатор скопирован",
       toast_svg_copied: "SVG скопирован",
 
-      zip_filename: "photoseek-{n}-фото.zip",
-      share_title_fallback: "Фото из PhotoSeek",
+      zip_filename: "picta-{n}-фото.zip",
+      share_title_fallback: "Фото из Picta",
       share_title_plain: "Фото",
 
       suggestions: ["природа", "город ночью", "кофе", "океан", "горы", "космос", "еда", "животные"],
@@ -231,7 +231,7 @@
       locale: "ru-RU",
     },
     en: {
-      meta_title: "PhotoSeek — search photos everywhere at once",
+      meta_title: "Picta — search photos everywhere at once",
       meta_description: "Universal photo search across Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse and Flickr at once, with quick links to Yandex, Google and Pinterest.",
 
       brand_home_title: "Go to home screen",
@@ -251,7 +251,7 @@
 
       about_title: "About & contacts",
       about_heading: "About",
-      about_text: "Hi! I'm building PhotoSeek — one search for photos, icons and videos across many free stock sites. Get in touch if you have an idea or found a bug.",
+      about_text: "I'm building Picta — one search for photos, icons and videos across many free stock sites. Get in touch if you have an idea, a suggestion or found a bug.",
       about_contacts: "Contacts",
       about_no_contacts: "Contacts coming soon",
       menu_title: "Menu",
@@ -446,8 +446,8 @@
       toast_icon_id_copied: "Identifier copied",
       toast_svg_copied: "SVG copied",
 
-      zip_filename: "photoseek-{n}-photos.zip",
-      share_title_fallback: "Photo from PhotoSeek",
+      zip_filename: "picta-{n}-photos.zip",
+      share_title_fallback: "Photo from Picta",
       share_title_plain: "Photo",
 
       suggestions: ["nature", "city at night", "coffee", "ocean", "mountains", "space", "food", "animals"],

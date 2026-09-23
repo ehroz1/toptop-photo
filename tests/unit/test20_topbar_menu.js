@@ -22,7 +22,11 @@ const { buildPage, sleep } = require("../harness");
   if (openIds().join() !== "aboutPopover") fail(`после клика по «молнии» открыто: ${openIds().join() || "ничего"}`);
   const contacts = [...doc.querySelectorAll("#aboutContacts a")].map((a) => `${a.textContent} ${a.href}`);
   console.log("Контакты:", contacts.join(" | "));
-  if (!contacts.some((c) => c.includes("github.com/ehroz1"))) fail("в контактах нет ссылки на GitHub из APP_CONFIG.CONTACTS");
+  for (const want of ["t.me/ehroz_dsgn", "instagram.com/ehroz1", "mailto:ehrozbekisharifzoda@gmail.com"]) {
+    if (!contacts.some((c) => c.includes(want))) fail(`в контактах нет ${want} (APP_CONFIG.CONTACTS)`);
+  }
+  if (contacts.some((c) => c.includes("github.com"))) fail("GitHub должен быть убран из контактов");
+  if (!/Picta/.test($("aboutPopover").textContent)) fail("в тексте «об авторе» нет названия Picta");
 
   // Профиль: второе окно закрывает первое
   click($("authToggle"));

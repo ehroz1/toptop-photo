@@ -1,6 +1,6 @@
 {
-  "name": "PhotoSeek — поиск фото сразу везде",
-  "short_name": "PhotoSeek",
+  "name": "Picta — поиск фото сразу везде",
+  "short_name": "Picta",
   "description": "Поиск фото одновременно по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr.",
   "start_url": "./",
   "scope": "./",

@@ -70,6 +70,14 @@ function memoryKV() {
   console.log("С ANON_DAILY_LIMIT=2 статусы:", statuses.join(", "));
   if (statuses.join() !== "200,200,429") fail("явно заданный лимит не срабатывает");
 
+  // 3. Новый домен picta.cc пускается по умолчанию, чужие сайты — нет
+  for (const [origin, allowed] of [["https://picta.cc", true], ["https://www.picta.cc", true], ["https://ehroz1.github.io", true], ["https://evil.example", false]]) {
+    const r = await worker.fetch(new Request("https://photoseek-proxy.example.workers.dev/pixabay?q=cat", { headers: { Origin: origin } }), { PIXABAY_KEY: "k" });
+    const acao = r.headers.get("Access-Control-Allow-Origin");
+    if (allowed && (r.status !== 200 || acao !== origin)) fail(`запрос с ${origin} должен проходить (статус ${r.status}, ACAO ${acao})`);
+    if (!allowed && r.status !== 403) fail(`запрос с ${origin} должен отклоняться (статус ${r.status})`);
+  }
+
   console.log(ok ? "\n=== TEST19 OK ===" : "\n=== TEST19 FAILED ===");
   if (!ok) process.exitCode = 1;
 })().catch((err) => { console.error("EXCEPTION:", err); process.exit(1); });

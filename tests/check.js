@@ -5,7 +5,7 @@
 //  3) адрес воркера в preconnect совпадает с WORKER_BASE_URL в config.js;
 //  4) у каждой data-i18n-надписи в HTML и у каждого I18N.t("…") в скриптах
 //     есть перевод и на русском, и на английском;
-//  5) в стилях нет размытия (backdrop-filter / blur()).
+//  5) в стилях нет размытия (backdrop-filter / blur()), кроме фонового фото.
 const fs = require("fs");
 const path = require("path");
 const vm = require("vm");
@@ -74,10 +74,16 @@ for (const f of jsFiles.filter((f) => f.startsWith("js/"))) {
   }
 }
 
-// 5. Размытия на сайте нет нигде (решение владельца): ни стеклянных
-//    подложек (backdrop-filter), ни filter: blur().
-const css = read("css/styles.css");
-if (/backdrop-filter|blur\(/.test(css)) problems.push("в css/styles.css снова появилось размытие (backdrop-filter или blur()) — на сайте его быть не должно");
+// 5. Размытия на сайте нет (решение владельца): ни стеклянных подложек
+//    (backdrop-filter), ни filter: blur() — кроме появления фонового фото
+//    (.bg-photo), которое владелец попросил оставить.
+const css = read("css/styles.css").replace(/\/\*[\s\S]*?\*\//g, ""); // без комментариев
+if (/backdrop-filter/.test(css)) problems.push("в css/styles.css снова появился backdrop-filter (стеклянное размытие) — на сайте его быть не должно");
+for (const m of css.matchAll(/blur\(/g)) {
+  const open = css.lastIndexOf("{", m.index);
+  const selector = css.slice(Math.max(css.lastIndexOf("}", open), css.lastIndexOf("{", open - 1)) + 1, open).trim();
+  if (!selector.includes(".bg-photo")) problems.push(`размытие blur() вне фонового фото: "${selector}" — на сайте его быть не должно`);
+}
 
 if (problems.length) {
   console.log(`✗ Найдено проблем: ${problems.length}`);
