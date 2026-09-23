@@ -189,6 +189,59 @@ async function testDarkThemeBackground(browser, base) {
   await light.close();
 }
 
+// Смена темы: новая тема проявляется кругом от кнопки (View Transitions),
+// "авто", совпадающее с текущей темой, меняет только иконку, а при
+// "уменьшить движение" тема меняется сразу, без анимации.
+async function testThemeSwitch(browser, base) {
+  const spy = () => {
+    window.__vtCalls = 0;
+    const orig = Document.prototype.startViewTransition;
+    if (orig) Document.prototype.startViewTransition = function (...args) { window.__vtCalls++; return orig.apply(this, args); };
+  };
+  const context = await browser.newContext({ serviceWorkers: "block", colorScheme: "light", viewport: { width: 1280, height: 800 } });
+  await context.addInitScript(spy);
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await installMocks(page);
+  await page.goto(base, { waitUntil: "load" });
+  const theme = () => page.evaluate(() => ({
+    mode: document.documentElement.getAttribute("data-theme-mode"),
+    theme: document.documentElement.getAttribute("data-theme"),
+    reveal: document.documentElement.classList.contains("theme-reveal"),
+    vt: window.__vtCalls,
+  }));
+
+  await page.click("#themeToggle"); // авто (светлая) → светлая
+  let s = await theme();
+  check(s.mode === "light" && s.vt === 0, `тема: «авто» → «светлая» при светлой системе меняет только иконку (переходов: ${s.vt})`);
+
+  await page.click("#themeToggle"); // светлая → тёмная
+  // Анимация стартует на следующем кадре после клика — ждём её появления.
+  const anim = await page.waitForFunction(() => {
+    const a = document.getAnimations().find((x) => x.effect && x.effect.pseudoElement === "::view-transition-new(root)");
+    return a && { sizes: a.effect.getKeyframes().map((k) => k.maskSize), reveal: document.documentElement.classList.contains("theme-reveal") };
+  }, null, { timeout: 2000 }).then((h) => h.jsonValue()).catch(() => null);
+  check(!!anim && anim.reveal && anim.sizes[0] === "0px 0px" && parseInt(anim.sizes[1], 10) > 1280,
+    `тема: светлая → тёмная — новая тема растёт кругом от кнопки (${anim ? anim.sizes.join(" → ") : "анимации нет"})`);
+  await page.waitForTimeout(1200);
+  s = await theme();
+  check(s.theme === "dark" && !s.reveal && s.vt === 1, `тема: после анимации тёмная тема применена, служебный класс снят (${JSON.stringify(s)})`);
+  check(errors.length === 0, `тема: без JS-ошибок (${errors.join("; ") || "нет"})`);
+  await context.close();
+
+  const calm = await browser.newContext({ serviceWorkers: "block", colorScheme: "light", reducedMotion: "reduce" });
+  await calm.addInitScript(spy);
+  const cp = await calm.newPage();
+  await installMocks(cp);
+  await cp.goto(base, { waitUntil: "load" });
+  await cp.click("#themeToggle");
+  await cp.click("#themeToggle");
+  const c = await cp.evaluate(() => ({ theme: document.documentElement.getAttribute("data-theme"), vt: window.__vtCalls }));
+  check(c.theme === "dark" && c.vt === 0, `тема: при «уменьшить движение» меняется сразу, без анимации (переходов: ${c.vt})`);
+  await calm.close();
+}
+
 // Иконки рисуются CSS-маской (.icon + mask: var(--icon-…)). Если для
 // конкретной кнопки правило маски забыли, вместо иконки виден сплошной
 // чёрный квадрат — ищем такие во всех режимах и в окне просмотра.
@@ -260,6 +313,7 @@ async function measure(browser, base, runs = 5) {
     await testIconsHaveMasks(browser, base);
     await testKeyboardHidesOnMobile(browser, base);
     await testDarkThemeBackground(browser, base);
+    await testThemeSwitch(browser, base);
     await testHomeLayout(browser, base);
     const m = await measure(browser, base);
     console.log(`\nСкорость (мобильный 4G, процессор x4, медиана из 5):`);

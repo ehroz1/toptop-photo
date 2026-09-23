@@ -104,19 +104,25 @@ async function getShutterstockAccessToken(env) {
   }
   const consumerKey = await getSecret(env, "SHUTTERSTOCK_CONSUMER_KEY");
   const consumerSecret = await getSecret(env, "SHUTTERSTOCK_CONSUMER_SECRET");
-  const basic = btoa(`${consumerKey}:${consumerSecret}`);
+  // Shutterstock требует client_id/client_secret в теле формы, а не в
+  // заголовке Basic: без них отвечает 400 "Validation failed"
+  // (VALIDATION_OBJECT_REQUIRED). Оба способа сразу не шлём — по OAuth 2.0
+  // клиент должен аутентифицироваться одним способом за запрос.
   const res = await fetch("https://api.shutterstock.com/v2/oauth/access_token", {
     method: "POST",
     headers: {
-      Authorization: `Basic ${basic}`,
       "Content-Type": "application/x-www-form-urlencoded",
       "User-Agent": WORKER_USER_AGENT,
     },
-    body: "grant_type=client_credentials",
+    body: new URLSearchParams({
+      client_id: consumerKey.trim(),
+      client_secret: consumerSecret.trim(),
+      grant_type: "client_credentials",
+    }).toString(),
   });
   if (!res.ok) {
     const text = await res.text().catch(() => "");
-    throw new Error(`oauth ${res.status} ${text.slice(0, 200)}`);
+    throw new Error(`oauth ${res.status} ${text.replace(/\s+/g, " ").slice(0, 300)}`);
   }
   const data = await res.json();
   if (!data.access_token) throw new Error("oauth response has no access_token");
@@ -218,11 +224,15 @@ async function isAdmin(user, env) {
 // ---------------------------------------------------------------------------
 // Дневной лимит для гостей (не вошедших через Supabase) — считаем по IP в
 // Cloudflare KV, сброс каждый день в полночь UTC. Вошедшие пользователи лимит
-// не имеют. Если KV LIMITS ещё не подключён — лимит просто не применяется
-// (чтобы не сломать сайт до Фазы 2).
+// не имеют.
+//
+// Лимит включается ТОЛЬКО явно — переменной ANON_DAILY_LIMIT (число > 0) и
+// привязкой KV LIMITS. Одной привязки мало: пока вход на сайте выключен
+// (ACCOUNTS_ENABLED: false в js/config.js), гостями были бы все посетители,
+// а считается каждый запрос к источнику (один поиск — это 6–8 запросов),
+// так что лимит закончился бы за пару десятков поисков. Вдобавок каждый
+// учтённый запрос — запись в KV, а их на бесплатном тарифе ~1000 в сутки.
 // ---------------------------------------------------------------------------
-
-const ANON_DAILY_LIMIT_DEFAULT = 150;
 
 function todayUtcKey(ip) {
   const d = new Date().toISOString().slice(0, 10); // YYYY-MM-DD, UTC
@@ -238,11 +248,11 @@ function secondsUntilNextUtcMidnight() {
 // Возвращает предел (число), если гость его исчерпал, иначе null (запрос разрешён).
 async function checkRateLimit(request, env, user) {
   if (user) return null; // вошедшие — без лимита
-  if (!env.LIMITS) return null; // KV ещё не подключён (Фаза 2 не завершена)
+  const limit = Number(env.ANON_DAILY_LIMIT);
+  if (!env.LIMITS || !(limit > 0)) return null; // лимит не включён — см. выше
 
   const ip = request.headers.get("CF-Connecting-IP") || "unknown";
   const key = todayUtcKey(ip);
-  const limit = Number(env.ANON_DAILY_LIMIT) || ANON_DAILY_LIMIT_DEFAULT;
 
   const current = Number((await env.LIMITS.get(key)) || "0");
   if (current >= limit) return limit;

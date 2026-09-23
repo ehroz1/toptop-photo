@@ -374,6 +374,36 @@ body {
 :root[data-theme-mode="light"] #themeToggle .icon-sun { display: block; }
 :root[data-theme-mode="dark"] #themeToggle .icon-moon { display: block; }
 :root[data-theme-mode="auto"] #themeToggle .icon-auto { display: block; }
+#themeToggle.is-switching .icon { animation: themeIconIn 0.55s cubic-bezier(0.2, 0.9, 0.3, 1.15) both; }
+@keyframes themeIconIn {
+  from { opacity: 0; transform: rotate(-110deg) scale(0.3); }
+  to { opacity: 1; transform: none; }
+}
+
+/* ---------- Смена темы (см. transitionTheme в app.js) ----------
+   Новая тема проявляется поверх снимка старой кругом от кнопки. Край круга
+   мягкий: маска — радиальный градиент, сплошной до 70% радиуса и тающий к
+   краю (0.7 = THEME_REVEAL_SOLID в app.js). Размер и положение маски
+   анимирует app.js, здесь — стартовое состояние "круг нулевого размера". */
+:root.theme-reveal::view-transition-old(root),
+:root.theme-reveal::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+:root.theme-reveal::view-transition-new(root) {
+  -webkit-mask: radial-gradient(circle closest-side, #000 70%, rgba(0, 0, 0, 0.5) 86%, transparent 100%) 0 0 / 0 0 no-repeat;
+  mask: radial-gradient(circle closest-side, #000 70%, rgba(0, 0, 0, 0.5) 86%, transparent 100%) 0 0 / 0 0 no-repeat;
+}
+/* Браузеры без View Transitions: цвета просто плавно перетекают. */
+:root.theme-fading,
+:root.theme-fading *,
+:root.theme-fading *::before,
+:root.theme-fading *::after {
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease !important;
+}
+@media (prefers-reduced-motion: reduce) {
+  #themeToggle.is-switching .icon { animation: none; }
+}
 
 #favoritesToggle .icon-heart,
 #selectModeToggle .icon-check-square {
