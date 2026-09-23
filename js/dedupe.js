@@ -63,7 +63,10 @@
   }
 
   async function hashImageUrl(url) {
-    const res = await fetch(url, { mode: "cors" });
+    // priority: "low" — фоновая проверка не должна отнимать канал у превью,
+    // которые пользователь видит прямо сейчас (браузеры без поддержки просто
+    // игнорируют этот параметр).
+    const res = await fetch(url, { mode: "cors", priority: "low" });
     if (!res.ok) throw new Error("network");
     const blob = await res.blob();
     const objectUrl = URL.createObjectURL(blob);

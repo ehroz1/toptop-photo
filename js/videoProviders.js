@@ -21,10 +21,18 @@
       .join("&");
   }
 
+  function withAuthHeader(url, opts) {
+    if (!CONFIG.WORKER_BASE_URL || !url.startsWith(CONFIG.WORKER_BASE_URL)) return opts;
+    const token = global.PhotoSeekAuth && global.PhotoSeekAuth.getAccessToken();
+    if (!token) return opts;
+    return { ...opts, headers: { ...(opts && opts.headers), Authorization: `Bearer ${token}` } };
+  }
+
   async function fetchJson(url, opts) {
     let res;
+    const finalOpts = withAuthHeader(url, opts);
     try {
-      res = await fetch(url, opts);
+      res = await fetch(url, finalOpts);
     } catch (err) {
       if (err.name === "AbortError") throw err;
       throw new Error(`сеть/CORS недоступны (${err.message})`);

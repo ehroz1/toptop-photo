@@ -24,6 +24,15 @@
       theme_toggle_title: "Сменить тему",
       filters_title: "Фильтры",
 
+      auth_toggle_title: "Войти",
+      auth_google: "Войти через Google",
+      auth_or: "или",
+      auth_email_placeholder: "Почта",
+      auth_email_submit: "Прислать ссылку",
+      auth_email_note: "Пришлём ссылку для входа без пароля.",
+      auth_admin_link: "Админка",
+      auth_sign_out: "Выйти",
+
       mode_photos: "Фото",
       mode_icons: "Иконки",
       mode_video: "Видео",
@@ -216,6 +225,15 @@
       insights_title: "Stats & limits",
       theme_toggle_title: "Toggle theme",
       filters_title: "Filters",
+
+      auth_toggle_title: "Sign in",
+      auth_google: "Sign in with Google",
+      auth_or: "or",
+      auth_email_placeholder: "Email",
+      auth_email_submit: "Send link",
+      auth_email_note: "We'll send you a passwordless sign-in link.",
+      auth_admin_link: "Admin",
+      auth_sign_out: "Sign out",
 
       mode_photos: "Photos",
       mode_icons: "Icons",
