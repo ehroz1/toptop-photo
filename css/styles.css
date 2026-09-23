@@ -533,7 +533,7 @@ body {
   line-height: 16px;
   text-align: center;
 }
-.sources-menu-popover { min-width: 220px; }
+.sources-menu-popover { min-width: 250px; }
 .sources-menu-note {
   margin: 0 0 8px;
   padding: 0 4px;
@@ -545,7 +545,9 @@ body {
   display: flex;
   flex-direction: column;
   gap: 1px;
-  max-height: 340px;
+  /* Все 8 источников с подписями помещаются без прокрутки; на низких
+     экранах список всё равно ограничен и прокручивается. */
+  max-height: min(420px, 65vh);
   overflow-y: auto;
 }
 .source-check-row {
@@ -560,6 +562,9 @@ body {
   transition: background 0.15s ease, opacity 0.15s ease;
 }
 .source-check-row:hover { background: var(--accent-soft); }
+.source-check-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.source-check-name { line-height: 1.25; }
+.source-check-desc { font-size: 12px; line-height: 1.25; color: var(--text-muted); }
 .source-check-row:has(> input[hidden]) { display: none; }
 .source-check-row.is-capped { opacity: 0.45; }
 .source-checkbox {
