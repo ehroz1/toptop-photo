@@ -9,7 +9,7 @@
 // сайта старая версия могла показываться ещё один-два захода, пока кэш не
 // обновится в фоне. CACHE_NAME нужно поднимать при каждом заметном релизе,
 // чтобы гарантированно почистить старый кэш при активации.
-const CACHE_NAME = "photoseek-shell-v16";
+const CACHE_NAME = "photoseek-shell-v17";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -25,6 +25,7 @@ const SHELL_FILES = [
   "./js/spellcheck.js",
   "./js/dedupe.js",
   "./js/app.js",
+  "./js/background.js",
   "./manifest.webmanifest",
   // ?v=2 — те же байты логотипа на диске уже давно верные, но у CDN/браузера
   // мог остаться закэшированным старый файл под тем же именем (иконка на

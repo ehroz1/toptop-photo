@@ -44,6 +44,15 @@ if (workerUrl && !indexHtml.includes(`rel="preconnect" href="${workerUrl}"`)) {
   problems.push(`preconnect в index.html не совпадает с WORKER_BASE_URL (${workerUrl}) — первый запрос поиска не будет прогрет`);
 }
 
+// 3б. Для каждого фонового фото из js/background.js есть обе версии файла
+const bgPhotos = vm.runInNewContext(`(${(read("js/background.js").match(/const PHOTOS = (\[[^\]]*\]);/) || [])[1] || "[]"})`);
+for (const id of bgPhotos) {
+  for (const variant of ["desktop", "mobile"]) {
+    const f = `images/bg/${id}-${variant}.webp`;
+    if (!fs.existsSync(path.join(ROOT, f))) problems.push(`нет фонового фото ${f} (указано в PHOTOS в js/background.js)`);
+  }
+}
+
 // 4. Переводы
 const sandbox = { window: {}, navigator: { language: "ru" }, document: { documentElement: {} } };
 vm.runInNewContext(read("js/i18n.js").replace("global.I18N = {", "global.__DICT = DICT; global.I18N = {"), sandbox);

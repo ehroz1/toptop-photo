@@ -107,6 +107,32 @@ async function testKeyboardHidesOnMobile(browser, base) {
   }
 }
 
+// Фоновое фото: в тёмной теме проявляется и не меняется в рамках сеанса
+// (перезагрузка), в светлой — не скачивается вовсе.
+async function testDarkThemeBackground(browser, base) {
+  const dark = await browser.newContext({ serviceWorkers: "block", colorScheme: "dark" });
+  const page = await dark.newPage();
+  await installMocks(page);
+  await page.goto(base);
+  const shown = await page.waitForSelector("#bgPhoto.is-shown", { timeout: 8000 }).then(() => true).catch(() => false);
+  check(shown, "тёмная тема: фоновое фото появляется");
+  const first = await page.getAttribute("#bgPhoto", "data-photo");
+  await page.reload();
+  await page.waitForSelector("#bgPhoto.is-shown", { timeout: 8000 }).catch(() => {});
+  check(first && first === await page.getAttribute("#bgPhoto", "data-photo"), `тёмная тема: в рамках сеанса фон один и тот же (${first})`);
+  await dark.close();
+
+  const light = await browser.newContext({ serviceWorkers: "block", colorScheme: "light" });
+  const lp = await light.newPage();
+  await installMocks(lp);
+  const requested = [];
+  lp.on("request", (r) => { if (r.url().includes("/images/bg/")) requested.push(r.url()); });
+  await lp.goto(base, { waitUntil: "load" });
+  await lp.waitForTimeout(1500);
+  check(requested.length === 0, `светлая тема: фоновое фото не скачивается (запросов: ${requested.length})`);
+  await light.close();
+}
+
 // Иконки рисуются CSS-маской (.icon + mask: var(--icon-…)). Если для
 // конкретной кнопки правило маски забыли, вместо иконки виден сплошной
 // чёрный квадрат — ищем такие во всех режимах и в окне просмотра.
@@ -177,6 +203,7 @@ async function measure(browser, base, runs = 5) {
     await testLightboxDownload(browser, base);
     await testIconsHaveMasks(browser, base);
     await testKeyboardHidesOnMobile(browser, base);
+    await testDarkThemeBackground(browser, base);
     const m = await measure(browser, base);
     console.log(`\nСкорость (мобильный 4G, процессор x4, медиана из 5):`);
     console.log(`  первая отрисовка ${m.fcp} мс · сайт готов ${m.ready} мс · первое превью после Enter ${m.firstThumb} мс`);
