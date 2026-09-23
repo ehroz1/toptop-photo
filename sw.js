@@ -25,6 +25,7 @@ const SHELL_FILES = [
   "./js/spellcheck.js",
   "./js/dedupe.js",
   "./js/app.js",
+  "./js/background.js",
   "./manifest.webmanifest",
   // ?v=2 — те же байты логотипа на диске уже давно верные, но у CDN/браузера
   // мог остаться закэшированным старый файл под тем же именем (иконка на
