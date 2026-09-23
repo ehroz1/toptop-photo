@@ -34,12 +34,14 @@ jobs:
           echo "| Origin | Путь | Статус | Access-Control-Allow-Origin | Ответ |" >> "$GITHUB_STEP_SUMMARY"
           echo "|---|---|---|---|---|" >> "$GITHUB_STEP_SUMMARY"
           for origin in https://picta.cc https://www.picta.cc https://ehroz1.github.io; do
-            for path in "/pixabay?q=cat&per_page=3" "/pexels?query=cat&per_page=3" "/unsplash/search/photos?query=cat&per_page=3" "/shutterstock?query=cat&per_page=3" "/pexafy?query=cat&per_page=3"; do
+            # Те же пути и параметры, что шлёт сайт (js/providers.js, js/videoProviders.js)
+            for path in "/pixabay?q=cat&per_page=3" "/pexels?query=cat&per_page=3" "/unsplash/search?query=cat&per_page=3" "/shutterstock?query=cat&per_page=3" "/pexafy?q=cat&per_page=3" "/pixabay-video?q=cat&per_page=3" "/pexels-video?query=cat&per_page=3"; do
               headers=$(mktemp); body=$(mktemp)
               status=$(curl -s -m 25 -D "$headers" -o "$body" -w '%{http_code}' -H "Origin: $origin" "$WORKER$path" || echo "000")
               acao=$(grep -i '^access-control-allow-origin:' "$headers" | tr -d '\r' | cut -d' ' -f2-)
               snippet=$(head -c 160 "$body" | tr '\n|' '  ')
-              echo "$origin $path → $status, ACAO: ${acao:-нет}"
+              echo "$origin $path → $status, ACAO: ${acao:-нет} — $snippet"
+              case "$status" in 2*) ;; *) echo "::warning::$origin ${path%%\?*}: HTTP $status — $snippet" ;; esac
               echo "| $origin | ${path%%\?*} | $status | ${acao:-нет} | \`$snippet\` |" >> "$GITHUB_STEP_SUMMARY"
               if [ "$acao" != "$origin" ]; then fail=1; fi
             done
