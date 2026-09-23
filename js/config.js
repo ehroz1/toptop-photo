@@ -36,7 +36,7 @@ window.APP_CONFIG = {
   CONTACTS: [
     { label: "Telegram", url: "https://t.me/ehroz_dsgn" },
     { label: "Instagram", url: "https://www.instagram.com/ehroz1/" },
-    { label: "ehrozbekisharifzoda@gmail.com", url: "mailto:ehrozbekisharifzoda@gmail.com" },
+    { label: "admin@picta.cc", url: "mailto:admin@picta.cc" },
   ],
   // Ссылка для доната (пункт «Поддержать проект» в меню). Пока пусто, пункт
   // показывает «ссылка скоро появится».

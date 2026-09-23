@@ -54,6 +54,11 @@ for (const id of bgPhotos) {
   }
 }
 
+// 3в. SEO: карточка для соцсетей, robots.txt и sitemap.xml на месте
+const og = (indexHtml.match(/property="og:image" content="https:\/\/picta\.cc\/([^"]+)"/) || [])[1];
+if (!og || !fs.existsSync(path.join(ROOT, og))) problems.push(`нет картинки для соцсетей (og:image: ${og || "не указана"})`);
+for (const f of ["robots.txt", "sitemap.xml"]) if (!fs.existsSync(path.join(ROOT, f))) problems.push(`нет файла ${f} (нужен поисковикам)`);
+
 // 4. Переводы
 const sandbox = { window: {}, navigator: { language: "ru" }, document: { documentElement: {} } };
 vm.runInNewContext(read("js/i18n.js").replace("global.I18N = {", "global.__DICT = DICT; global.I18N = {"), sandbox);

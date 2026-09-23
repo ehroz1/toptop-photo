@@ -22,7 +22,7 @@ const { buildPage, sleep } = require("../harness");
   if (openIds().join() !== "aboutPopover") fail(`после клика по «молнии» открыто: ${openIds().join() || "ничего"}`);
   const contacts = [...doc.querySelectorAll("#aboutContacts a")].map((a) => `${a.textContent} ${a.href}`);
   console.log("Контакты:", contacts.join(" | "));
-  for (const want of ["t.me/ehroz_dsgn", "instagram.com/ehroz1", "mailto:ehrozbekisharifzoda@gmail.com"]) {
+  for (const want of ["t.me/ehroz_dsgn", "instagram.com/ehroz1", "mailto:admin@picta.cc"]) {
     if (!contacts.some((c) => c.includes(want))) fail(`в контактах нет ${want} (APP_CONFIG.CONTACTS)`);
   }
   if (contacts.some((c) => c.includes("github.com"))) fail("GitHub должен быть убран из контактов");
@@ -41,11 +41,12 @@ const { buildPage, sleep } = require("../harness");
   click($("mainMenuToggle"));
   if (openIds().join() !== "mainMenu") fail("меню не открылось");
   if ($("mainMenuToggle").getAttribute("aria-expanded") !== "true") fail("у кнопки меню aria-expanded не true");
-  for (const id of ["favoritesToggle", "insightsToggle", "themeToggle", "donateLink"]) {
+  for (const id of ["favoritesToggle", "insightsToggle", "themeSeg", "gridSeg", "donateLink"]) {
     if ($(id).hidden || !$("mainMenu").contains($(id))) fail(`в меню нет пункта #${id}`);
   }
   if (!$("authSignOutBtn").hidden) fail("«Выйти из аккаунта» видно, хотя никто не вошёл");
-  if (!$("themeModeLabel").textContent) fail("у пункта «Тема» не подписан текущий режим");
+  if (!doc.querySelector('#themeSeg [aria-pressed="true"]')) fail("в переключателе темы не отмечен текущий режим");
+  if (doc.querySelector('#gridSeg [aria-pressed="true"]')?.dataset.gridSet !== "2") fail("размер сетки по умолчанию должен быть II");
 
   // Статистика раскрывается внутри меню, меню при этом не закрывается
   click($("insightsToggle"));
@@ -54,10 +55,14 @@ const { buildPage, sleep } = require("../harness");
 
   // Тема: пункт меню переключает режим и меню не закрывает
   const modeBefore = doc.documentElement.getAttribute("data-theme-mode");
-  click($("themeToggle"));
+  click(doc.querySelector('#themeSeg [data-theme-set="dark"]'));
   await sleep(20);
   const modeAfter = doc.documentElement.getAttribute("data-theme-mode");
-  console.log("Тема:", modeBefore, "→", modeAfter, "| подпись:", $("themeModeLabel").textContent);
+  console.log("Тема:", modeBefore, "→", modeAfter);
+  if (doc.querySelector('#themeSeg [aria-pressed="true"]')?.dataset.themeSet !== "dark") fail("кнопка «тёмная» не отмечена после нажатия");
+  // Размер сетки: III — мелкие фото, запоминается
+  click(doc.querySelector('#gridSeg [data-grid-set="3"]'));
+  if (doc.documentElement.getAttribute("data-grid") !== "3" || win.localStorage.getItem("photoseek-grid-size") !== "3") fail("размер сетки не переключился/не запомнился");
   if (modeBefore === modeAfter) fail("пункт «Тема» не переключил режим");
   if ($("mainMenu").hidden) fail("переключение темы закрыло меню");
 

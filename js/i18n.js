@@ -6,8 +6,8 @@
 
   const DICT = {
     ru: {
-      meta_title: "Picta — поиск фото сразу везде",
-      meta_description: "Универсальный поиск фото по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и Flickr одновременно, с быстрым переходом в Яндекс, Google и Pinterest.",
+      meta_title: "Picta — поиск фото, иконок и видео по всем бесплатным стокам",
+      meta_description: "Один поиск сразу по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и другим бесплатным фотостокам. Фото, иконки и видео для работы — бесплатно и без регистрации.",
 
       brand_home_title: "На главный экран",
 
@@ -33,6 +33,10 @@
       menu_favorites: "Сохранённые фото",
       menu_insights: "Статистика и лимиты",
       menu_theme: "Тема",
+      menu_grid: "Размер сетки",
+      grid_size_1: "Крупные фото",
+      grid_size_2: "Средние фото",
+      grid_size_3: "Мелкие фото",
       theme_mode_auto: "Авто",
       theme_mode_light: "Светлая",
       theme_mode_dark: "Тёмная",
@@ -232,8 +236,8 @@
       locale: "ru-RU",
     },
     en: {
-      meta_title: "Picta — search photos everywhere at once",
-      meta_description: "Universal photo search across Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse and Flickr at once, with quick links to Yandex, Google and Pinterest.",
+      meta_title: "Picta — search photos, icons and videos across free stock sites",
+      meta_description: "One search across Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse and other free stock sites. Photos, icons and videos for your work — free, no sign-up.",
 
       brand_home_title: "Go to home screen",
 
@@ -259,6 +263,10 @@
       menu_favorites: "Saved photos",
       menu_insights: "Stats & limits",
       menu_theme: "Theme",
+      menu_grid: "Grid size",
+      grid_size_1: "Large photos",
+      grid_size_2: "Medium photos",
+      grid_size_3: "Small photos",
       theme_mode_auto: "Auto",
       theme_mode_light: "Light",
       theme_mode_dark: "Dark",
