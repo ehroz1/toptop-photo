@@ -81,6 +81,9 @@
     mainMenu: document.getElementById("mainMenu"),
     favoritesCount: document.getElementById("favoritesCount"),
     donateLink: document.getElementById("donateLink"),
+    shareSearchBtn: document.getElementById("shareSearchBtn"),
+    shareSiteBtn: document.getElementById("shareSiteBtn"),
+    installAppBtn: document.getElementById("installAppBtn"),
     backToTop: document.getElementById("backToTop"),
     recentSearches: document.getElementById("recentSearches"),
     sourcesRow: document.getElementById("sourcesRow"),
@@ -1004,6 +1007,69 @@
     if (DONATE_URL) { closeTopbarPopovers(); return; }
     e.preventDefault();
     showToast(I18N.t("donate_soon"));
+  });
+
+  // ---------- Поделиться и установить (рост и возвраты) ----------
+  // Цели в Яндекс Метрике — см. js/analytics.js.
+  function goal(name, params) {
+    if (window.PictaAnalytics) window.PictaAnalytics.goal(name, params);
+  }
+  // Системное «Поделиться» (телефоны, Safari), иначе — копируем ссылку.
+  async function shareLink(url, text, kind) {
+    goal("share", { kind });
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Picta", text, url });
+        return;
+      }
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast(I18N.t("toast_link_copied"));
+    } catch {
+      showToast(I18N.t("toast_copy_failed"));
+    }
+  }
+  // Ссылка на текущий поиск: на странице подборки — её чистый адрес, иначе
+  // /?q=…(&mode=…) — тот же, что уже в адресной строке.
+  el.shareSearchBtn.addEventListener("click", () => {
+    const q = el.input.value.trim();
+    shareLink(location.href.split("#")[0], q ? I18N.t("share_search_text", { q }) : I18N.t("share_site_text"), "search");
+  });
+  el.shareSiteBtn.addEventListener("click", () => {
+    closeTopbarPopovers();
+    shareLink("https://picta.cc/", I18N.t("share_site_text"), "site");
+  });
+
+  // Установка как приложения: Chrome/Edge/Android присылают событие
+  // beforeinstallprompt — тогда пункт меню открывает системное окно
+  // установки. На iPhone/iPad такого нет — пункт показывает подсказку.
+  let installPrompt = null;
+  const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (!isStandalone() && isIOS) el.installAppBtn.hidden = false;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    if (!isStandalone()) el.installAppBtn.hidden = false;
+  });
+  window.addEventListener("appinstalled", () => {
+    el.installAppBtn.hidden = true;
+    goal("install");
+    showToast(I18N.t("toast_installed"));
+  });
+  el.installAppBtn.addEventListener("click", async () => {
+    closeTopbarPopovers();
+    if (installPrompt) {
+      installPrompt.prompt();
+      try { await installPrompt.userChoice; } catch { /* не критично */ }
+      installPrompt = null;
+      el.installAppBtn.hidden = true;
+    } else {
+      showToast(I18N.t("toast_install_ios"));
+    }
   });
 
   function updateFavoritesCount() {
@@ -2665,6 +2731,7 @@
     else state.favorites.set(item.id, item);
     persistFavorites();
     updateFavoritesCount();
+    if (state.favorites.has(item.id)) goal("favorite", { source: item.provider });
     vibrate(15);
     const nowActive = isFavorited(item.id);
     document.querySelectorAll(`.card-heart[data-id="${cssEscape(item.id)}"]`).forEach((btn) => {
@@ -3279,6 +3346,7 @@
       const url = await resolveDownloadUrl(item);
       await forceDownload(url, filenameFor(item));
       recordDownload(item.provider);
+      goal("download", { source: item.provider });
       vibrate(20);
       showToast(I18N.t("toast_download_done"));
     } catch (err) {

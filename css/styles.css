@@ -565,6 +565,9 @@ body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, 
 }
 #favoritesToggle .icon-heart { -webkit-mask: var(--icon-heart) center / contain no-repeat; mask: var(--icon-heart) center / contain no-repeat; }
 #favoritesToggle[aria-pressed="true"] .icon-heart { -webkit-mask-image: var(--icon-heart-filled); mask-image: var(--icon-heart-filled); }
+#shareSearchBtn .icon { background-color: currentColor; -webkit-mask: var(--icon-share) center / contain no-repeat; mask: var(--icon-share) center / contain no-repeat; }
+.menu-item .icon-share { -webkit-mask: var(--icon-share) center / contain no-repeat; mask: var(--icon-share) center / contain no-repeat; }
+.menu-item .icon-download { -webkit-mask: var(--icon-download) center / contain no-repeat; mask: var(--icon-download) center / contain no-repeat; }
 #selectModeToggle .icon-check-square { -webkit-mask: var(--icon-check-square) center / contain no-repeat; mask: var(--icon-check-square) center / contain no-repeat; }
 #filtersToggle .icon-filters,
 #iconFiltersToggle .icon-filters,

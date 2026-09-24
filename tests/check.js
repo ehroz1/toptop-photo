@@ -84,6 +84,9 @@ try {
   problems.push(`seo/build.js не смог собрать страницы подборок: ${err.message}`);
 }
 
+// 3ж. Поиск из адресной строки браузера: opensearch.xml на месте
+if (/rel="search"/.test(indexHtml) && !fs.existsSync(path.join(ROOT, "opensearch.xml"))) problems.push("index.html ссылается на opensearch.xml, а файла нет");
+
 // 4. Переводы
 const sandbox = { window: {}, navigator: { language: "ru" }, document: { documentElement: {} } };
 vm.runInNewContext(read("js/i18n.js").replace("global.I18N = {", "global.__DICT = DICT; global.I18N = {"), sandbox);

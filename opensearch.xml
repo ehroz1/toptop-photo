@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OpenSearchDescription xmlns="http://a9.com/-/spec/opensearch/1.1/" xmlns:moz="http://www.mozilla.org/2006/browser/search/">
+  <ShortName>Picta</ShortName>
+  <Description>Поиск бесплатных фото, иконок и видео сразу по всем стокам</Description>
+  <InputEncoding>UTF-8</InputEncoding>
+  <Image width="32" height="32" type="image/png">https://picta.cc/icons/favicon-32.png?v=3</Image>
+  <Url type="text/html" method="get" template="https://picta.cc/?q={searchTerms}"/>
+  <moz:SearchForm>https://picta.cc/</moz:SearchForm>
+</OpenSearchDescription>

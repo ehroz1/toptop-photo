@@ -25,6 +25,8 @@
 </script>
 <meta name="theme-color" content="#0b0b0f">
 <link rel="manifest" href="manifest.webmanifest">
+<!-- Поиск Picta прямо из адресной строки браузера (см. opensearch.xml). -->
+<link rel="search" type="application/opensearchdescription+xml" title="Picta" href="/opensearch.xml">
 <link rel="icon" href="icons/favicon.svg?v=3" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
 <link rel="apple-touch-icon" href="icons/icon-192.png?v=3">
@@ -162,6 +164,14 @@
             </div>
           </div>
           <div class="menu-sep" role="separator"></div>
+          <button type="button" id="installAppBtn" class="menu-item" role="menuitem" hidden>
+            <span class="icon icon-download" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_install">Установить приложение</span>
+          </button>
+          <button type="button" id="shareSiteBtn" class="menu-item" role="menuitem">
+            <span class="icon icon-share" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_share_site">Рассказать о Picta</span>
+          </button>
           <a id="donateLink" class="menu-item" role="menuitem" href="#" target="_blank" rel="noopener">
             <span class="icon icon-coffee" aria-hidden="true"></span>
             <span class="menu-item-label" data-i18n="menu_donate">Поддержать проект</span>
@@ -371,6 +381,9 @@
       <button type="button" id="selectModeToggle" class="icon-btn" data-i18n-title="select_mode_title" aria-pressed="false">
         <span class="icon icon-check-square" aria-hidden="true"></span>
       </button>
+      <button type="button" id="shareSearchBtn" class="icon-btn" data-i18n-title="share_search_title">
+        <span class="icon icon-share" aria-hidden="true"></span>
+      </button>
 
       <div class="filters-popover-wrap" id="iconFiltersRow" hidden>
         <button type="button" id="iconFiltersToggle" class="icon-btn" data-i18n-title="filters_title" aria-expanded="false">
@@ -512,6 +525,18 @@
         <a href="/foto/lyudi/">Люди</a>
         <a href="/foto/oboi/">Обои и фоны</a>
         <a href="/foto/tekstury/">Текстуры</a>
+        <a href="/foto/osen/">Осень</a>
+        <a href="/foto/zima/">Зима</a>
+        <a href="/foto/novyj-god/">Новый год</a>
+        <a href="/foto/leto/">Лето</a>
+        <a href="/foto/vesna/">Весна</a>
+        <a href="/foto/den-rozhdeniya/">День рождения</a>
+        <a href="/foto/svadba/">Свадьба</a>
+        <a href="/foto/puteshestviya/">Путешествия</a>
+        <a href="/foto/sport/">Спорт</a>
+        <a href="/foto/mashiny/">Машины</a>
+        <a href="/foto/tehnologii/">Технологии</a>
+        <a href="/foto/abstrakciya/">Абстракция</a>
         <a href="/ikonki/">Иконки</a>
         <a href="/video/">Видео</a>
         <a href="/">Все источники</a>
