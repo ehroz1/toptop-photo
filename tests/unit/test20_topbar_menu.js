@@ -89,6 +89,18 @@ const { buildPage, sleep } = require("../harness");
   if ($("favoritesEmpty").hidden) fail("пустое избранное: нет подсказки «Пока пусто»");
   if (!$("mainMenu").hidden) fail("меню не закрылось после выбора «Сохранённые фото»");
 
+  // «Рассказать о Picta»: без системного «Поделиться» копирует ссылку на сайт
+  let copied = null;
+  Object.defineProperty(win.navigator, "clipboard", { value: { writeText: async (t) => { copied = t; } }, configurable: true });
+  click($("mainMenuToggle"));
+  click($("shareSiteBtn"));
+  await sleep(20);
+  if (copied !== "https://picta.cc/") fail(`«Рассказать о Picta» не скопировал ссылку на сайт (${copied})`);
+  if (!$("installAppBtn").hidden) fail("«Установить приложение» видно, хотя браузер не предлагал установку");
+  win.dispatchEvent(Object.assign(new win.Event("beforeinstallprompt"), { prompt() {}, userChoice: Promise.resolve({}) }));
+  if ($("installAppBtn").hidden) fail("после предложения браузера пункт «Установить приложение» не появился");
+  if (!$("shareSearchBtn")) fail("нет кнопки «Поделиться этим поиском» в панели над выдачей");
+
   // «Наверх» по умолчанию невидима и не ловит фокус
   if ($("backToTop").classList.contains("is-visible") || $("backToTop").tabIndex !== -1) fail("кнопка «Наверх» видна без прокрутки");
 
