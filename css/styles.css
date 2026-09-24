@@ -1166,6 +1166,62 @@ body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, 
   mask: var(--icon-chevron) center / contain no-repeat;
 }
 .is-home .sources-menu-popover { right: auto; left: 50%; margin-left: -125px; text-align: left; }
+/* ---------- Текст о сервисе и FAQ под первым экраном главной ---------- */
+.home-about {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 72px 4px 40px;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+body:not(.is-home) .home-about { display: none; }
+.home-about h2 {
+  margin: 0 0 14px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(20px, 2.6vw, 26px);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.home-about h2 + .home-faq-item { margin-top: 4px; }
+.home-about h3 { margin: 0 0 6px; color: var(--text); font-size: 15px; font-weight: 700; }
+.home-about p { margin: 0; }
+.home-about-intro { margin-bottom: 28px !important; }
+.home-about-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-bottom: 56px;
+}
+.home-faq-item { border-top: 1px solid var(--border); }
+.home-faq-item:last-child { border-bottom: 1px solid var(--border); }
+.home-faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.home-faq-item summary::-webkit-details-marker { display: none; }
+.home-faq-item summary::after {
+  content: "";
+  width: 16px; height: 16px; flex-shrink: 0;
+  background-color: var(--text-muted);
+  -webkit-mask: var(--icon-chevron) center / contain no-repeat;
+  mask: var(--icon-chevron) center / contain no-repeat;
+  transition: transform 0.2s ease;
+}
+.home-faq-item[open] summary::after { transform: rotate(180deg); }
+.home-faq-item p { padding: 0 0 18px; }
+
 .home-hero .home-sources-list {
   margin: 18px 0 0;
   min-height: 1.4em;

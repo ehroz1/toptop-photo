@@ -267,7 +267,7 @@ async function buildPage(opts = {}) {
   // ---- Загружаем реальные скрипты проекта в порядке из index.html ----
   const scripts = [
     "js/config.js", "js/i18n.js", "js/auth.js", "js/providers.js", "js/icons.js", "js/videoProviders.js",
-    "js/translate.js", "js/queryLogic.js", "js/spellcheck.js", "js/dedupe.js", "js/app.js", "js/background.js", "js/cursor.js",
+    "js/translate.js", "js/queryLogic.js", "js/spellcheck.js", "js/dedupe.js", "js/app.js", "js/background.js", "js/cursor.js", "js/analytics.js",
   ];
   window.JSZip = function () { this.file = () => {}; this.generateAsync = async () => new Blob(); };
   for (const rel of scripts) {

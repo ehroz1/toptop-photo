@@ -459,6 +459,7 @@
 
   function runSearchForMode(opts) {
     logSearch(el.input.value.trim(), state.mode);
+    if (el.input.value.trim() && window.PictaAnalytics) window.PictaAnalytics.goal("search", { mode: state.mode });
     if (state.mode === "icons") runIconSearch(opts);
     else if (state.mode === "video") runVideoSearch(opts);
     else runSearch(opts);
@@ -3353,7 +3354,9 @@
   const initialParams = new URLSearchParams(location.search);
   const initialQuery = initialParams.get("q");
   const initialMode = initialParams.get("mode");
-  if (initialMode === "icons" || initialMode === "video") applyModeUI(initialMode);
+  // mode=photos тоже учитываем: иначе ссылка на фото открывалась бы в режиме,
+  // который посетитель выбрал в прошлый раз (например, «Иконки»).
+  if (initialMode === "photos" || initialMode === "icons" || initialMode === "video") applyModeUI(initialMode);
   updateHomeSourcesList();
   if (initialQuery) {
     el.input.value = initialQuery;
