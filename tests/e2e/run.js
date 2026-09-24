@@ -136,10 +136,12 @@ async function testHomeLayout(browser, base) {
     formInTopbar: !!document.querySelector(".topbar #searchForm"),
     heroShown: getComputedStyle(document.getElementById("emptyState")).display !== "none",
     sources: document.getElementById("homeSourcesList").textContent,
+    about: getComputedStyle(document.querySelector(".home-about")).display !== "none",
     firstCardTop: document.querySelector("#grid .card")?.getBoundingClientRect().top ?? null,
   }));
   let s = await state();
   check(s.home && s.formInHero && s.heroShown, "главная: строка поиска в центре главного экрана");
+  check(s.about, "главная: под первым экраном есть текст о сервисе и частые вопросы");
   check(/Pixabay/.test(s.sources), `главная: строка активных источников (${s.sources})`);
   await page.fill("#searchInput", "cat");
   await page.press("#searchInput", "Enter");
@@ -147,6 +149,7 @@ async function testHomeLayout(browser, base) {
   await page.waitForTimeout(200);
   s = await state();
   check(!s.home && s.formInTopbar && !s.heroShown, "после поиска: главный экран скрыт, поиск в шапке");
+  check(!s.about, "после поиска: текста о сервисе в выдаче нет");
   check(s.firstCardTop !== null && s.firstCardTop < 800, `после поиска: выдача видна сразу (верх первой карточки ${Math.round(s.firstCardTop)} px)`);
   await page.click("#clearBtn");
   await page.waitForTimeout(200);

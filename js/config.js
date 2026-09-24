@@ -41,4 +41,11 @@ window.APP_CONFIG = {
   // Ссылка для доната (пункт «Поддержать проект» в меню). Пока пусто, пункт
   // показывает «ссылка скоро появится».
   DONATE_URL: "",
+  // Счётчики посещаемости (js/analytics.js). Пусто — выключены.
+  //  - YANDEX_METRIKA_ID: номер счётчика из metrika.yandex.ru (только цифры);
+  //  - CLOUDFLARE_BEACON_TOKEN: токен из Cloudflare → Web Analytics.
+  ANALYTICS: {
+    YANDEX_METRIKA_ID: "",
+    CLOUDFLARE_BEACON_TOKEN: "",
+  },
 };
