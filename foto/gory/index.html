@@ -1,28 +1,27 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
+<!-- Сгенерировано seo/build.js из index.html и seo/pages.js — не редактировать вручную, запустите npm run pages. -->
 <meta charset="UTF-8">
+<base href="/">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Picta — поиск фото, иконок и видео по всем бесплатным стокам</title>
-<meta name="description" content="Один поиск сразу по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и другим бесплатным фотостокам. Фото, иконки и видео для работы — бесплатно и без регистрации.">
+<title>Фото гор бесплатно — вершины и пейзажи | Picta</title>
+<meta name="description" content="Бесплатные фото гор: снежные вершины, горные озёра, походы и рассветы. Все бесплатные фотостоки в одном поиске.">
 <!-- SEO: главный адрес сайта (www и старый github.io — его копии) и карточка
      для ссылок в соцсетях и мессенджерах (картинка — og-image.jpg). -->
-<link rel="canonical" href="https://picta.cc/">
+<link rel="canonical" href="https://picta.cc/foto/gory/">
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Picta">
-<meta property="og:url" content="https://picta.cc/">
-<meta property="og:title" content="Picta — поиск фото, иконок и видео по всем бесплатным стокам">
-<meta property="og:description" content="Один поиск сразу по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и другим бесплатным фотостокам. Фото, иконки и видео для работы — бесплатно и без регистрации.">
+<meta property="og:url" content="https://picta.cc/foto/gory/">
+<meta property="og:title" content="Фото гор бесплатно — вершины и пейзажи | Picta">
+<meta property="og:description" content="Бесплатные фото гор: снежные вершины, горные озёра, походы и рассветы. Все бесплатные фотостоки в одном поиске.">
 <meta property="og:image" content="https://picta.cc/og-image.jpg">
 <meta property="og:image:width" content="1200">
 <meta property="og:image:height" content="630">
 <meta property="og:locale" content="ru_RU">
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
-{"@context":"https://schema.org","@type":"WebSite","name":"Picta","url":"https://picta.cc/","description":"Один поиск сразу по Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и другим бесплатным фотостокам. Фото, иконки и видео для работы — бесплатно и без регистрации.","inLanguage":["ru","en"],"potentialAction":{"@type":"SearchAction","target":"https://picta.cc/?q={search_term_string}","query-input":"required name=search_term_string"}}
-</script>
-<script type="application/ld+json">
-{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Picta бесплатная?", "acceptedAnswer": {"@type": "Answer", "text": "Да. Поиск бесплатный и работает без регистрации."}}, {"@type": "Question", "name": "Можно ли использовать найденные фото в своих проектах?", "acceptedAnswer": {"@type": "Answer", "text": "Зависит от лицензии конкретного фото — она указана в окне просмотра. Фото с Pixabay, Pexels и Unsplash можно использовать бесплатно, в том числе в коммерческих целях и без указания автора. На Wikimedia Commons и Openverse лицензии разные: часто нужно указать автора. Shutterstock — платный сток."}}, {"@type": "Question", "name": "Откуда берутся фото?", "acceptedAnswer": {"@type": "Answer", "text": "Picta не хранит фото у себя: она одновременно ищет по фотостокам и собирает результаты в одну ленту, убирая повторы. Скачивание идёт напрямую с сайта источника."}}, {"@type": "Question", "name": "Можно искать на русском?", "acceptedAnswer": {"@type": "Answer", "text": "Да. Запрос автоматически переводится на английский для стоков, которые лучше понимают английский, а опечатки исправляются."}}, {"@type": "Question", "name": "Как скачать сразу несколько фото?", "acceptedAnswer": {"@type": "Answer", "text": "Нажмите значок выбора над результатами, отметьте нужные фото и скачайте их одним zip-архивом."}}]}
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Picta","item":"https://picta.cc/"},{"@type":"ListItem","position":2,"name":"Фото гор и горных пейзажей","item":"https://picta.cc/foto/gory/"}]}
 </script>
 <meta name="theme-color" content="#0b0b0f">
 <link rel="manifest" href="manifest.webmanifest">
@@ -184,6 +183,12 @@
     <span data-i18n="spell_hint_prefix">Возможно, вы имели в виду:</span> <strong id="spellHintText"></strong>
     <button type="button" id="spellHintApply" data-i18n="spell_hint_apply">исправить</button>
   </div>
+
+  <section class="landing-intro">
+    <nav class="landing-crumbs" aria-label="Навигация"><a href="/">Picta</a><span aria-hidden="true">/</span><span>Горы</span></nav>
+    <h1>Фото гор и горных пейзажей</h1>
+    <p>Снежные вершины, горные озёра и туманные хребты со всех бесплатных стоков.</p>
+  </section>
 
   <div class="toolbar">
     <div class="toolbar-row toolbar-row-main">
@@ -436,7 +441,7 @@
          app.js), после поиска — возвращаются на свои места. -->
     <div id="emptyState" class="empty-state home-hero">
       <div class="home-main">
-        <h1 class="home-wordmark"><span class="home-logo" aria-hidden="true"></span><span class="visually-hidden" data-i18n="home_h1">Picta — поиск бесплатных фото, иконок и видео</span></h1>
+        <div class="home-wordmark"><span class="home-logo" aria-hidden="true"></span><span class="visually-hidden">Picta</span></div>
         <p id="heroP" class="home-tagline" data-i18n="home_tagline">Найдите изображение в одном поиске</p>
         <div class="home-search-slot" id="homeSearchSlot"></div>
         <div class="home-controls">
@@ -455,60 +460,6 @@
     </div>
 
 <!-- seo:about:start -->
-    <!-- Текст о сервисе и частые вопросы — под первым экраном главной, только
-         на ней (см. .home-about). Нужен поисковикам: по нему они понимают, о чём
-         сайт и по каким запросам его показывать. -->
-    <section class="home-about" aria-labelledby="homeAboutTitle">
-      <h2 id="homeAboutTitle" data-i18n="seo_h2">Бесплатные фото, иконки и видео — в одном поиске</h2>
-      <p class="home-about-intro" data-i18n="seo_intro">Picta ищет сразу по крупнейшим бесплатным фотостокам и показывает результаты в одной ленте. Не нужно открывать десяток вкладок: введите запрос на русском или английском — и выбирайте из фото Pixabay, Pexels, Unsplash, Wikimedia Commons, Openverse и других источников.</p>
-      <div class="home-about-grid">
-        <div><h3 data-i18n="seo_photos_h">Фото</h3><p data-i18n="seo_photos_p">Стоковые фото без регистрации: фильтры по ориентации, цвету и качеству до 8K, отметка AI-изображений, скачивание в один клик или сразу пачкой в zip-архиве.</p></div>
-        <div><h3 data-i18n="seo_icons_h">Иконки</h3><p data-i18n="seo_icons_p">Десятки тысяч иконок из Material Design, Tabler, Phosphor, Lucide, Bootstrap, Font Awesome и других наборов — копируйте SVG или скачивайте PNG нужного цвета.</p></div>
-        <div><h3 data-i18n="seo_video_h">Видео</h3><p data-i18n="seo_video_p">Бесплатные стоковые видео с Pixabay, Pexels, Wikimedia Commons и Internet Archive — с просмотром прямо на сайте.</p></div>
-      </div>
-      <h2 id="homeLinksTitle" data-i18n="seo_links_h">Популярные подборки</h2>
-      <nav class="landing-links" aria-labelledby="homeLinksTitle">
-<!-- seo:links:start -->
-        <a href="/foto/priroda/">Природа</a>
-        <a href="/foto/koty/">Коты</a>
-        <a href="/foto/sobaki/">Собаки</a>
-        <a href="/foto/gorod/">Город</a>
-        <a href="/foto/more/">Море</a>
-        <a href="/foto/gory/">Горы</a>
-        <a href="/foto/kosmos/">Космос</a>
-        <a href="/foto/eda/">Еда</a>
-        <a href="/foto/kofe/">Кофе</a>
-        <a href="/foto/cvety/">Цветы</a>
-        <a href="/foto/lyudi/">Люди</a>
-        <a href="/foto/biznes/">Бизнес и офис</a>
-        <a href="/foto/oboi/">Обои и фоны</a>
-        <a href="/foto/tekstury/">Текстуры</a>
-        <a href="/ikonki/">Иконки</a>
-        <a href="/video/">Видео</a>
-<!-- seo:links:end -->
-      </nav>
-      <h2 data-i18n="seo_faq_h">Частые вопросы</h2>
-    <details class="home-faq-item">
-      <summary data-i18n="faq1_q">Picta бесплатная?</summary>
-      <p data-i18n="faq1_a">Да. Поиск бесплатный и работает без регистрации.</p>
-    </details>
-    <details class="home-faq-item">
-      <summary data-i18n="faq2_q">Можно ли использовать найденные фото в своих проектах?</summary>
-      <p data-i18n="faq2_a">Зависит от лицензии конкретного фото — она указана в окне просмотра. Фото с Pixabay, Pexels и Unsplash можно использовать бесплатно, в том числе в коммерческих целях и без указания автора. На Wikimedia Commons и Openverse лицензии разные: часто нужно указать автора. Shutterstock — платный сток.</p>
-    </details>
-    <details class="home-faq-item">
-      <summary data-i18n="faq3_q">Откуда берутся фото?</summary>
-      <p data-i18n="faq3_a">Picta не хранит фото у себя: она одновременно ищет по фотостокам и собирает результаты в одну ленту, убирая повторы. Скачивание идёт напрямую с сайта источника.</p>
-    </details>
-    <details class="home-faq-item">
-      <summary data-i18n="faq4_q">Можно искать на русском?</summary>
-      <p data-i18n="faq4_a">Да. Запрос автоматически переводится на английский для стоков, которые лучше понимают английский, а опечатки исправляются.</p>
-    </details>
-    <details class="home-faq-item">
-      <summary data-i18n="faq5_q">Как скачать сразу несколько фото?</summary>
-      <p data-i18n="faq5_a">Нажмите значок выбора над результатами, отметьте нужные фото и скачайте их одним zip-архивом.</p>
-    </details>
-    </section>
 <!-- seo:about:end -->
 
     <div id="favoritesEmpty" class="empty-state" hidden>
@@ -542,6 +493,30 @@
       <h2 data-i18n="no_results_h1">Ничего не найдено</h2>
       <p data-i18n="no_results_p">Попробуйте другой запрос или снимите часть фильтров.</p>
     </div>
+    <section class="landing-more">
+      <h2>Фото гор и горных пейзажей: как искать</h2>
+      <p>Горные пейзажи — классика для обложек, презентаций и мотивационных постов. Попробуйте «горное озеро», «Альпы», «горы в тумане», «поход в горы».</p>
+      <p>Для широких баннеров включите горизонтальную ориентацию, для заставки на телефон — вертикальную.</p>
+      <h2>Другие подборки</h2>
+      <nav class="landing-links" aria-label="Другие подборки">
+        <a href="/foto/priroda/">Природа</a>
+        <a href="/foto/koty/">Коты</a>
+        <a href="/foto/sobaki/">Собаки</a>
+        <a href="/foto/gorod/">Город</a>
+        <a href="/foto/more/">Море</a>
+        <a href="/foto/kosmos/">Космос</a>
+        <a href="/foto/eda/">Еда</a>
+        <a href="/foto/kofe/">Кофе</a>
+        <a href="/foto/cvety/">Цветы</a>
+        <a href="/foto/lyudi/">Люди</a>
+        <a href="/foto/biznes/">Бизнес и офис</a>
+        <a href="/foto/oboi/">Обои и фоны</a>
+        <a href="/foto/tekstury/">Текстуры</a>
+        <a href="/ikonki/">Иконки</a>
+        <a href="/video/">Видео</a>
+        <a href="/">Все источники</a>
+      </nav>
+    </section>
   </main>
 
 </div>
@@ -723,6 +698,7 @@
 
 <div id="toast" class="toast" hidden></div>
 
+<script>window.PICTA_PAGE = {"q":"горы","mode":"photos"};</script>
 <script src="js/config.js"></script>
 <script src="js/i18n.js"></script>
 <script>window.I18N.applyStaticI18n();</script>

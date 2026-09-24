@@ -75,6 +75,15 @@ for (const ref of iconRefs) {
   if (!fs.existsSync(path.join(ROOT, ref.split("?")[0]))) problems.push(`нет файла иконки/логотипа ${ref}`);
 }
 
+// 3е. Страницы подборок и sitemap.xml собраны из актуальных index.html и
+//     seo/pages.js (их делает seo/build.js — руками не правятся)
+try {
+  const stale = require("../seo/build").build({ check: true });
+  if (stale.length) problems.push(`устарели сгенерированные файлы (${stale.join(", ")}) — запустите npm run pages`);
+} catch (err) {
+  problems.push(`seo/build.js не смог собрать страницы подборок: ${err.message}`);
+}
+
 // 4. Переводы
 const sandbox = { window: {}, navigator: { language: "ru" }, document: { documentElement: {} } };
 vm.runInNewContext(read("js/i18n.js").replace("global.I18N = {", "global.__DICT = DICT; global.I18N = {"), sandbox);

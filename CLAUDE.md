@@ -33,3 +33,7 @@
   воркера) или `DEFAULT_ALLOWED_ORIGIN` в `cloudflare-worker/worker.js` —
   при смене адреса сайта обновлять там. Ключи localStorage `photoseek-*` не
   переименовывать: у посетителей пропадут избранное и история.
+- Страницы подборок (`foto/*/`, `ikonki/`, `video/`) и `sitemap.xml`
+  собирает `seo/build.js` из `index.html` и `seo/pages.js`. После любой
+  правки `index.html` или `seo/pages.js` — `npm run pages` (иначе
+  `npm run check` упадёт). Сами сгенерированные файлы руками не править.

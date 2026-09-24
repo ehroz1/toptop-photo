@@ -43,6 +43,7 @@
       seo_video_h: "Видео",
       seo_video_p: "Бесплатные стоковые видео с Pixabay, Pexels, Wikimedia Commons и Internet Archive — с просмотром прямо на сайте.",
       seo_faq_h: "Частые вопросы",
+      seo_links_h: "Популярные подборки",
       faq1_q: "Picta бесплатная?",
       faq1_a: "Да. Поиск бесплатный и работает без регистрации.",
       faq2_q: "Можно ли использовать найденные фото в своих проектах?",
@@ -293,6 +294,7 @@
       seo_video_h: "Videos",
       seo_video_p: "Free stock videos from Pixabay, Pexels, Wikimedia Commons and Internet Archive, with playback right on the site.",
       seo_faq_h: "FAQ",
+      seo_links_h: "Popular collections",
       faq1_q: "Is Picta free?",
       faq1_a: "Yes. Search is free and works without an account.",
       faq2_q: "Can I use the photos in my projects?",
@@ -526,10 +528,15 @@
   // Применяет переводы к статической разметке: data-i18n → textContent,
   // data-i18n-title → атрибут title, data-i18n-placeholder → placeholder.
   function applyStaticI18n() {
-    document.documentElement.lang = LANG;
-    document.title = t("meta_title");
-    const metaDesc = document.querySelector('meta[name="description"]');
-    if (metaDesc) metaDesc.setAttribute("content", t("meta_description"));
+    // Страницы подборок (seo/build.js) — русские, со своими заголовком и
+    // описанием для поисковиков: их не трогаем, иначе у всех подборок
+    // во вкладке и в выдаче было бы одинаковое название главной.
+    if (!global.PICTA_PAGE) {
+      document.documentElement.lang = LANG;
+      document.title = t("meta_title");
+      const metaDesc = document.querySelector('meta[name="description"]');
+      if (metaDesc) metaDesc.setAttribute("content", t("meta_description"));
+    }
 
     document.querySelectorAll("[data-i18n]").forEach((n) => { n.textContent = t(n.getAttribute("data-i18n")); });
     document.querySelectorAll("[data-i18n-title]").forEach((n) => { n.title = t(n.getAttribute("data-i18n-title")); });

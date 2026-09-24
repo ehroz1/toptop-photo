@@ -1395,9 +1395,18 @@
   });
 
   // ---------- URL query param (?q=&mode=icons) ----------
+  // Страница подборки (/foto/priroda/ и т.п., см. seo/build.js) задаёт свой
+  // запрос и режим в window.PICTA_PAGE. Пока ищут именно его, адрес остаётся
+  // чистым (/foto/priroda/); любой другой поиск или очистка — уже обычная
+  // главная (/?q=…), иначе ссылка "подборка + чужой запрос" путала бы.
+  const PAGE = window.PICTA_PAGE || null;
   function updateUrlQuery(q) {
     try {
-      const url = new URL(location.href);
+      if (PAGE && (q || "") === (PAGE.q || "") && state.mode === (PAGE.mode || "photos")) {
+        history.replaceState(null, "", location.pathname);
+        return;
+      }
+      const url = new URL(PAGE ? "/" : location.href, location.href);
       if (q) url.searchParams.set("q", q);
       else url.searchParams.delete("q");
       if (state.mode !== "photos") url.searchParams.set("mode", state.mode);
@@ -3352,8 +3361,8 @@
 
   // ---------- Открытие по ссылке ?q=...&mode=icons|video ----------
   const initialParams = new URLSearchParams(location.search);
-  const initialQuery = initialParams.get("q");
-  const initialMode = initialParams.get("mode");
+  const initialQuery = initialParams.get("q") || (PAGE && PAGE.q) || null;
+  const initialMode = initialParams.get("mode") || (PAGE && PAGE.mode) || null;
   // mode=photos тоже учитываем: иначе ссылка на фото открывалась бы в режиме,
   // который посетитель выбрал в прошлый раз (например, «Иконки»).
   if (initialMode === "photos" || initialMode === "icons" || initialMode === "video") applyModeUI(initialMode);
