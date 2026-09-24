@@ -45,7 +45,7 @@ window.APP_CONFIG = {
   //  - YANDEX_METRIKA_ID: номер счётчика из metrika.yandex.ru (только цифры);
   //  - CLOUDFLARE_BEACON_TOKEN: токен из Cloudflare → Web Analytics.
   ANALYTICS: {
-    YANDEX_METRIKA_ID: "",
+    YANDEX_METRIKA_ID: "113003304",
     CLOUDFLARE_BEACON_TOKEN: "",
   },
 };

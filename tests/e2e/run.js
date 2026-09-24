@@ -50,7 +50,7 @@ async function testNoHeavyThirdPartyOnLoad(browser, base) {
     await document.fonts.ready;
     return {
       body: getComputedStyle(document.body).fontFamily.split(",")[0].replace(/"/g, ""),
-      heading: getComputedStyle(document.querySelector("#noResults h1")).fontFamily.split(",")[0].replace(/"/g, ""),
+      heading: getComputedStyle(document.querySelector("#noResults h2")).fontFamily.split(",")[0].replace(/"/g, ""),
       // Unbounded на главной не виден (там логотип) — грузим его явно, как
       // браузер сделает при первом заголовке "Ничего не найдено".
       unboundedFaces: (await document.fonts.load('900 40px "Unbounded"', "Ничего Nothing")).length,
@@ -402,6 +402,48 @@ async function testMagicCursor(browser, base) {
   await phone.close();
 }
 
+// Страницы подборок (seo/build.js): сразу показывают поиск по теме со своим
+// заголовком, адрес остаётся чистым; новый запрос уводит на главную (/?q=…).
+// Страница-режим (/ikonki/) открывается в режиме «Иконки» с текстом о них.
+async function testLandingPages(browser, base) {
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
+  const page = await context.newPage();
+  const errors = [];
+  page.on("pageerror", (e) => errors.push(e.message));
+  await installMocks(page, { imgDelay: 10 });
+  await page.goto(base + "foto/koty/");
+  await page.waitForSelector("#grid .card", { timeout: 8000 });
+  const s = await page.evaluate(() => ({
+    title: document.title,
+    canonical: document.querySelector('link[rel="canonical"]').href,
+    h1: [...document.querySelectorAll("h1")].map((h) => h.textContent.trim()),
+    introShown: getComputedStyle(document.querySelector(".landing-intro")).display !== "none",
+    input: document.getElementById("searchInput").value,
+    url: location.pathname + location.search,
+    css: getComputedStyle(document.body).fontFamily.includes("Manrope"),
+  }));
+  check(/кош/i.test(s.title) && s.canonical === "https://picta.cc/foto/koty/", `подборка: свой заголовок и canonical (${s.title})`);
+  check(s.h1.length === 1 && /кош/i.test(s.h1[0]) && s.introShown, `подборка: один видимый h1 над выдачей (${s.h1.join(" | ")})`);
+  check(s.input === "кот" && s.url === "/foto/koty/" && s.css, `подборка: сразу ищет «кот», адрес чистый, стили на месте (${s.input}, ${s.url})`);
+  await page.fill("#searchInput", "dog");
+  await page.press("#searchInput", "Enter");
+  await page.waitForTimeout(300);
+  const url2 = await page.evaluate(() => location.pathname + location.search);
+  check(url2 === "/?q=dog", `подборка: новый запрос уводит на главную (${url2})`);
+
+  await page.goto(base + "ikonki/");
+  await page.waitForTimeout(500);
+  const ic = await page.evaluate(() => ({
+    mode: document.querySelector(".mode-tab.is-active")?.dataset.mode,
+    h1: document.querySelector("h1").textContent.trim(),
+    about: document.querySelector(".home-about h2")?.textContent,
+    links: document.querySelectorAll(".home-about .landing-links a").length,
+  }));
+  check(ic.mode === "icons" && /иконки/i.test(ic.h1) && ic.links > 5, `подборка «Иконки»: режим иконок, свой h1 и ссылки (${ic.mode}, ${ic.h1}, ссылок ${ic.links})`);
+  check(errors.length === 0, `подборки: без JS-ошибок (${errors.join("; ") || "нет"})`);
+  await context.close();
+}
+
 // Иконки рисуются CSS-маской (.icon + mask: var(--icon-…)). Если для
 // конкретной кнопки правило маски забыли, вместо иконки виден сплошной
 // чёрный квадрат — ищем такие во всех режимах и в окне просмотра.
@@ -484,6 +526,7 @@ async function measure(browser, base, runs = 5) {
     await testScrollHeaderAndCards(browser, base);
     await testMagicCursor(browser, base);
     await testHomeLayout(browser, base);
+    await testLandingPages(browser, base);
     const m = await measure(browser, base);
     console.log(`\nСкорость (мобильный 4G, процессор x4, медиана из 5):`);
     console.log(`  первая отрисовка ${m.fcp} мс · сайт готов ${m.ready} мс · первое превью после Enter ${m.firstThumb} мс`);
