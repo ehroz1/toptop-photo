@@ -426,6 +426,58 @@
     },
   };
 
+  // Shutterstock — платный сток (см. cloudflare-worker/worker.js). Внимание:
+  // поля ниже собраны по общему знанию их публичного v2 REST API
+  // (api.shutterstock.com/v2/images/search) без сверки с живой
+  // документацией — если после включения что-то не парсится, скорее всего
+  // разошлось конкретное имя поля в ответе, а не сам подход. Поиск отдаёт
+  // ТОЛЬКО превью с водяным знаком — реальный файл покупается на их сайте,
+  // поэтому download здесь ведёт на страницу товара, а не на сам файл.
+  const ShutterstockProvider = {
+    id: "shutterstock",
+    label: "Shutterstock",
+    enabled: () => Boolean(CONFIG.WORKER_BASE_URL && CONFIG.SHUTTERSTOCK_ENABLED),
+    async search(query, { page = 1, orientation = "any", sort = "popular" } = {}) {
+      const orientationMap = { any: undefined, horizontal: "horizontal", vertical: "vertical", square: "square" };
+      const sortMap = { popular: "popular", newest: "newest" };
+      const qs = buildQuery({
+        query,
+        page,
+        per_page: 24,
+        sort: sortMap[sort] || "popular",
+        orientation: orientationMap[orientation],
+        image_type: "photo",
+      });
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/shutterstock?${qs}`);
+      const items = (data.data || []).map((p) => {
+        const assets = p.assets || {};
+        const preview = assets.preview || assets.preview_1500 || assets.large_thumb || assets.huge_thumb;
+        const thumb = assets.small_thumb || assets.preview || preview;
+        if (!thumb?.url || !preview?.url) return null;
+        const pageUrl = `https://www.shutterstock.com/image-photo/${p.id}`;
+        return {
+          id: `shutterstock-${p.id}`,
+          provider: "shutterstock",
+          thumb: thumb.url,
+          full: preview.url,
+          width: preview.width,
+          height: preview.height,
+          title: p.description || "",
+          description: p.description || "",
+          tags: (p.keywords || []).slice(0, 12),
+          author: p.contributor?.name,
+          authorUrl: undefined,
+          pageUrl,
+          // "external" — открываем страницу покупки лицензии, а не качаем
+          // сам превью-файл как будто это готовое к использованию фото.
+          download: { type: "external", url: pageUrl },
+          license: { name: "Shutterstock License", url: "https://www.shutterstock.com/license", commercial: true, attribution: false },
+        };
+      }).filter(Boolean);
+      return { items, total: data.total_count ?? null };
+    },
+  };
+
   global.PROVIDERS = [
     PixabayProvider,
     PexelsProvider,
@@ -433,6 +485,7 @@
     WikimediaProvider,
     OpenverseProvider,
     FlickrProvider,
+    ShutterstockProvider,
   ];
   global.COLOR_OPTIONS = COLOR_OPTIONS;
   global.matchesPeopleFilter = matchesPeopleFilter;

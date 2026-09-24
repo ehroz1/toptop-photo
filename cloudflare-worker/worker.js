@@ -127,6 +127,18 @@ export default {
       return proxy(`https://api.flickr.com/services/rest/?${params}`, {}, origin, env);
     }
 
+    // Shutterstock v2 API — платный сток, доступ по Bearer-токену из личного
+    // кабинета разработчика (api-docs.shutterstock.com), а не по классической
+    // паре client_id/client_secret. Поиск отдаёт только превью с водяным
+    // знаком — сама лицензия покупается на их сайте, см. providers.js.
+    if (url.pathname === "/shutterstock") {
+      if (!env.SHUTTERSTOCK_TOKEN) return jsonError(origin, env, "SHUTTERSTOCK_TOKEN is not configured", 500);
+      const params = copyParams(url);
+      return proxy(`https://api.shutterstock.com/v2/images/search?${params}`, {
+        headers: { Authorization: `Bearer ${env.SHUTTERSTOCK_TOKEN}` },
+      }, origin, env);
+    }
+
     return jsonError(origin, env, "not found", 404);
   },
 };

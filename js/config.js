@@ -11,5 +11,9 @@ window.APP_CONFIG = {
   UNSPLASH_APP_NAME: "photoseek",
   // Показывать ли чип Flickr — включите, только если добавили
   // FLICKR_API_KEY в секреты воркера.
-  FLICKR_ENABLED: false
+  FLICKR_ENABLED: false,
+  // Показывать ли чип Shutterstock — платный сток, включите, только если
+  // добавили SHUTTERSTOCK_TOKEN в секреты воркера. Выдаёт лишь превью с
+  // водяным знаком — сама покупка лицензии происходит на shutterstock.com.
+  SHUTTERSTOCK_ENABLED: false
 };

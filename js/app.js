@@ -19,7 +19,7 @@
   const QUALITY_THRESHOLDS = { any: 0, "2k": 2048, "4k": 3840, "8k": 7680 };
   // Условный вес "качества" источника для более умного чередования в ленте —
   // не более чем эвристика, не претендует на объективность.
-  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1 };
+  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1, shutterstock: 1 };
 
   const el = {
     topbar: document.getElementById("topbar"),
@@ -144,6 +144,7 @@
     wikimedia: "Wikimedia Commons",
     openverse: "Openverse",
     flickr: "Flickr",
+    shutterstock: "Shutterstock",
   };
 
   function getActiveList() {
@@ -1530,6 +1531,12 @@
     let ok = 0;
     for (let i = 0; i < items.length; i++) {
       const item = items[i];
+      // Платные превью (Shutterstock) в архив не кладём — это не файл, а
+      // страница лицензии, просто открываем её отдельно.
+      if (item.download.type === "external") {
+        window.open(item.download.url, "_blank", "noopener,noreferrer");
+        continue;
+      }
       showToast(I18N.t("toast_archiving", { i: i + 1, n: items.length }));
       try {
         const url = await resolveDownloadUrl(item);
@@ -1701,6 +1708,11 @@
     if (item) toggleFavorite(item);
   });
 
+  el.lbDownload.addEventListener("click", () => {
+    const item = getActiveList()[state.lightboxIndex];
+    if (item) downloadItem(item);
+  });
+
   el.lbCopy.addEventListener("click", async () => {
     const item = getActiveList()[state.lightboxIndex];
     if (!item) return;
@@ -1816,6 +1828,13 @@
   }
 
   async function downloadItem(item) {
+    // Платные стоки (Shutterstock) отдают через API только превью с
+    // водяным знаком — само файл нужно покупать на их сайте, скачивать
+    // "как есть" тут нечего и не нужно, просто открываем страницу лицензии.
+    if (item.download.type === "external") {
+      window.open(item.download.url, "_blank", "noopener,noreferrer");
+      return;
+    }
     showToast(I18N.t("toast_downloading"));
     try {
       const url = await resolveDownloadUrl(item);
