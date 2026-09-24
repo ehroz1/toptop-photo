@@ -19,6 +19,13 @@
     return (str || "").replace(/<[^>]*>/g, "").trim();
   }
 
+  function withAuthHeader(url, opts) {
+    if (!CONFIG.WORKER_BASE_URL || !url.startsWith(CONFIG.WORKER_BASE_URL)) return opts;
+    const token = global.PhotoSeekAuth && global.PhotoSeekAuth.getAccessToken();
+    if (!token) return opts;
+    return { ...opts, headers: { ...(opts && opts.headers), Authorization: `Bearer ${token}` } };
+  }
+
   // Unsplash API Guidelines требуют помечать ссылки на автора/фото меткой
   // utm_source=<имя приложения>&utm_medium=referral — без этого заявку на
   // повышение лимита (Production, 5000 запросов/час вместо 50) отклонят.
@@ -31,13 +38,26 @@
 
   // Единая обёртка над fetch с понятными сообщениями об ошибках —
   // чтобы в интерфейсе было видно не просто "ошибка", а что именно случилось
-  // (HTTP-код, текст ответа сервера или сетевой/CORS-сбой).
+  // (HTTP-код, текст ответа сервера или сетевой/CORS-сбой). Запросам к
+  // воркеру дополнительно подставляет токен сессии Supabase (если
+  // пользователь вошёл) — так воркер снимает с него дневной лимит гостя.
   async function fetchJson(url, opts) {
     let res;
+    const finalOpts = withAuthHeader(url, opts);
     try {
-      res = await fetch(url, opts);
+      res = await fetch(url, finalOpts);
     } catch (err) {
-      throw new Error(`сеть/CORS недоступны (${err.message})`);
+      // AbortError (запрос отменён через signal — новый поиск стартовал раньше,
+      // чем ответил этот) — пробрасываем как есть, не заворачивая в обычную
+      // "сетевую" ошибку: вызывающему коду (app.js) важно отличить намеренную
+      // отмену от настоящего сбоя, чтобы не показывать по ней предупреждение.
+      if (err.name === "AbortError") throw err;
+      // Запрос не дошёл или браузер не пустил ответ (CORS) — в обоих случаях
+      // это TypeError без подробностей. Помечаем, чтобы app.js показал
+      // одну понятную строку на все такие источники сразу.
+      const netErr = new Error(`сеть/CORS недоступны (${err.message})`);
+      netErr.isNetwork = true;
+      throw netErr;
     }
     if (!res.ok) {
       let detail = "";
@@ -165,7 +185,7 @@
     id: "pixabay",
     label: "Pixabay",
     enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
-    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", people = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", people = "any", signal } = {}) {
       const orientationMap = { any: "all", horizontal: "horizontal", vertical: "vertical", square: "all" };
       const orderMap = { popular: "popular", newest: "latest" };
       const qs = buildQuery({
@@ -181,7 +201,7 @@
         // а окончательную сверку по тегам всё равно делаем в app.js для всех источников
         category: people === "with" ? "people" : undefined,
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pixabay?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pixabay?${qs}`, { signal });
       let items = (data.hits || []).map((hit) => ({
         id: `pixabay-${hit.id}`,
         provider: "pixabay",
@@ -209,7 +229,7 @@
     id: "pexels",
     label: "Pexels",
     enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
-    async search(query, { page = 1, orientation = "any", color = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", color = "any", signal } = {}) {
       const orientationMap = { any: undefined, horizontal: "landscape", vertical: "portrait", square: "square" };
       const qs = buildQuery({
         query,
@@ -218,7 +238,7 @@
         orientation: orientationMap[orientation],
         color: mapColor(PEXELS_COLOR_MAP, color),
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pexels?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pexels?${qs}`, { signal });
       const items = (data.photos || []).map((p) => ({
         id: `pexels-${p.id}`,
         provider: "pexels",
@@ -246,7 +266,7 @@
     id: "unsplash",
     label: "Unsplash",
     enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
-    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", signal } = {}) {
       const orientationMap = { any: undefined, horizontal: "landscape", vertical: "portrait", square: "squarish" };
       const orderMap = { popular: "relevant", newest: "latest" };
       const qs = buildQuery({
@@ -257,7 +277,7 @@
         order_by: orderMap[sort] || "relevant",
         color: mapColor(UNSPLASH_COLOR_MAP, color),
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/unsplash/search?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/unsplash/search?${qs}`, { signal });
       const items = (data.results || []).map((p) => ({
         id: `unsplash-${p.id}`,
         provider: "unsplash",
@@ -282,7 +302,7 @@
     id: "wikimedia",
     label: "Wikimedia Commons",
     enabled: () => true, // ключ не нужен
-    async search(query, { page = 1, orientation = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", signal } = {}) {
       const limit = 24;
       const qs = buildQuery({
         action: "query",
@@ -301,7 +321,7 @@
         format: "json",
         origin: "*",
       });
-      const data = await fetchJson(`https://commons.wikimedia.org/w/api.php?${qs}`);
+      const data = await fetchJson(`https://commons.wikimedia.org/w/api.php?${qs}`, { signal });
       const pages = Object.values(data.query?.pages || {});
       let items = pages
         .filter((p) => p.imageinfo?.[0]?.mime?.startsWith("image/") && !p.imageinfo[0].mime.includes("svg"))
@@ -340,7 +360,7 @@
     id: "openverse",
     label: "Openverse",
     enabled: () => true, // ключ не нужен (анонимный доступ ограничен по частоте)
-    async search(query, { page = 1, orientation = "any" } = {}) {
+    async search(query, { page = 1, orientation = "any", signal } = {}) {
       const aspectMap = { any: undefined, horizontal: "wide", vertical: "tall", square: "square" };
       const qs = buildQuery({
         q: query,
@@ -350,7 +370,7 @@
         page_size: 20,
         aspect_ratio: aspectMap[orientation],
       });
-      const data = await fetchJson(`https://api.openverse.org/v1/images/?${qs}`);
+      const data = await fetchJson(`https://api.openverse.org/v1/images/?${qs}`, { signal });
       const items = (data.results || []).map((p) => ({
         id: `openverse-${p.id}`,
         provider: "openverse",
@@ -372,11 +392,63 @@
     },
   };
 
+  // Doodl — каталог AI-сгенерированных стоковых фото, публичный CORS-API без
+  // ключа (сделан специально для встраивания в сторонние приложения — плагины
+  // для Figma/Canva/Framer и т.п.), поэтому обращаемся напрямую с клиента,
+  // без Cloudflare Worker. Пагинация обычная (page), но чтобы результаты не
+  // "плавали" между страницами одного поиска, сервер использует случайный
+  // seed — сохраняем его с первой страницы и передаём на следующих (как и
+  // курсор у Pexafy, но без ограничения по времени жизни).
+  const doodlSeeds = new Map();
+  const DoodlProvider = {
+    id: "doodl",
+    label: "Doodl",
+    enabled: () => true, // ключ не нужен
+    async search(query, { page = 1, orientation = "any", signal } = {}) {
+      if (page === 1) doodlSeeds.delete(query);
+      const qs = buildQuery({
+        q: query,
+        page,
+        per_page: 24,
+        seed: page > 1 ? doodlSeeds.get(query) : undefined,
+      });
+      const data = await fetchJson(`https://www.doodl.co/api/plugin/search?${qs}`, { signal });
+      if (data.seed) doodlSeeds.set(query, data.seed);
+      let items = (data.results || []).map((p) => ({
+        id: `doodl-${p.id}`,
+        provider: "doodl",
+        thumb: p.urls?.small || p.urls?.thumbnail,
+        full: p.urls?.large || p.urls?.medium,
+        width: p.width,
+        height: p.height,
+        title: p.title || "",
+        description: p.description || "",
+        tags: p.tags || [],
+        author: p.creator?.name,
+        authorUrl: p.creator?.profile_url,
+        pageUrl: p.page_url,
+        download: { type: "direct", url: p.urls?.download ? `${p.urls.download}?resolution=large` : p.urls?.large },
+        // Весь каталог Doodl — AI-сгенерированные изображения, а не фотографии
+        // (см. описание сервиса) — явный флаг, чтобы UI не выдавал их за
+        // обычные фото (см. рендер бейджа "AI" в app.js).
+        aiGenerated: true,
+        license: {
+          name: "Doodl License",
+          url: p.license?.url,
+          commercial: p.license?.commercial_use,
+          attribution: p.license?.attribution_required,
+        },
+      })).filter((it) => it.thumb);
+      items = filterByOrientation(items, orientation);
+      return { items, total: typeof data.total === "number" ? data.total : null };
+    },
+  };
+
   const FlickrProvider = {
     id: "flickr",
     label: "Flickr",
     enabled: () => Boolean(CONFIG.WORKER_BASE_URL && CONFIG.FLICKR_ENABLED),
-    async search(query, { page = 1, orientation = "any", sort = "popular" } = {}) {
+    async search(query, { page = 1, orientation = "any", sort = "popular", signal } = {}) {
       const sortMap = { popular: "relevance", newest: "date-posted-desc" };
       const qs = buildQuery({
         method: "flickr.photos.search",
@@ -393,7 +465,7 @@
         format: "json",
         nojsoncallback: 1,
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/flickr?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/flickr?${qs}`, { signal });
       if (data.stat !== "ok") throw new Error(data.message || "error");
       let items = (data.photos?.photo || []).map((p) => {
         const width = p.o_width ? Number(p.o_width) : undefined;
@@ -426,66 +498,127 @@
     },
   };
 
-  // Shutterstock — платный сток (см. cloudflare-worker/worker.js). Внимание:
-  // поля ниже собраны по общему знанию их публичного v2 REST API
-  // (api.shutterstock.com/v2/images/search) без сверки с живой
-  // документацией — если после включения что-то не парсится, скорее всего
-  // разошлось конкретное имя поля в ответе, а не сам подход. Поиск отдаёт
-  // ТОЛЬКО превью с водяным знаком — реальный файл покупается на их сайте,
-  // поэтому download здесь ведёт на страницу товара, а не на сам файл.
+  // Shutterstock Content Search API v2 — в отличие от остальных источников,
+  // бесплатный тариф не даёт прав на полноразмерное фото: превью в выдаче и
+  // "скачивание" — это одна и та же водяная картинка со знаком Shutterstock,
+  // настоящий файл открывается только после покупки лицензии на их сайте
+  // (см. license.requiresPurchase — отдельная плашка в лайтбоксе).
+  const SHUTTERSTOCK_ORIENTATION_MAP = { any: undefined, horizontal: "horizontal", vertical: "vertical", square: "square" };
+  const SHUTTERSTOCK_SORT_MAP = { popular: "popular", newest: "newest" };
+  // Общий хелпер: цвет в нашем UI задан именем ("bw"/"red"/…), а не hex —
+  // переиспользуем hex из COLOR_OPTIONS и там, где API просит именно hex
+  // (Shutterstock, Pexafy), а не свой список именованных цветов.
+  function hexForColor(color) {
+    if (!color || color === "any") return undefined;
+    const opt = COLOR_OPTIONS.find((c) => c.id === color);
+    return opt ? opt.hex : undefined;
+  }
   const ShutterstockProvider = {
     id: "shutterstock",
     label: "Shutterstock",
-    enabled: () => Boolean(CONFIG.WORKER_BASE_URL && CONFIG.SHUTTERSTOCK_ENABLED),
-    async search(query, { page = 1, orientation = "any", sort = "popular" } = {}) {
-      const orientationMap = { any: undefined, horizontal: "horizontal", vertical: "vertical", square: "square" };
-      const sortMap = { popular: "popular", newest: "newest" };
+    enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", signal } = {}) {
       const qs = buildQuery({
         query,
         page,
         per_page: 24,
-        sort: sortMap[sort] || "popular",
-        orientation: orientationMap[orientation],
         image_type: "photo",
+        sort: SHUTTERSTOCK_SORT_MAP[sort] || "popular",
+        orientation: SHUTTERSTOCK_ORIENTATION_MAP[orientation],
+        color: hexForColor(color)?.replace("#", ""),
       });
-      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/shutterstock?${qs}`);
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/shutterstock?${qs}`, { signal });
       const items = (data.data || []).map((p) => {
         const assets = p.assets || {};
-        const preview = assets.preview || assets.preview_1500 || assets.large_thumb || assets.huge_thumb;
-        const thumb = assets.small_thumb || assets.preview || preview;
-        if (!thumb?.url || !preview?.url) return null;
-        const pageUrl = `https://www.shutterstock.com/image-photo/${p.id}`;
+        const previewFull = assets.preview_1500 || assets.preview_1000 || assets.preview || assets.huge_thumb;
+        const previewThumb = assets.large_thumb || assets.preview || previewFull;
+        const pageUrl = `https://www.shutterstock.com/image-photo/-${p.id}`;
         return {
           id: `shutterstock-${p.id}`,
           provider: "shutterstock",
-          thumb: thumb.url,
-          full: preview.url,
-          width: preview.width,
-          height: preview.height,
+          thumb: previewThumb?.url,
+          full: previewFull?.url,
+          width: previewFull?.width,
+          height: previewFull?.height,
           title: p.description || "",
           description: p.description || "",
-          tags: (p.keywords || []).slice(0, 12),
-          author: p.contributor?.name,
+          tags: Array.isArray(p.keywords) ? p.keywords.slice(0, 20) : [],
+          author: undefined,
           authorUrl: undefined,
           pageUrl,
-          // "external" — открываем страницу покупки лицензии, а не качаем
-          // сам превью-файл как будто это готовое к использованию фото.
-          download: { type: "external", url: pageUrl },
-          license: { name: "Shutterstock License", url: "https://www.shutterstock.com/license", commercial: true, attribution: false },
+          download: { type: "direct", url: previewFull?.url },
+          license: { name: "Shutterstock", url: pageUrl, requiresPurchase: true },
         };
-      }).filter(Boolean);
-      return { items, total: data.total_count ?? null };
+      }).filter((it) => it.thumb);
+      return { items, total: typeof data.total_count === "number" ? data.total_count : null };
+    },
+  };
+
+  // Pexafy — семантический поиск по девяти бесплатным фотостокам сразу
+  // (Unsplash/Pexels/Pixabay/Kaboompics/Burst/StockSnap/Picjumbo/Skitterphoto/
+  // NegativeSpace), свой собственный free-to-use агрегатор, без требования
+  // атрибуции (см. docs.pexafy.com). Пагинация курсорная, а не по номеру
+  // страницы — pexafyCursors хранит next_cursor на время текущего поиска по
+  // ключу параметров запроса; курсор живёт у Pexafy ~5 минут, поэтому если
+  // его нет (новый поиск/протух) — просто считаем, что страниц больше нет.
+  const pexafyCursors = new Map();
+  const PEXAFY_ORIENTATION_MAP = { any: undefined, horizontal: "landscape", vertical: "portrait", square: "square" };
+  const PEXAFY_SORT_MAP = { popular: "relevance", newest: "newest" };
+  const PexafyProvider = {
+    id: "pexafy",
+    label: "Pexafy",
+    enabled: () => Boolean(CONFIG.WORKER_BASE_URL),
+    async search(query, { page = 1, orientation = "any", sort = "popular", color = "any", signal } = {}) {
+      const cursorKey = JSON.stringify({ query, orientation, sort, color });
+      if (page === 1) pexafyCursors.delete(cursorKey);
+      const cursor = page > 1 ? pexafyCursors.get(cursorKey) : undefined;
+      if (page > 1 && !cursor) return { items: [], total: null }; // курсор закончился/протух — дальше страниц нет
+
+      const qs = buildQuery({
+        q: query,
+        per_page: 24,
+        orientation: PEXAFY_ORIENTATION_MAP[orientation],
+        sort_by: PEXAFY_SORT_MAP[sort] || "relevance",
+        color_hex: color !== "bw" ? hexForColor(color) : undefined,
+        cursor,
+      });
+      const data = await fetchJson(`${CONFIG.WORKER_BASE_URL}/pexafy?${qs}`, { signal });
+      if (data.pagination?.next_cursor) pexafyCursors.set(cursorKey, data.pagination.next_cursor);
+      else pexafyCursors.delete(cursorKey);
+
+      const items = (data.data || []).map((p) => ({
+        id: `pexafy-${p.photo_id}`,
+        provider: "pexafy",
+        thumb: p.urls?.small || p.urls?.thumb,
+        full: p.urls?.regular || p.urls?.large || p.urls?.full,
+        width: p.width,
+        height: p.height,
+        title: p.description || "",
+        description: p.alt_description || p.description || "",
+        tags: [],
+        author: p.photographer_username,
+        authorUrl: undefined,
+        pageUrl: p.source_image_url || p.urls?.full,
+        download: { type: "direct", url: p.urls?.full || p.urls?.large || p.urls?.regular },
+        // Pexafy сама заявляет весь свой каталог как free-to-use без обязательной
+        // атрибуции (агрегирует Unsplash/Pexels/Pixabay и другие бесплатные стоки) —
+        // как и у Pixabay/Pexels/Unsplash, лицензия одна на источник, не на файл.
+        license: { name: "Pexafy (free, no attribution)", url: "https://pexafy.com/pricing", commercial: true, attribution: false },
+      })).filter((it) => it.thumb);
+      return { items, total: null };
     },
   };
 
   global.PROVIDERS = [
     PixabayProvider,
     PexelsProvider,
-    UnsplashProvider,
     WikimediaProvider,
     OpenverseProvider,
-    FlickrProvider,
+    DoodlProvider,
+    UnsplashProvider,
     ShutterstockProvider,
+    PexafyProvider,
+    FlickrProvider,
   ];
   global.COLOR_OPTIONS = COLOR_OPTIONS;
   global.matchesPeopleFilter = matchesPeopleFilter;

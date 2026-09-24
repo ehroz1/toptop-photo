@@ -12,8 +12,40 @@ window.APP_CONFIG = {
   // Показывать ли чип Flickr — включите, только если добавили
   // FLICKR_API_KEY в секреты воркера.
   FLICKR_ENABLED: false,
-  // Показывать ли чип Shutterstock — платный сток, включите, только если
-  // добавили SHUTTERSTOCK_TOKEN в секреты воркера. Выдаёт лишь превью с
-  // водяным знаком — сама покупка лицензии происходит на shutterstock.com.
-  SHUTTERSTOCK_ENABLED: false
+  // Показывать ли источник видео Coverr — включите, только если добавили
+  // COVERR_API_KEY в секреты воркера И проверили, что /coverr в воркере
+  // реально отвечает (их API не тестировался вживую при подключении —
+  // см. комментарий в cloudflare-worker/worker.js).
+  COVERR_ENABLED: false,
+  // Вход/лимиты/статистика (Supabase + обновлённый воркер). Включать только
+  // ПОСЛЕ того, как на Cloudflare задеплоен новый cloudflare-worker/worker.js:
+  // старый воркер отклоняет запросы с заголовком авторизации (CORS), и у
+  // вошедших пользователей перестали бы работать источники через воркер.
+  ACCOUNTS_ENABLED: false,
+  // Supabase — вход через Google/почту, профили, статистика. Project URL и
+  // Publishable key НЕ секретные (Publishable по дизайну Supabase безопасно
+  // светить на клиенте — доступ к данным ограничивает RLS в базе), поэтому
+  // хранятся прямо тут. Если оставить пустыми (или ACCOUNTS_ENABLED: false),
+  // окно профиля в шапке покажет «регистрация скоро появится», остальной
+  // функционал не пострадает.
+  SUPABASE_URL: "https://stmjykymgtijghbcullm.supabase.co",
+  SUPABASE_PUBLISHABLE_KEY: "sb_publishable_TUerYlzR3Z6Ap4rNdXV5IA_lv1XJMdz",
+  // Контакты в окне «молния» в шапке (текст «об авторе» — ключ about_text в
+  // js/i18n.js). Каждая строка — { label: "как подписать", url: "ссылка" };
+  // для почты url вида "mailto:имя@почта.ru".
+  CONTACTS: [
+    { label: "Telegram", url: "https://t.me/ehroz_dsgn" },
+    { label: "Instagram", url: "https://www.instagram.com/ehroz1/" },
+    { label: "admin@picta.cc", url: "mailto:admin@picta.cc" },
+  ],
+  // Ссылка для доната (пункт «Поддержать проект» в меню). Пока пусто, пункт
+  // показывает «ссылка скоро появится».
+  DONATE_URL: "",
+  // Счётчики посещаемости (js/analytics.js). Пусто — выключены.
+  //  - YANDEX_METRIKA_ID: номер счётчика из metrika.yandex.ru (только цифры);
+  //  - CLOUDFLARE_BEACON_TOKEN: токен из Cloudflare → Web Analytics.
+  ANALYTICS: {
+    YANDEX_METRIKA_ID: "113003304",
+    CLOUDFLARE_BEACON_TOKEN: "",
+  },
 };

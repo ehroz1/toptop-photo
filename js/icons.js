@@ -55,9 +55,19 @@
     return collectionsCache.get(prefix) || null;
   }
 
-  async function search(query, { page = 1 } = {}) {
+  // prefixes/palette — базовые фильтры (выбор наборов иконок + моно/цветные,
+  // см. app.js). Отправляем их и на сервер (если Iconify их поддерживает —
+  // меньше лишних данных в ответе), но полагаться только на это нельзя: не
+  // из этой песочницы проверить точные имена параметров живого API, поэтому
+  // app.js обязательно ещё раз фильтрует items на клиенте после ответа —
+  // сервер-side фильтр тут просто оптимизация, а не единственный барьер.
+  async function search(query, { page = 1, prefixes = [], palette = "any" } = {}) {
     const start = (page - 1) * PAGE_SIZE;
-    const url = `${API_BASE}/search?query=${encodeURIComponent(query)}&limit=${PAGE_SIZE}&start=${start}`;
+    const params = new URLSearchParams({ query, limit: String(PAGE_SIZE), start: String(start) });
+    if (prefixes.length) params.set("prefixes", prefixes.join(","));
+    if (palette === "mono") params.set("palette", "false");
+    else if (palette === "color") params.set("palette", "true");
+    const url = `${API_BASE}/search?${params.toString()}`;
     const res = await fetch(url);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
@@ -66,15 +76,15 @@
       const sep = id.indexOf(":");
       return { id, prefix: id.slice(0, sep), name: id.slice(sep + 1) };
     });
-    const prefixes = Array.from(new Set(items.map((it) => it.prefix)));
+    const resultPrefixes = Array.from(new Set(items.map((it) => it.prefix)));
     if (data.collections) {
-      prefixes.forEach((p) => {
+      resultPrefixes.forEach((p) => {
         if (data.collections[p] && !collectionsCache.has(p)) collectionsCache.set(p, data.collections[p]);
       });
     }
     // Не ждём лицензии наборов, чтобы не тормозить показ сетки — подтянутся
     // к моменту, когда пользователь откроет конкретную иконку.
-    fetchCollectionsInfo(prefixes);
+    fetchCollectionsInfo(resultPrefixes);
     return { items, total: typeof data.total === "number" ? data.total : null };
   }
 
@@ -109,6 +119,17 @@
     return iconBodyCache.get(`${prefix}:${name}`) || null;
   }
 
+  // Тело иконки вставляется прямо в DOM через innerHTML (см. app.js) — это
+  // нужно, чтобы currentColor подхватывал цвет темы, но значит и любой
+  // <script>/on*-обработчик внутри выполнился бы. Iconify — курируемый
+  // источник, но это дешёвая страховка на случай испорченных/подменённых
+  // данных набора, поэтому вырезаем такие конструкции перед сборкой markup.
+  function sanitizeSvgBody(body) {
+    return (body || "")
+      .replace(/<script[\s\S]*?<\/script\s*>/gi, "")
+      .replace(/\son\w+\s*=\s*(".*?"|'.*?'|[^\s>]+)/gi, "");
+  }
+
   // markup для конкретной иконки: <svg viewBox="0 0 W H" fill="currentColor">…</svg>.
   // fill на самой svg — это значение по умолчанию для одноцветных иконок;
   // многоцветные наборы (например, эмодзи-стиль) обычно задают цвета прямо
@@ -116,7 +137,7 @@
   function buildSvgMarkup(prefix, name) {
     const data = getIconBody(prefix, name);
     if (!data) return null;
-    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${data.width} ${data.height}" fill="currentColor">${data.body}</svg>`;
+    return `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${data.width} ${data.height}" fill="currentColor">${sanitizeSvgBody(data.body)}</svg>`;
   }
 
   function iconPageUrl(prefix, name) {
@@ -129,6 +150,7 @@
     getIconBody,
     buildSvgMarkup,
     getCollectionInfo,
+    ensureCollectionsInfo: fetchCollectionsInfo,
     classifyIconLicense,
     iconPageUrl,
   };

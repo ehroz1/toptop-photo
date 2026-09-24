@@ -3,10 +3,14 @@
 
   const SUGGESTIONS = I18N.t("suggestions");
   const ICON_SUGGESTIONS = I18N.t("suggestions_icons");
+  const VIDEO_SUGGESTIONS = I18N.t("suggestions_video");
   const FAVORITES_KEY = "photoseek-favorites";
   const FILTERS_KEY = "photoseek-filters";
+  const ICON_FILTERS_KEY = "photoseek-icon-filters";
+  const VIDEO_FILTERS_KEY = "photoseek-video-filters";
   const HISTORY_KEY = "photoseek-history";
   const ICON_HISTORY_KEY = "photoseek-icon-history";
+  const VIDEO_HISTORY_KEY = "photoseek-video-history";
   const STATS_KEY = "photoseek-stats";
   const THEME_KEY = "photoseek-theme";
   const MODE_KEY = "photoseek-mode";
@@ -16,17 +20,34 @@
   const MAX_HISTORY = 8;
   const UNSPLASH_HOURLY_LIMIT = 50;
   const COOLDOWN_MS = 10 * 60 * 1000; // 10 минут паузы для источника при 429
+  const UNSPLASH_FORBIDDEN_COOLDOWN_MS = 30 * 60 * 1000; // пауза Unsplash при 403 (лимит ключа в час)
+  // Воркер не смог авторизоваться у источника или ключ не задан — это не
+  // лечится повтором через секунду, поэтому источник тоже ставим на паузу.
+  const SOURCE_BROKEN_COOLDOWN_MS = 30 * 60 * 1000;
+  const SOURCE_BROKEN_RE = /auth failed|is not configured|HTTP 401\b/i;
   const QUALITY_THRESHOLDS = { any: 0, "2k": 2048, "4k": 3840, "8k": 7680 };
   // Условный вес "качества" источника для более умного чередования в ленте —
   // не более чем эвристика, не претендует на объективность.
-  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1, shutterstock: 1 };
+  const SOURCE_WEIGHTS = { pixabay: 1, pexels: 1.1, unsplash: 1.25, wikimedia: 0.7, openverse: 0.8, flickr: 1, shutterstock: 1, pexafy: 1, doodl: 0.8, archive: 0.7, coverr: 0.9 };
+  // Источник, который завис дольше этого, не держит страницу — остальные
+  // источники всё равно уже показаны, а этому просто не достаётся места в
+  // текущей странице (сам запрос при этом не отменяется, вдруг всё же ответит).
+  const PROVIDER_TIMEOUT_MS = 12000;
+  // Перевод — тоже best-effort: если MyMemory не ответил за это время, ищем
+  // как есть на языке оригинала, вместо того чтобы держать весь поиск.
+  const TRANSLATE_TIMEOUT_MS = 2500;
+  // Слишком много одновременно опрошенных источников — это не быстрее (см.
+  // предыдущую перестройку поиска на независимый параллельный опрос), а
+  // просто больше сетевых запросов и шума в ленте; ограничиваем выбор.
+  const MAX_ACTIVE_SOURCES = 3;
 
   const el = {
     topbar: document.getElementById("topbar"),
     form: document.getElementById("searchForm"),
     input: document.getElementById("searchInput"),
     clearBtn: document.getElementById("clearBtn"),
-    themeToggle: document.getElementById("themeToggle"),
+    themeSeg: document.getElementById("themeSeg"),
+    gridSeg: document.getElementById("gridSeg"),
     favoritesToggle: document.getElementById("favoritesToggle"),
     selectModeToggle: document.getElementById("selectModeToggle"),
     translatedHint: document.getElementById("translatedHint"),
@@ -38,8 +59,40 @@
     micBtn: document.getElementById("micBtn"),
     insightsToggle: document.getElementById("insightsToggle"),
     insightsPanel: document.getElementById("insightsPanel"),
+    authWrap: document.getElementById("authWrap"),
+    authToggle: document.getElementById("authToggle"),
+    authAvatar: document.getElementById("authAvatar"),
+    authPopover: document.getElementById("authPopover"),
+    authLoggedOut: document.getElementById("authLoggedOut"),
+    authLoggedIn: document.getElementById("authLoggedIn"),
+    authGoogleBtn: document.getElementById("authGoogleBtn"),
+    authEmailForm: document.getElementById("authEmailForm"),
+    authEmailInput: document.getElementById("authEmailInput"),
+    authEmailLabel: document.getElementById("authEmailLabel"),
+    authAdminLink: document.getElementById("authAdminLink"),
+    authSignOutBtn: document.getElementById("authSignOutBtn"),
+    authSoon: document.getElementById("authSoon"),
+    aboutWrap: document.getElementById("aboutWrap"),
+    aboutToggle: document.getElementById("aboutToggle"),
+    aboutPopover: document.getElementById("aboutPopover"),
+    aboutContacts: document.getElementById("aboutContacts"),
+    mainMenuWrap: document.getElementById("mainMenuWrap"),
+    mainMenuToggle: document.getElementById("mainMenuToggle"),
+    mainMenu: document.getElementById("mainMenu"),
+    favoritesCount: document.getElementById("favoritesCount"),
+    donateLink: document.getElementById("donateLink"),
+    shareSearchBtn: document.getElementById("shareSearchBtn"),
+    shareSiteBtn: document.getElementById("shareSiteBtn"),
+    installAppBtn: document.getElementById("installAppBtn"),
+    backToTop: document.getElementById("backToTop"),
     recentSearches: document.getElementById("recentSearches"),
+    sourcesRow: document.getElementById("sourcesRow"),
+    sourcesMenuWrap: document.getElementById("sourcesMenuWrap"),
+    sourcesMenuToggle: document.getElementById("sourcesMenuToggle"),
+    sourcesMenuPopover: document.getElementById("sourcesMenuPopover"),
+    sourcesMenuBadge: document.getElementById("sourcesMenuBadge"),
     sources: document.getElementById("sources"),
+    iconSources: document.getElementById("iconSources"),
     yandexBtn: document.getElementById("yandexBtn"),
     googleBtn: document.getElementById("googleBtn"),
     pinterestBtn: document.getElementById("pinterestBtn"),
@@ -64,6 +117,7 @@
     lbSpinner: document.getElementById("lbSpinner"),
     lbHeart: document.getElementById("lbHeart"),
     lbSourceBadge: document.getElementById("lbSourceBadge"),
+    lbAiBadge: document.getElementById("lbAiBadge"),
     lbCopy: document.getElementById("lbCopy"),
     lbCopyImage: document.getElementById("lbCopyImage"),
     lbShare: document.getElementById("lbShare"),
@@ -81,9 +135,16 @@
     filtersToggle: document.getElementById("filtersToggle"),
     filtersPopover: document.getElementById("filtersPopover"),
     filtersBadge: document.getElementById("filtersBadge"),
-    heroH1Before: document.getElementById("heroH1Before"),
-    heroH1Underline: document.getElementById("heroH1Underline"),
+    iconFiltersRow: document.getElementById("iconFiltersRow"),
+    iconFiltersToggle: document.getElementById("iconFiltersToggle"),
+    iconFiltersPopover: document.getElementById("iconFiltersPopover"),
+    iconFiltersBadge: document.getElementById("iconFiltersBadge"),
     heroP: document.getElementById("heroP"),
+    homeSearchSlot: document.getElementById("homeSearchSlot"),
+    homeModeSlot: document.getElementById("homeModeSlot"),
+    homeSourcesSlot: document.getElementById("homeSourcesSlot"),
+    homeControlsSep: document.getElementById("homeControlsSep"),
+    homeSourcesList: document.getElementById("homeSourcesList"),
     iconGrid: document.getElementById("iconGrid"),
     iconLoadMoreWrap: document.getElementById("iconLoadMoreWrap"),
     iconLoadMoreBtn: document.getElementById("iconLoadMoreBtn"),
@@ -101,10 +162,33 @@
     ilSourceLink: document.getElementById("ilSourceLink"),
     ilPrev: document.getElementById("ilPrev"),
     ilNext: document.getElementById("ilNext"),
+    videoSources: document.getElementById("videoSources"),
+    videoFiltersRow: document.getElementById("videoFiltersRow"),
+    videoFiltersToggle: document.getElementById("videoFiltersToggle"),
+    videoFiltersPopover: document.getElementById("videoFiltersPopover"),
+    videoFiltersBadge: document.getElementById("videoFiltersBadge"),
+    videoGrid: document.getElementById("videoGrid"),
+    videoLoadMoreWrap: document.getElementById("videoLoadMoreWrap"),
+    videoLoadMoreBtn: document.getElementById("videoLoadMoreBtn"),
+    videoNoResults: document.getElementById("videoNoResults"),
+    videoLightbox: document.getElementById("videoLightbox"),
+    vlPlayer: document.getElementById("vlPlayer"),
+    vlSourceBadge: document.getElementById("vlSourceBadge"),
+    vlDurationBadge: document.getElementById("vlDurationBadge"),
+    vlCopy: document.getElementById("vlCopy"),
+    vlDownload: document.getElementById("vlDownload"),
+    vlTitle: document.getElementById("vlTitle"),
+    vlDescription: document.getElementById("vlDescription"),
+    vlTags: document.getElementById("vlTags"),
+    vlAuthor: document.getElementById("vlAuthor"),
+    vlSourceLink: document.getElementById("vlSourceLink"),
+    vlLicense: document.getElementById("vlLicense"),
+    vlPrev: document.getElementById("vlPrev"),
+    vlNext: document.getElementById("vlNext"),
   };
 
   const state = {
-    mode: "photos", // "photos" | "icons"
+    mode: "photos", // "photos" | "icons" | "video"
     query: "",
     searchQuery: "",
     view: "search", // "search" | "favorites"
@@ -125,6 +209,8 @@
     lightboxIndex: -1,
     queryMatcher: null,
     dedupeHashes: [],
+    seenUrls: new Set(), // дедуп уровня 1 (точное совпадение URL) — см. dedupeByUrl
+    abortController: null, // текущий поиск — отменяет fetch'и всех источников при новом поиске
     cooldownUntil: {}, // providerId -> timestamp до которого источник пропускаем
     // ---- Иконки (отдельный от фото пайплайн, см. js/icons.js) ----
     iconQuery: "",
@@ -135,6 +221,25 @@
     iconLoading: false,
     iconLightboxIndex: -1,
     iconColor: null, // null = цвет темы (currentColor), иначе выбранный hex
+    // Пустой набор = без ограничения (ищем по всем наборам Iconify, как и
+    // раньше) — в отличие от activeSources у фото, где пусто невозможно.
+    activeIconSources: new Set(),
+    iconStyle: "any", // "any" | "mono" | "color"
+    // ---- Видео (отдельный пайплайн, но по архитектуре — уменьшенная копия
+    // фото: несколько независимых источников, прогрессивный рендер, тот же
+    // общий AbortController, что и у фото — см. abortCurrentSearch) ----
+    videoQuery: "",
+    videoSearchQuery: "",
+    activeVideoSources: new Set(),
+    videoOrientation: "any",
+    videoSort: "popular",
+    videoPages: {},
+    videoHasMore: {},
+    videoItems: [],
+    videoLoading: false,
+    videoLightboxIndex: -1,
+    videoSeenUrls: new Set(),
+    videoCooldownUntil: {},
   };
 
   const PROVIDER_LABELS = {
@@ -145,10 +250,52 @@
     openverse: "Openverse",
     flickr: "Flickr",
     shutterstock: "Shutterstock",
+    pexafy: "Pexafy",
+    doodl: "Doodl",
+    archive: "Internet Archive",
+    coverr: "Coverr",
   };
 
   function getActiveList() {
     return state.view === "favorites" ? state.favoritesList : state.items;
+  }
+
+  // Гонка промиса с таймаутом — не отменяет сам промис (вызывающий код решает,
+  // что делать с "опоздавшим" результатом), просто не заставляет ждать его
+  // дольше ms. Используется и для перевода запроса, и для отдельных источников.
+  function withTimeout(promise, ms) {
+    let timer;
+    const timeout = new Promise((_, reject) => {
+      timer = setTimeout(() => reject(Object.assign(new Error("timeout"), { isTimeout: true })), ms);
+    });
+    return Promise.race([promise, timeout]).finally(() => clearTimeout(timer));
+  }
+
+  // Отменяет fetch'и предыдущего поиска (все источники, перевод, спеллчекер —
+  // все берут signal у текущего state.abortController) и заводит новый
+  // контроллер для следующего. Вызывается в начале каждого нового поиска и
+  // при полном сбросе — гарантирует, что устаревшие ответы никогда не смогут
+  // повлиять на состояние текущего поиска, а не просто игнорируются постфактум.
+  function abortCurrentSearch() {
+    if (state.abortController) {
+      try { state.abortController.abort(); } catch { /* уже отменён/недоступно — не критично */ }
+    }
+    state.abortController = new AbortController();
+    // state.loading — это "идёт загрузка СТРАНИЦЫ", а не "идёт загрузка ЭТОГО
+    // поколения поиска": пока отменённые источники ещё не добрались до своего
+    // .catch(AbortError), их старая страница формально "не завершена". Мы её
+    // уже целиком забраковали (см. generation-проверки в loadPage), поэтому
+    // не ждём, пока она сама себя дозавершит — снимаем блокировку сразу же,
+    // чтобы новый поиск мог стартовать loadPage без задержки.
+    state.loading = false;
+    el.loadMoreBtn.disabled = false;
+    el.loadMoreBtn.textContent = I18N.t("load_more");
+    // Видео делит тот же AbortController/generation-механизм, что и фото
+    // (режимы взаимоисключающие) — та же причина снять блокировку сразу же.
+    state.videoLoading = false;
+    el.videoLoadMoreBtn.disabled = false;
+    el.videoLoadMoreBtn.textContent = I18N.t("load_more");
+    return state.abortController.signal;
   }
 
   function vibrate(ms) {
@@ -186,42 +333,168 @@
       localStorage.setItem(THEME_KEY, mode);
       document.documentElement.setAttribute("data-theme", mode);
     }
+    el.themeSeg.querySelectorAll("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeSet === mode)));
   }
   function initTheme() {
     applyThemeMode(currentThemeMode());
   }
-  el.themeToggle.addEventListener("click", () => {
-    const mode = currentThemeMode();
-    const next = mode === "auto" ? "light" : mode === "light" ? "dark" : "auto";
-    applyThemeMode(next);
+  function resolveTheme(mode) {
+    return mode === "auto" ? (systemThemeQuery.matches ? "dark" : "light") : mode;
+  }
+
+  // Смена темы с анимацией. Браузер делает снимок страницы в старой теме, а
+  // новая "проявляется" поверх него кругом с мягким краем, который растёт от
+  // точки origin (центр кнопки) до дальнего угла экрана — View Transitions
+  // API + маска с радиальным градиентом (см. .theme-reveal в styles.css).
+  // Без origin (тема ОС сменилась сама) — просто плавная смена кадра.
+  // Браузеры без View Transitions получают плавное перетекание цветов, а
+  // при "уменьшить движение" в настройках системы тема меняется сразу.
+  const reducedMotionQuery = window.matchMedia("(prefers-reduced-motion: reduce)");
+  const THEME_REVEAL_MS = 720;
+  // Сплошная часть круга маски (остальное — мягкий край, см. styles.css).
+  const THEME_REVEAL_SOLID = 0.7;
+  let themeFadeTimer = 0;
+  function transitionTheme(update, origin) {
+    const root = document.documentElement;
+    if (reducedMotionQuery.matches) { update(); return; }
+    if (typeof document.startViewTransition !== "function") {
+      root.classList.add("theme-fading");
+      update();
+      clearTimeout(themeFadeTimer);
+      themeFadeTimer = setTimeout(() => root.classList.remove("theme-fading"), 600);
+      return;
+    }
+    if (!origin) { document.startViewTransition(update); return; }
+    const { x, y } = origin;
+    const reach = Math.hypot(Math.max(x, window.innerWidth - x), Math.max(y, window.innerHeight - y));
+    const radius = Math.ceil(reach / THEME_REVEAL_SOLID);
+    root.classList.add("theme-reveal");
+    const transition = document.startViewTransition(update);
+    transition.ready.then(() => {
+      root.animate({
+        maskSize: ["0px 0px", `${radius * 2}px ${radius * 2}px`],
+        maskPosition: [`${x}px ${y}px`, `${x - radius}px ${y - radius}px`],
+      }, {
+        duration: THEME_REVEAL_MS,
+        easing: "cubic-bezier(0.4, 0, 0.2, 1)",
+        pseudoElement: "::view-transition-new(root)",
+        // Держим конечный кадр до конца перехода: иначе в Chrome между концом
+        // анимации и удалением снимков на один кадр возвращалась маска
+        // "круг нулевого размера" — и экран моргал старой темой.
+        fill: "forwards",
+      });
+    }).catch(() => { /* переход пропущен (например, второй клик подряд) — тема уже применена */ });
+    transition.finished.catch(() => {}).then(() => root.classList.remove("theme-reveal"));
+  }
+
+  // Переключатель темы в меню: светлая / тёмная / авто.
+  el.themeSeg.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-theme-set]");
+    if (!btn) return;
+    const next = btn.dataset.themeSet;
+    if (next === currentThemeMode()) return;
+    // "Авто" может совпасть с текущей темой — тогда меняется только выбор.
+    if (resolveTheme(next) === document.documentElement.getAttribute("data-theme")) {
+      applyThemeMode(next);
+      return;
+    }
+    // Круг новой темы растёт от нажатой кнопки.
+    const r = btn.getBoundingClientRect();
+    transitionTheme(() => applyThemeMode(next), { x: Math.round(r.left + r.width / 2), y: Math.round(r.top + r.height / 2) });
+  });
+
+  // ---------- Размер сетки (крупные / средние / мелкие фото) ----------
+  const GRID_SIZE_KEY = "photoseek-grid-size";
+  function applyGridSize(size) {
+    document.documentElement.setAttribute("data-grid", size);
+    el.gridSeg.querySelectorAll("[data-grid-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.gridSet === size)));
+  }
+  let savedGrid = "2";
+  try { savedGrid = localStorage.getItem(GRID_SIZE_KEY) || "2"; } catch { /* не критично */ }
+  applyGridSize(["1", "2", "3"].includes(savedGrid) ? savedGrid : "2");
+  el.gridSeg.addEventListener("click", (e) => {
+    const btn = e.target.closest("[data-grid-set]");
+    if (!btn) return;
+    applyGridSize(btn.dataset.gridSet);
+    try { localStorage.setItem(GRID_SIZE_KEY, btn.dataset.gridSet); } catch { /* не критично */ }
   });
   // Пока режим "авто" — живо следуем за системной темой (например, автоночь
   // по расписанию ОС), без перезагрузки страницы.
   systemThemeQuery.addEventListener("change", (e) => {
     if (currentThemeMode() !== "auto") return;
-    document.documentElement.setAttribute("data-theme", e.matches ? "dark" : "light");
+    transitionTheme(() => document.documentElement.setAttribute("data-theme", e.matches ? "dark" : "light"));
   });
 
-  // ---------- Sticky header on scroll ----------
-  window.addEventListener("scroll", () => {
+  // ---------- Прокрутка: шапка и кнопка «Наверх» ----------
+  // Кнопка «Наверх» появляется, когда ушли вниз дальше полутора экранов.
+  function onScroll() {
     el.topbar.classList.toggle("is-scrolled", window.scrollY > 8);
-  }, { passive: true });
+    const showTop = window.scrollY > window.innerHeight * 1.5;
+    if (showTop !== el.backToTop.classList.contains("is-visible")) {
+      el.backToTop.classList.toggle("is-visible", showTop);
+      el.backToTop.tabIndex = showTop ? 0 : -1;
+      el.backToTop.setAttribute("aria-hidden", String(!showTop));
+    }
+  }
+  window.addEventListener("scroll", onScroll, { passive: true });
+  el.backToTop.addEventListener("click", () => {
+    window.scrollTo({ top: 0, behavior: reducedMotionQuery.matches ? "auto" : "smooth" });
+  });
 
-  // ---------- Mode switch (Фото / Иконки) ----------
-  // Иконки — принципиально другой поиск (Iconify вместо фотостоков, см.
-  // js/icons.js), поэтому у него своя сетка/лайтбокс/история и вместо
-  // фильтров по фото (ориентация/качество/люди/цвет) показывать нечего —
-  // просто прячем эти элементы, а не пытаемся их подстроить под иконки.
+  // ---------- Mode dispatch helpers ----------
+  // Большинство мест в коде (саджесты, история, Enter в пустом поле и т.п.)
+  // хотят одно и то же: "запусти/сбрось поиск в ТЕКУЩЕМ режиме" — вместо
+  // трёхветочного if/else в каждом таком месте, две точки входа здесь.
+  // Лог поиска в Supabase (для статистики в админке) — best-effort, ничего
+  // не ждём и не показываем при сбое: это не влияет на сам поиск.
+  function logSearch(query, mode) {
+    const base = window.APP_CONFIG?.WORKER_BASE_URL;
+    if (!base || !query || !window.APP_CONFIG?.ACCOUNTS_ENABLED) return;
+    const token = window.PhotoSeekAuth && window.PhotoSeekAuth.getAccessToken();
+    const headers = { "Content-Type": "application/json" };
+    if (token) headers.Authorization = `Bearer ${token}`;
+    fetch(`${base}/log-search`, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({ query, mode }),
+    }).catch(() => {});
+  }
+
+  function runSearchForMode(opts) {
+    logSearch(el.input.value.trim(), state.mode);
+    if (el.input.value.trim() && window.PictaAnalytics) window.PictaAnalytics.goal("search", { mode: state.mode });
+    if (state.mode === "icons") runIconSearch(opts);
+    else if (state.mode === "video") runVideoSearch(opts);
+    else runSearch(opts);
+  }
+  function resetForMode() {
+    if (state.mode === "icons") resetIconToEmpty();
+    else if (state.mode === "video") resetVideoToEmpty();
+    else resetToEmpty();
+  }
+
+  // ---------- Mode switch (Фото / Иконки / Видео) ----------
+  // Иконки и видео — принципиально другой поиск (Iconify / видео-провайдеры
+  // вместо фотостоков, см. js/icons.js и js/videoProviders.js), поэтому у
+  // каждого своя сетка/лайтбокс/история и вместо фильтров по фото
+  // (ориентация/качество/люди/цвет) показывать нечего — просто прячем
+  // элементы других режимов, а не пытаемся их подстроить.
   function applyModeUI(mode) {
     state.mode = mode;
     el.modeSwitch.querySelectorAll(".mode-tab").forEach((btn) => {
       btn.classList.toggle("is-active", btn.dataset.mode === mode);
     });
     const isIcons = mode === "icons";
-    el.sources.hidden = isIcons;
-    el.filtersRow.hidden = isIcons;
-    el.favoritesToggle.hidden = isIcons;
-    el.selectModeToggle.hidden = isIcons;
+    const isVideo = mode === "video";
+    const isPhotos = mode === "photos";
+    el.sourcesRow.hidden = !isPhotos;
+    el.sourcesMenuWrap.hidden = !isPhotos;
+    el.filtersRow.hidden = !isPhotos;
+    el.iconSources.hidden = !isIcons;
+    el.iconFiltersRow.hidden = !isIcons;
+    el.videoSources.hidden = !isVideo;
+    el.videoFiltersRow.hidden = !isVideo;
+    el.selectModeToggle.hidden = !isPhotos;
     applyHeroForMode();
     renderSuggestionChips();
     renderHistory();
@@ -229,51 +502,113 @@
   function setMode(mode) {
     if (mode === state.mode) return;
     try { localStorage.setItem(MODE_KEY, mode); } catch { /* не критично */ }
-    if (mode === "icons" && state.view === "favorites") {
+    if (mode !== "photos" && state.view === "favorites") {
       state.view = "search";
       el.favoritesToggle.setAttribute("aria-pressed", "false");
     }
     exitSelectMode();
     closeLightbox();
     closeIconLightbox();
+    closeVideoLightbox();
     closeFiltersPopover();
-    const wasIcons = state.mode === "icons";
+    closeIconFiltersPopover();
+    closeVideoFiltersPopover();
+    closeSourcesMenuPopover();
+    const prevMode = state.mode;
     applyModeUI(mode);
-    if (wasIcons && mode !== "icons") {
+    if (prevMode === "icons" && mode !== "icons") {
       el.iconGrid.hidden = true;
       el.iconGrid.innerHTML = "";
       el.iconLoadMoreWrap.hidden = true;
       el.iconNoResults.hidden = true;
     }
-    if (!wasIcons && mode === "icons") {
+    if (prevMode === "video" && mode !== "video") {
+      el.videoGrid.hidden = true;
+      el.videoGrid.innerHTML = "";
+      el.videoLoadMoreWrap.hidden = true;
+      el.videoNoResults.hidden = true;
+    }
+    if (prevMode === "photos" && mode !== "photos") {
+      searchGeneration++; // отменяем фотопоиск, который мог быть в процессе
+      abortCurrentSearch(); // и его fetch'и
       el.grid.hidden = true;
+      masonryObserver.disconnect();
+      clearImageLoadQueue();
       el.grid.innerHTML = "";
       el.loadMoreWrap.hidden = true;
       el.noResults.hidden = true;
     }
-    const q = el.input.value.trim();
-    if (mode === "icons") {
-      if (q) runIconSearch(); else resetIconToEmpty();
-    } else if (q) {
-      runSearch();
-    } else {
-      resetToEmpty();
+    if (prevMode === "video" && mode !== "video") {
+      videoSearchGeneration++;
+      abortCurrentSearch();
     }
+    const q = el.input.value.trim();
+    if (q) runSearchForMode(); else resetForMode();
   }
   el.modeSwitch.querySelectorAll(".mode-tab").forEach((btn) => {
     btn.addEventListener("click", () => setMode(btn.dataset.mode));
   });
   function applyHeroForMode() {
-    const icons = state.mode === "icons";
-    el.heroH1Before.textContent = I18N.t(icons ? "hero_h1_before_icons" : "hero_h1_before");
-    el.heroH1Underline.textContent = I18N.t(icons ? "hero_h1_underline_icons" : "hero_h1_underline");
-    el.heroP.textContent = I18N.t(icons ? "hero_p_icons" : "hero_p");
+    const suffix = state.mode === "icons" ? "_icons" : state.mode === "video" ? "_video" : "";
+    el.heroP.textContent = I18N.t(`home_tagline${suffix}`);
+    el.homeControlsSep.hidden = state.mode !== "photos";
+    updateHomeSourcesList();
   }
+
+  // Строка активных источников под поиском на главном экране:
+  // "Pixabay · Pexels · Wikimedia Commons".
+  function updateHomeSourcesList() {
+    let names;
+    if (state.mode === "icons") {
+      names = Array.from(el.iconSources.querySelectorAll("[data-icon-source]"))
+        .filter((b) => state.activeIconSources.has(b.dataset.iconSource))
+        .map((b) => b.textContent.trim());
+      if (names.length === 0) names = [I18N.t("home_sources_icons_all")];
+    } else {
+      const providers = state.mode === "video" ? (window.VIDEO_PROVIDERS || []) : (window.PROVIDERS || []);
+      const active = state.mode === "video" ? state.activeVideoSources : state.activeSources;
+      names = providers.filter((p) => active.has(p.id) && p.enabled()).map((p) => p.label);
+    }
+    el.homeSourcesList.textContent = names.join("  ·  ");
+  }
+
+  // ---------- Главный экран ↔ выдача ----------
+  // Пока нет результатов (виден #emptyState), строка поиска, вкладки режимов
+  // и "Источники" живут в центре главного экрана; после поиска возвращаются
+  // в шапку и панель над выдачей. Узлы переносятся целиком (со всеми
+  // обработчиками), на исходных местах остаются невидимые метки-якоря.
+  const homeMoves = [
+    [el.form, el.homeSearchSlot],
+    [el.modeSwitch, el.homeModeSlot],
+    [el.sourcesMenuWrap, el.homeSourcesSlot],
+  ].map(([node, slot]) => {
+    const anchor = document.createComment("home-anchor");
+    node.parentNode.insertBefore(anchor, node);
+    return { node, slot, anchor };
+  });
+  let isHomeLayout = null;
+  function applyHomeLayout() {
+    const home = !el.emptyState.hidden;
+    if (home === isHomeLayout) return;
+    isHomeLayout = home;
+    const hadFocus = document.activeElement === el.input;
+    for (const { node, slot, anchor } of homeMoves) {
+      if (home) slot.appendChild(node);
+      else anchor.parentNode.insertBefore(node, anchor.nextSibling);
+    }
+    document.body.classList.toggle("is-home", home);
+    // Перенос узла сбрасывает фокус — возвращаем, если человек печатал.
+    if (hadFocus && !(window.matchMedia && window.matchMedia("(pointer: coarse)").matches)) {
+      el.input.focus({ preventScroll: true });
+    }
+  }
+  new MutationObserver(applyHomeLayout).observe(el.emptyState, { attributes: true, attributeFilter: ["hidden"] });
+  applyHomeLayout();
 
   // ---------- Suggestions ----------
   function renderSuggestionChips() {
     el.suggestions.querySelectorAll(".suggestion-chip").forEach((c) => c.remove());
-    const list = state.mode === "icons" ? ICON_SUGGESTIONS : SUGGESTIONS;
+    const list = state.mode === "icons" ? ICON_SUGGESTIONS : state.mode === "video" ? VIDEO_SUGGESTIONS : SUGGESTIONS;
     list.forEach((term) => {
       const chip = document.createElement("button");
       chip.type = "button";
@@ -282,7 +617,7 @@
       chip.addEventListener("click", () => {
         el.input.value = term;
         el.clearBtn.hidden = false;
-        if (state.mode === "icons") runIconSearch(); else runSearch();
+        runSearchForMode();
       });
       el.suggestions.appendChild(chip);
     });
@@ -290,10 +625,12 @@
   renderSuggestionChips();
 
   // ---------- Search history ----------
-  // У иконок своя история (photoseek-icon-history) — короткие технические
-  // запросы вроде "home"/"user" не должны мешаться с историей поиска фото.
+  // У иконок и видео своя история (короткие технические запросы вроде
+  // "home"/"user" не должны мешаться с историей поиска фото).
   function historyKeyForMode() {
-    return state.mode === "icons" ? ICON_HISTORY_KEY : HISTORY_KEY;
+    if (state.mode === "icons") return ICON_HISTORY_KEY;
+    if (state.mode === "video") return VIDEO_HISTORY_KEY;
+    return HISTORY_KEY;
   }
   function loadHistory() {
     try { return JSON.parse(localStorage.getItem(historyKeyForMode()) || "[]"); } catch { return []; }
@@ -321,7 +658,7 @@
       chip.textContent = term;
       chip.addEventListener("click", () => {
         el.input.value = term;
-        if (state.mode === "icons") runIconSearch(); else runSearch();
+        runSearchForMode();
       });
       el.recentSearches.appendChild(chip);
     });
@@ -343,16 +680,42 @@
     el.colorMenu.appendChild(btn);
   });
 
+  // Если активных источников больше лимита (миграция со старых сохранённых
+  // фильтров, где лимита ещё не было) — оставляем первые cap штук в порядке
+  // чипов на странице, остальные выключаем. Для фото (allowZero=false) это
+  // никогда не опустошает набор — уже не более 3 при входе в эту функцию
+  // означает, что 3 и останется; для иконок (allowZero=true) 0 — валидное
+  // состояние ("без ограничения"), поэтому его вообще не трогаем.
+  function enforceSourceCap(chips, activeSet, cap) {
+    const idOf = (c) => c.dataset.source || c.dataset.iconSource || c.dataset.videoSource;
+    // Фото теперь чекбоксы (popover "Источники"), иконки/видео — кнопки-пилюли
+    // (aria-pressed) — один и тот же хелпер обслуживает оба вида элементов.
+    const deactivate = (c) => (c.type === "checkbox" ? (c.checked = false) : c.setAttribute("aria-pressed", "false"));
+    const activeChips = chips.filter((c) => activeSet.has(idOf(c)));
+    if (activeChips.length <= cap) return false;
+    activeChips.slice(cap).forEach((c) => {
+      deactivate(c);
+      activeSet.delete(idOf(c));
+    });
+    return true;
+  }
+
   // ---------- Persisted filters ----------
+  // Список ИСКЛЮЧЁННЫХ источников, а не включённых — иначе каждый новый
+  // источник, добавленный позже (как Shutterstock/Pexafy/Doodl сейчас), не
+  // попадал бы в старый сохранённый список "включённых" и оказывался
+  // молча выключен у всех, кто уже сохранял фильтры раньше.
   function saveFilters() {
     try {
+      const visibleIds = Array.from(el.sources.querySelectorAll("input.source-checkbox[data-source]:not([hidden])"))
+        .map((c) => c.dataset.source);
       localStorage.setItem(FILTERS_KEY, JSON.stringify({
         orientation: state.orientation,
         sort: state.sort,
         quality: state.quality,
         color: state.color,
         people: state.people,
-        activeSources: Array.from(state.activeSources),
+        disabledSources: visibleIds.filter((id) => !state.activeSources.has(id)),
       }));
     } catch { /* localStorage недоступен — не критично */ }
   }
@@ -367,6 +730,10 @@
     dropdown.querySelector(".dropdown-btn [data-value]").textContent = item.textContent.trim();
   }
 
+  // Источники, которые существовали до перехода на формат disabledSources —
+  // нужны только для миграции старых сохранённых фильтров (см. ниже).
+  const LEGACY_SOURCE_IDS = ["pixabay", "pexels", "unsplash", "wikimedia", "openverse", "flickr"];
+
   function loadPersistedFilters() {
     let saved = null;
     try {
@@ -379,34 +746,142 @@
         setDropdownUI(key, saved[key]);
       }
     });
-    if (Array.isArray(saved.activeSources)) {
-      el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
-        if (chip.hidden) return; // источник без ключа — недоступен, не трогаем
-        const want = saved.activeSources.includes(chip.dataset.source);
-        chip.setAttribute("aria-pressed", String(want));
-        if (want) state.activeSources.add(chip.dataset.source);
-        else state.activeSources.delete(chip.dataset.source);
-      });
+
+    let disabled;
+    if (Array.isArray(saved.disabledSources)) {
+      disabled = new Set(saved.disabledSources);
+    } else if (Array.isArray(saved.activeSources)) {
+      // Старый формат — список ВКЛЮЧЁННЫХ источников. Переносим только явные
+      // отключения среди источников, которые существовали на тот момент;
+      // источник, добавленный позже, в старом списке просто не было — это не
+      // значит, что пользователь его выключил, поэтому оставляем как есть.
+      disabled = new Set(LEGACY_SOURCE_IDS.filter((id) => !saved.activeSources.includes(id)));
+    } else {
+      disabled = new Set();
     }
+
+    el.sources.querySelectorAll("input.source-checkbox[data-source]").forEach((cb) => {
+      if (cb.hidden) return; // источник без ключа — недоступен, не трогаем
+      const want = !disabled.has(cb.dataset.source);
+      cb.checked = want;
+      if (want) state.activeSources.add(cb.dataset.source);
+      else state.activeSources.delete(cb.dataset.source);
+    });
+
+    // Сохранённые фильтры могли появиться до лимита в MAX_ACTIVE_SOURCES —
+    // подрезаем и сразу пересохраняем исправленный список, чтобы это не
+    // повторялось на каждой загрузке.
+    const visibleChips = Array.from(el.sources.querySelectorAll("input.source-checkbox[data-source]:not([hidden])"));
+    if (enforceSourceCap(visibleChips, state.activeSources, MAX_ACTIVE_SOURCES)) saveFilters();
   }
 
   // Источники без ключа в config.js просто скрываем — они появятся сами,
-  // как только в config.js добавят соответствующий ключ.
+  // как только в config.js добавят соответствующий ключ. Видимый источник
+  // включён по умолчанию — синхронизируем это и в state, и визуально на
+  // чипе (иначе, например, Flickr при FLICKR_ENABLED:true оказался бы
+  // фактически включён в поиск, но с виду выглядел бы выключенным).
   (function initSourceChips() {
     const byId = {};
     (window.PROVIDERS || []).forEach((p) => { byId[p.id] = p; });
-    el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
-      const provider = byId[chip.dataset.source];
+    let activatedCount = 0;
+    el.sources.querySelectorAll("input.source-checkbox[data-source]").forEach((cb) => {
+      const provider = byId[cb.dataset.source];
       if (provider && provider.enabled()) {
-        state.activeSources.add(provider.id);
+        const activate = activatedCount < MAX_ACTIVE_SOURCES;
+        if (activate) {
+          state.activeSources.add(provider.id);
+          activatedCount++;
+        }
+        cb.checked = activate;
       } else {
-        chip.hidden = true;
+        cb.hidden = true;
       }
     });
   })();
 
   loadPersistedFilters();
   updateFiltersBadge();
+
+  // ---------- Persisted icon filters (стиль + выбор наборов иконок) ----------
+  function saveIconFilters() {
+    try {
+      localStorage.setItem(ICON_FILTERS_KEY, JSON.stringify({
+        iconStyle: state.iconStyle,
+        activeIconSources: Array.from(state.activeIconSources),
+      }));
+    } catch { /* localStorage недоступен — не критично */ }
+  }
+  function loadPersistedIconFilters() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(ICON_FILTERS_KEY) || "null"); } catch { /* битые данные — игнорируем */ }
+    if (!saved) return;
+    if (saved.iconStyle) {
+      state.iconStyle = saved.iconStyle;
+      setDropdownUI("iconStyle", saved.iconStyle);
+    }
+    const chips = Array.from(el.iconSources.querySelectorAll("[data-icon-source]"));
+    if (Array.isArray(saved.activeIconSources)) {
+      const known = new Set(chips.map((c) => c.dataset.iconSource));
+      saved.activeIconSources.filter((id) => known.has(id)).forEach((id) => state.activeIconSources.add(id));
+      chips.forEach((chip) => chip.setAttribute("aria-pressed", String(state.activeIconSources.has(chip.dataset.iconSource))));
+      if (enforceSourceCap(chips, state.activeIconSources, MAX_ACTIVE_SOURCES)) saveIconFilters();
+    }
+  }
+  loadPersistedIconFilters();
+  updateIconFiltersBadge();
+
+  // ---------- Persisted video filters ----------
+  // Та же схема, что у фото (disabledSources + минимум 1 активный) — в
+  // отличие от иконок, у видео каждый источник — реальный отдельный запрос,
+  // а не общий каталог, так что "0 активных" тут не осмысленное состояние.
+  function saveVideoFilters() {
+    try {
+      const visibleIds = Array.from(el.videoSources.querySelectorAll(".source-chip[data-video-source]:not([hidden])"))
+        .map((c) => c.dataset.videoSource);
+      localStorage.setItem(VIDEO_FILTERS_KEY, JSON.stringify({
+        videoOrientation: state.videoOrientation,
+        videoSort: state.videoSort,
+        disabledSources: visibleIds.filter((id) => !state.activeVideoSources.has(id)),
+      }));
+    } catch { /* localStorage недоступен — не критично */ }
+  }
+  function loadPersistedVideoFilters() {
+    let saved = null;
+    try { saved = JSON.parse(localStorage.getItem(VIDEO_FILTERS_KEY) || "null"); } catch { /* битые данные — игнорируем */ }
+    if (!saved) return;
+    ["videoOrientation", "videoSort"].forEach((key) => {
+      if (saved[key]) { state[key] = saved[key]; setDropdownUI(key, saved[key]); }
+    });
+    const disabled = new Set(Array.isArray(saved.disabledSources) ? saved.disabledSources : []);
+    el.videoSources.querySelectorAll(".source-chip[data-video-source]").forEach((chip) => {
+      if (chip.hidden) return;
+      const want = !disabled.has(chip.dataset.videoSource);
+      chip.setAttribute("aria-pressed", String(want));
+      if (want) state.activeVideoSources.add(chip.dataset.videoSource);
+      else state.activeVideoSources.delete(chip.dataset.videoSource);
+    });
+    const visibleChips = Array.from(el.videoSources.querySelectorAll(".source-chip[data-video-source]:not([hidden])"));
+    if (enforceSourceCap(visibleChips, state.activeVideoSources, MAX_ACTIVE_SOURCES)) saveVideoFilters();
+  }
+
+  (function initVideoSourceChips() {
+    const byId = {};
+    (window.VIDEO_PROVIDERS || []).forEach((p) => { byId[p.id] = p; });
+    let activatedCount = 0;
+    el.videoSources.querySelectorAll(".source-chip[data-video-source]").forEach((chip) => {
+      const provider = byId[chip.dataset.videoSource];
+      if (provider && provider.enabled()) {
+        const activate = activatedCount < MAX_ACTIVE_SOURCES;
+        if (activate) { state.activeVideoSources.add(provider.id); activatedCount++; }
+        chip.setAttribute("aria-pressed", String(activate));
+      } else {
+        chip.hidden = true;
+      }
+    });
+  })();
+
+  loadPersistedVideoFilters();
+  updateVideoFiltersBadge();
 
   // ---------- Stats & rate-limit tracking ----------
   const stats = (function loadStats() {
@@ -461,37 +936,163 @@
       ${cooldownLines}
     `;
   }
-  el.insightsToggle.addEventListener("click", (e) => {
-    e.stopPropagation();
-    const isOpen = !el.insightsPanel.hidden;
-    document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
-    if (isOpen) { el.insightsPanel.hidden = true; return; }
-    renderInsights();
-    el.insightsPanel.hidden = false;
+  // Статистика раскрывается прямо в меню, под своим пунктом.
+  function setInsightsOpen(open) {
+    if (open) renderInsights();
+    el.insightsPanel.hidden = !open;
+    el.insightsToggle.setAttribute("aria-expanded", String(open));
+  }
+  el.insightsToggle.addEventListener("click", () => setInsightsOpen(el.insightsPanel.hidden));
+
+  // ---------- Шапка: «молния», профиль, меню ----------
+  // Открыто не больше одного окна; клик мимо или Esc закрывает.
+  const topbarPopovers = [
+    { wrap: el.aboutWrap, toggle: el.aboutToggle, popover: el.aboutPopover },
+    { wrap: el.authWrap, toggle: el.authToggle, popover: el.authPopover },
+    { wrap: el.mainMenuWrap, toggle: el.mainMenuToggle, popover: el.mainMenu, onClose: () => setInsightsOpen(false) },
+  ];
+  function closeTopbarPopover(p) {
+    if (p.popover.hidden) return;
+    p.popover.hidden = true;
+    p.toggle.setAttribute("aria-expanded", "false");
+    if (p.onClose) p.onClose();
+  }
+  function closeTopbarPopovers() {
+    topbarPopovers.forEach(closeTopbarPopover);
+  }
+  topbarPopovers.forEach((p) => {
+    p.toggle.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const willOpen = p.popover.hidden;
+      closeTopbarPopovers();
+      if (!willOpen) return;
+      document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+      p.popover.hidden = false;
+      p.toggle.setAttribute("aria-expanded", "true");
+    });
   });
   document.addEventListener("click", (e) => {
-    if (!el.insightsPanel.hidden && e.target !== el.insightsToggle && !el.insightsToggle.contains(e.target)) {
-      el.insightsPanel.hidden = true;
+    topbarPopovers.forEach((p) => { if (!p.wrap.contains(e.target)) closeTopbarPopover(p); });
+  });
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "Escape") return;
+    const open = topbarPopovers.find((p) => !p.popover.hidden);
+    if (!open) return;
+    closeTopbarPopover(open);
+    open.toggle.focus();
+  });
+
+  // Контакты — из APP_CONFIG.CONTACTS (см. js/config.js).
+  (function renderContacts() {
+    const contacts = (window.APP_CONFIG?.CONTACTS || []).filter((c) => c && c.url);
+    el.aboutContacts.replaceChildren(...contacts.map((c) => {
+      const a = document.createElement("a");
+      a.className = "about-contact";
+      a.href = c.url;
+      a.textContent = c.label || c.url;
+      if (!/^mailto:/i.test(c.url)) { a.target = "_blank"; a.rel = "noopener"; }
+      return a;
+    }));
+    if (contacts.length === 0) {
+      const p = document.createElement("p");
+      p.className = "about-text";
+      p.textContent = I18N.t("about_no_contacts");
+      el.aboutContacts.append(p);
+    }
+  })();
+
+  const DONATE_URL = window.APP_CONFIG?.DONATE_URL || "";
+  if (DONATE_URL) el.donateLink.href = DONATE_URL;
+  el.donateLink.addEventListener("click", (e) => {
+    if (DONATE_URL) { closeTopbarPopovers(); return; }
+    e.preventDefault();
+    showToast(I18N.t("donate_soon"));
+  });
+
+  // ---------- Поделиться и установить (рост и возвраты) ----------
+  // Цели в Яндекс Метрике — см. js/analytics.js.
+  function goal(name, params) {
+    if (window.PictaAnalytics) window.PictaAnalytics.goal(name, params);
+  }
+  // Системное «Поделиться» (телефоны, Safari), иначе — копируем ссылку.
+  async function shareLink(url, text, kind) {
+    goal("share", { kind });
+    try {
+      if (navigator.share) {
+        await navigator.share({ title: "Picta", text, url });
+        return;
+      }
+    } catch (err) {
+      if (err && err.name === "AbortError") return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      showToast(I18N.t("toast_link_copied"));
+    } catch {
+      showToast(I18N.t("toast_copy_failed"));
+    }
+  }
+  // Ссылка на текущий поиск: на странице подборки — её чистый адрес, иначе
+  // /?q=…(&mode=…) — тот же, что уже в адресной строке.
+  el.shareSearchBtn.addEventListener("click", () => {
+    const q = el.input.value.trim();
+    shareLink(location.href.split("#")[0], q ? I18N.t("share_search_text", { q }) : I18N.t("share_site_text"), "search");
+  });
+  el.shareSiteBtn.addEventListener("click", () => {
+    closeTopbarPopovers();
+    shareLink("https://picta.cc/", I18N.t("share_site_text"), "site");
+  });
+
+  // Установка как приложения: Chrome/Edge/Android присылают событие
+  // beforeinstallprompt — тогда пункт меню открывает системное окно
+  // установки. На iPhone/iPad такого нет — пункт показывает подсказку.
+  let installPrompt = null;
+  const isStandalone = () => window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  if (!isStandalone() && isIOS) el.installAppBtn.hidden = false;
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    installPrompt = e;
+    if (!isStandalone()) el.installAppBtn.hidden = false;
+  });
+  window.addEventListener("appinstalled", () => {
+    el.installAppBtn.hidden = true;
+    goal("install");
+    showToast(I18N.t("toast_installed"));
+  });
+  el.installAppBtn.addEventListener("click", async () => {
+    closeTopbarPopovers();
+    if (installPrompt) {
+      installPrompt.prompt();
+      try { await installPrompt.userChoice; } catch { /* не критично */ }
+      installPrompt = null;
+      el.installAppBtn.hidden = true;
+    } else {
+      showToast(I18N.t("toast_install_ios"));
     }
   });
 
+  function updateFavoritesCount() {
+    el.favoritesCount.textContent = state.favorites.size ? String(state.favorites.size) : "";
+  }
+
   // ---------- Search input ----------
-  let debounceTimer = null;
+  // Поиск стартует только по Enter / кнопке поиска, а не на каждую букву.
   el.input.addEventListener("input", () => {
     el.clearBtn.hidden = el.input.value.length === 0;
-    clearTimeout(debounceTimer);
-    debounceTimer = setTimeout(() => { if (state.mode === "icons") runIconSearch(); else runSearch(); }, 550);
   });
   el.clearBtn.addEventListener("click", () => {
     el.input.value = "";
     el.clearBtn.hidden = true;
     el.input.focus();
-    if (state.mode === "icons") resetIconToEmpty(); else resetToEmpty();
+    resetForMode();
   });
   el.form.addEventListener("submit", (e) => {
     e.preventDefault();
-    clearTimeout(debounceTimer);
-    if (state.mode === "icons") runIconSearch(); else runSearch();
+    // На телефоне прячем экранную клавиатуру, чтобы она не закрывала
+    // результаты. На компьютере фокус оставляем — удобно сразу уточнить запрос.
+    if (window.matchMedia && window.matchMedia("(pointer: coarse)").matches) el.input.blur();
+    runSearchForMode();
   });
 
   // ---------- Voice search ----------
@@ -520,7 +1121,7 @@
       if (text) {
         el.input.value = text;
         el.clearBtn.hidden = false;
-        if (state.mode === "icons") runIconSearch(); else runSearch();
+        runSearchForMode();
       }
     });
     recognizer.addEventListener("end", () => {
@@ -537,21 +1138,181 @@
     });
   }
 
-  // ---------- Source chips ----------
-  el.sources.querySelectorAll(".source-chip[data-source]").forEach((chip) => {
-    chip.addEventListener("click", () => {
-      const src = chip.dataset.source;
-      const willBeActive = chip.getAttribute("aria-pressed") !== "true";
-      if (!willBeActive) {
-        const activeCount = el.sources.querySelectorAll('.source-chip[aria-pressed="true"]').length;
-        if (activeCount <= 1) return; // хотя бы один источник должен остаться включён
-      }
-      chip.setAttribute("aria-pressed", String(willBeActive));
-      if (willBeActive) state.activeSources.add(src);
-      else state.activeSources.delete(src);
-      saveFilters();
-      if (state.query) runSearch({ keepTranslation: true });
+  // ---------- Source chip groups (фото / иконки / видео) ----------
+  // Общая логика лимита MAX_ACTIVE_SOURCES, "притушенных" чипов при
+  // достижении потолка (клик по притушенному всё равно работает — просто
+  // показывает тост-объяснение вместо молчаливого игнорирования) и
+  // правила "минимум 1 активный" — раньше было продублировано отдельно на
+  // фото и иконки, теперь одна функция на все три группы источников.
+  // allowZero=true (иконки) — 0 активных валидно и означает "без сужения";
+  // allowZero=false (фото/видео) — как минимум один источник обязателен,
+  // т.к. у каждого реальный сетевой запрос, а не общий каталог на всех.
+  function bindSourceChipGroup(container, attr, key, activeSet, { allowZero, onChange }) {
+    function chips() { return Array.from(container.querySelectorAll(`.source-chip[${attr}]:not([hidden])`)); }
+    function updateCapVisual() {
+      const atCap = activeSet.size >= MAX_ACTIVE_SOURCES;
+      chips().forEach((c) => c.classList.toggle("is-capped", atCap));
+    }
+    chips().forEach((chip) => {
+      chip.addEventListener("click", () => {
+        const src = chip.dataset[key];
+        const willBeActive = chip.getAttribute("aria-pressed") !== "true";
+        if (willBeActive) {
+          if (activeSet.size >= MAX_ACTIVE_SOURCES) {
+            showToast(I18N.t("sources_max_reached", { n: MAX_ACTIVE_SOURCES }));
+            return;
+          }
+        } else if (!allowZero && activeSet.size <= 1) {
+          return; // хотя бы один источник должен остаться включён
+        }
+        chip.setAttribute("aria-pressed", String(willBeActive));
+        if (willBeActive) activeSet.add(src);
+        else activeSet.delete(src);
+        updateCapVisual();
+        onChange();
+      });
     });
+    updateCapVisual();
+  }
+  // Фото — единственная группа с реальными <input type="checkbox"> (в
+  // popover "Источники"), а не кнопками-пилюлями, поэтому у неё свой
+  // байндер: событие "change", а не "click", и `checked` вместо `aria-pressed`.
+  // Логика лимита/тоста/"минимум 1" — та же, что и в bindSourceChipGroup ниже.
+  function bindSourceCheckboxGroup(container, activeSet, { onChange }) {
+    function boxes() { return Array.from(container.querySelectorAll("input.source-checkbox[data-source]:not([hidden])")); }
+    function updateCapVisual() {
+      const atCap = activeSet.size >= MAX_ACTIVE_SOURCES;
+      boxes().forEach((cb) => cb.closest(".source-check-row").classList.toggle("is-capped", atCap && !cb.checked));
+    }
+    boxes().forEach((cb) => {
+      cb.addEventListener("change", () => {
+        const src = cb.dataset.source;
+        if (cb.checked) {
+          if (activeSet.size >= MAX_ACTIVE_SOURCES) {
+            cb.checked = false;
+            showToast(I18N.t("sources_max_reached", { n: MAX_ACTIVE_SOURCES }));
+            return;
+          }
+          activeSet.add(src);
+        } else {
+          if (activeSet.size <= 1) {
+            cb.checked = true; // хотя бы один источник должен остаться включён
+            return;
+          }
+          activeSet.delete(src);
+        }
+        updateCapVisual();
+        updateSourcesMenuBadge();
+        onChange();
+      });
+    });
+    updateCapVisual();
+  }
+  bindSourceCheckboxGroup(el.sources, state.activeSources, {
+    onChange: () => { saveFilters(); updateHomeSourcesList(); if (state.query) runSearch({ keepTranslation: true }); },
+  });
+  updateHomeSourcesList();
+
+  // ---------- Popover "Источники" (фото) ----------
+  function updateSourcesMenuBadge() {
+    el.sourcesMenuBadge.textContent = String(state.activeSources.size);
+  }
+  updateSourcesMenuBadge();
+  function closeSourcesMenuPopover() {
+    el.sourcesMenuPopover.hidden = true;
+    el.sourcesMenuToggle.setAttribute("aria-expanded", "false");
+  }
+  el.sourcesMenuToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = el.sourcesMenuPopover.hidden;
+    document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+    el.sourcesMenuPopover.hidden = !willOpen;
+    el.sourcesMenuToggle.setAttribute("aria-expanded", String(willOpen));
+    if (willOpen) fitSourcesListToViewport();
+  });
+  // Список не должен уходить за нижний край экрана (на главной окно
+  // открывается посреди экрана) — подгоняем высоту под свободное место,
+  // остальное прокручивается внутри окна.
+  function fitSourcesListToViewport() {
+    el.sources.style.maxHeight = "";
+    const top = el.sources.getBoundingClientRect().top;
+    const available = window.innerHeight - top - 24;
+    const natural = el.sources.scrollHeight;
+    if (natural > available) el.sources.style.maxHeight = `${Math.max(160, Math.floor(available))}px`;
+  }
+  document.addEventListener("click", (e) => {
+    if (!el.sourcesMenuPopover.hidden && !el.sourcesMenuWrap.contains(e.target)) closeSourcesMenuPopover();
+  });
+
+  // ---------- Вход (Supabase) ----------
+  // Кнопка профиля видна всегда. Пока вход выключен (ACCOUNTS_ENABLED в
+  // js/config.js), её окно просто говорит, что регистрация скоро появится.
+  if (window.PhotoSeekAuth && window.PhotoSeekAuth.isConfigured()) {
+    el.authSoon.hidden = true;
+    el.authLoggedOut.hidden = false;
+
+    window.PhotoSeekAuth.onChange((session) => {
+      const user = session && session.user;
+      el.authLoggedOut.hidden = Boolean(user);
+      el.authLoggedIn.hidden = !user;
+      el.authSignOutBtn.hidden = !user;
+      el.authToggle.classList.toggle("is-signed-in", Boolean(user));
+      if (user) {
+        const label = user.email || "";
+        el.authEmailLabel.textContent = label;
+        // Фото из Google-аккаунта, если есть, иначе первая буква почты.
+        const photo = user.user_metadata && user.user_metadata.avatar_url;
+        el.authAvatar.textContent = photo ? "" : (label.slice(0, 1) || "?");
+        el.authAvatar.style.backgroundImage = photo ? `url("${String(photo).replace(/["\\]/g, "")}")` : "";
+        el.authAvatar.hidden = false;
+        el.authToggle.querySelector(".icon-user").hidden = true;
+        el.authAdminLink.hidden = false;
+      } else {
+        el.authAvatar.hidden = true;
+        el.authToggle.querySelector(".icon-user").hidden = false;
+        el.authAdminLink.hidden = true;
+      }
+    });
+
+    el.authGoogleBtn.addEventListener("click", async () => {
+      try {
+        await window.PhotoSeekAuth.signInWithGoogle();
+      } catch (err) {
+        showToast(`Не удалось начать вход через Google: ${err.message}`);
+      }
+    });
+
+    el.authEmailForm.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const email = el.authEmailInput.value.trim();
+      if (!email) return;
+      const submitBtn = el.authEmailForm.querySelector("button[type=submit]");
+      submitBtn.disabled = true;
+      try {
+        await window.PhotoSeekAuth.signInWithEmail(email);
+        showToast("Ссылка для входа отправлена на почту");
+        el.authEmailInput.value = "";
+        closeTopbarPopovers();
+      } catch (err) {
+        showToast(`Не удалось отправить ссылку: ${err.message}`);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    el.authSignOutBtn.addEventListener("click", async () => {
+      closeTopbarPopovers();
+      await window.PhotoSeekAuth.signOut();
+    });
+  }
+
+  bindSourceChipGroup(el.iconSources, "data-icon-source", "iconSource", state.activeIconSources, {
+    allowZero: true,
+    onChange: () => { saveIconFilters(); updateHomeSourcesList(); rerunIconSearchWithFilters(); },
+  });
+  bindSourceChipGroup(el.videoSources, "data-video-source", "videoSource", state.activeVideoSources, {
+    allowZero: false,
+    onChange: () => { saveVideoFilters(); updateHomeSourcesList(); rerunVideoSearchWithFilters(); },
   });
 
   el.yandexBtn.addEventListener("click", () => openExternalSearch("yandex"));
@@ -589,6 +1350,11 @@
       if (!isOpen) dropdown.classList.add("is-open");
     });
 
+    // Дропдауны иконок/видео живут в своих popover'ах и сохраняются/
+    // перезапускают поиск по-своему — выключены из общей фото-ветки ниже.
+    const isIconDropdown = !!dropdown.closest("#iconFiltersPopover");
+    const isVideoDropdown = !!dropdown.closest("#videoFiltersPopover");
+
     menu.querySelectorAll(".dropdown-item").forEach((item) => {
       item.addEventListener("click", () => {
         menu.querySelectorAll(".dropdown-item").forEach((i) => i.classList.remove("is-active"));
@@ -596,9 +1362,19 @@
         valueEl.textContent = item.textContent.trim();
         state[key] = item.dataset.val;
         dropdown.classList.remove("is-open");
-        saveFilters();
-        updateFiltersBadge(true);
-        if (state.query) runSearch({ keepTranslation: true });
+        if (isIconDropdown) {
+          saveIconFilters();
+          updateIconFiltersBadge(true);
+          rerunIconSearchWithFilters();
+        } else if (isVideoDropdown) {
+          saveVideoFilters();
+          updateVideoFiltersBadge(true);
+          rerunVideoSearchWithFilters();
+        } else {
+          saveFilters();
+          updateFiltersBadge(true);
+          if (state.query) runSearch({ keepTranslation: true });
+        }
       });
     });
   });
@@ -638,15 +1414,68 @@
   });
   document.addEventListener("click", (e) => {
     if (!el.filtersPopover.hidden && !el.filtersRow.contains(e.target)) closeFiltersPopover();
+    if (!el.iconFiltersPopover.hidden && !el.iconFiltersRow.contains(e.target)) closeIconFiltersPopover();
+    if (!el.videoFiltersPopover.hidden && !el.videoFiltersRow.contains(e.target)) closeVideoFiltersPopover();
+  });
+
+  // ---------- Кнопка фильтров иконок (стиль: любой/одноцветные/цветные) ----------
+  function updateIconFiltersBadge(animate = false) {
+    const activeCount = (state.iconStyle !== "any" ? 1 : 0) + (state.activeIconSources.size > 0 ? 1 : 0);
+    const changed = el.iconFiltersBadge.textContent !== String(activeCount);
+    el.iconFiltersBadge.textContent = String(activeCount);
+    el.iconFiltersBadge.hidden = activeCount === 0;
+    el.iconFiltersToggle.classList.toggle("has-active-filters", activeCount > 0);
+    if (animate && changed && activeCount > 0) popHeart(el.iconFiltersBadge);
+  }
+  function closeIconFiltersPopover() {
+    el.iconFiltersPopover.hidden = true;
+    el.iconFiltersToggle.setAttribute("aria-expanded", "false");
+  }
+  el.iconFiltersToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = el.iconFiltersPopover.hidden;
+    document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+    el.iconFiltersPopover.hidden = !willOpen;
+    el.iconFiltersToggle.setAttribute("aria-expanded", String(willOpen));
+  });
+
+  // ---------- Кнопка фильтров видео (ориентация/сортировка) ----------
+  function updateVideoFiltersBadge(animate = false) {
+    const activeCount = [state.videoOrientation !== "any", state.videoSort !== "popular"].filter(Boolean).length;
+    const changed = el.videoFiltersBadge.textContent !== String(activeCount);
+    el.videoFiltersBadge.textContent = String(activeCount);
+    el.videoFiltersBadge.hidden = activeCount === 0;
+    el.videoFiltersToggle.classList.toggle("has-active-filters", activeCount > 0);
+    if (animate && changed && activeCount > 0) popHeart(el.videoFiltersBadge);
+  }
+  function closeVideoFiltersPopover() {
+    el.videoFiltersPopover.hidden = true;
+    el.videoFiltersToggle.setAttribute("aria-expanded", "false");
+  }
+  el.videoFiltersToggle.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const willOpen = el.videoFiltersPopover.hidden;
+    document.querySelectorAll(".dropdown.is-open").forEach((d) => d.classList.remove("is-open"));
+    el.videoFiltersPopover.hidden = !willOpen;
+    el.videoFiltersToggle.setAttribute("aria-expanded", String(willOpen));
   });
 
   // ---------- URL query param (?q=&mode=icons) ----------
+  // Страница подборки (/foto/priroda/ и т.п., см. seo/build.js) задаёт свой
+  // запрос и режим в window.PICTA_PAGE. Пока ищут именно его, адрес остаётся
+  // чистым (/foto/priroda/); любой другой поиск или очистка — уже обычная
+  // главная (/?q=…), иначе ссылка "подборка + чужой запрос" путала бы.
+  const PAGE = window.PICTA_PAGE || null;
   function updateUrlQuery(q) {
     try {
-      const url = new URL(location.href);
+      if (PAGE && (q || "") === (PAGE.q || "") && state.mode === (PAGE.mode || "photos")) {
+        history.replaceState(null, "", location.pathname);
+        return;
+      }
+      const url = new URL(PAGE ? "/" : location.href, location.href);
       if (q) url.searchParams.set("q", q);
       else url.searchParams.delete("q");
-      if (state.mode === "icons") url.searchParams.set("mode", "icons");
+      if (state.mode !== "photos") url.searchParams.set("mode", state.mode);
       else url.searchParams.delete("mode");
       history.replaceState(null, "", url.pathname + url.search);
     } catch { /* недоступно (например, в песочнице без истории) — не критично */ }
@@ -664,6 +1493,7 @@
       return;
     }
     const myGeneration = ++searchGeneration;
+    const signal = abortCurrentSearch(); // отменяет fetch'и предыдущего поиска (все источники, перевод, спеллчекер)
     state.view = "search";
     exitSelectMode();
     state.query = raw;
@@ -673,7 +1503,7 @@
 
     // Спеллчекер — только для обычного текста без наших операторов (-слово/"фраза"/ИЛИ).
     if (!opts.skipSpellcheck && !opts.forceOriginal && !/[-"]|\bOR\b/i.test(raw) && window.checkSpelling) {
-      window.checkSpelling(raw).then((suggestion) => {
+      window.checkSpelling(raw, { signal }).then((suggestion) => {
         if (suggestion && el.input.value.trim() === raw) {
           el.spellHintText.textContent = suggestion;
           el.spellHint.dataset.suggestion = suggestion;
@@ -694,12 +1524,19 @@
     } else {
       // Основной перевод и перевод терминов операторов (-слово/"фраза"/ИЛИ)
       // друг от друга не зависят — идут одним Promise.all, а не по очереди,
-      // чтобы не ждать два похода к MyMemory подряд.
+      // чтобы не ждать два похода к MyMemory подряд. Перевод — best-effort
+      // с жёстким таймаутом: источники не запускаются, пока не готов итоговый
+      // текст запроса, так что TRANSLATE_TIMEOUT_MS — верхняя граница
+      // задержки перед стартом поиска, а не просто "подождать подольше". При
+      // неудаче/таймауте используем оригинальный текст — как и раньше, сбой
+      // перевода не ломает сам поиск.
       const operatorTerms = [...parsed.mustPhrases, ...parsed.mustNot, ...parsed.orGroups.flat()];
+      const translateWithFallback = (text) => withTimeout(window.translateQuery(text, { signal }), TRANSLATE_TIMEOUT_MS)
+        .catch(() => ({ translated: text, original: text, wasTranslated: false }));
       const [result, translatedTermsEntries] = await Promise.all([
-        window.translateQuery(parsed.apiQuery),
+        translateWithFallback(parsed.apiQuery),
         Promise.all(operatorTerms.map(async (term) => {
-          const r = await window.translateQuery(term);
+          const r = await translateWithFallback(term);
           return [term.toLowerCase(), r.translated.toLowerCase()];
         })),
       ]);
@@ -721,6 +1558,9 @@
     state.pages = {};
     state.hasMore = {};
     state.dedupeHashes = [];
+    state.seenUrls = new Set();
+    masonryObserver.disconnect();
+    clearImageLoadQueue();
     el.grid.innerHTML = "";
     el.grid.hidden = false;
     el.emptyState.hidden = true;
@@ -732,8 +1572,7 @@
   }
 
   el.translatedHintUndo.addEventListener("click", () => {
-    if (state.mode === "icons") runIconSearch({ forceOriginal: true });
-    else runSearch({ forceOriginal: true });
+    runSearchForMode({ forceOriginal: true });
   });
   el.spellHintApply.addEventListener("click", () => {
     const suggestion = el.spellHint.dataset.suggestion;
@@ -745,6 +1584,7 @@
 
   function resetToEmpty() {
     searchGeneration++; // отменяем любой поиск, который мог быть в процессе
+    abortCurrentSearch(); // и его fetch'и — не просто перестаём слушать ответ, а реально обрываем запрос
     state.query = "";
     state.searchQuery = "";
     state.items = [];
@@ -752,6 +1592,8 @@
     el.translatedHint.hidden = true;
     el.spellHint.hidden = true;
     el.grid.hidden = true;
+    masonryObserver.disconnect();
+    clearImageLoadQueue();
     el.grid.innerHTML = "";
     el.loadMoreWrap.hidden = true;
     el.noResults.hidden = true;
@@ -762,13 +1604,23 @@
     if (state.view === "favorites") renderFavoritesView();
   }
 
+  // Источники, до которых не удалось достучаться (сеть оборвалась или
+  // сервер-посредник не пустил ответ — браузер пишет лишь "Load failed"),
+  // собираем в одну строку вместо одинаковой фразы на каждый.
+  function formatWarnings(warnings, networkFailed) {
+    const all = networkFailed.length
+      ? [...warnings, I18N.t("warn_network_failed", { labels: networkFailed.join(", ") })]
+      : warnings;
+    return all.join("  ·  ");
+  }
+
   // Настоящий CSS masonry (grid-template-rows: masonry) пока не везде
   // поддерживается, поэтому считаем высоту карточки в мелких строках грида
   // (шаг GRID_ROW_UNIT) сами — см. .grid/.card-skeleton в styles.css.
   // ResizeObserver сам пересчитывает span при любом изменении высоты:
   // догрузилась картинка, изменилась ширина колонки при ресайзе и т.п.
   const GRID_ROW_UNIT = 4;
-  const GRID_GAP = 8;
+  const GRID_GAP = 12;
   const masonryObserver = new ResizeObserver((entries) => {
     for (const entry of entries) {
       // Для карточек наблюдаем за <img>, а не за .card: у .card стоит
@@ -779,7 +1631,13 @@
       // (через aspect-ratio), поэтому измеряем её и назначаем span карточке.
       const target = entry.target.tagName === "IMG" ? entry.target.closest(".card") : entry.target;
       if (!target) continue;
-      const span = Math.ceil((entry.contentRect.height + GRID_GAP) / (GRID_ROW_UNIT + GRID_GAP));
+      // Округляем ВНИЗ: карточка выходит на 0–11 px короче картинки и чуть
+      // подрезает её низ (overflow:hidden). С округлением вверх было
+      // наоборот — под фото оставалась полоска фона карточки, будто фото
+      // съехало. Скелетоны (у них своя явная высота) — по-прежнему вверх,
+      // чтобы не залезали на соседа снизу.
+      const round = entry.target.tagName === "IMG" ? Math.floor : Math.ceil;
+      const span = round((entry.contentRect.height + GRID_GAP) / (GRID_ROW_UNIT + GRID_GAP));
       target.style.gridRowEnd = `span ${Math.max(span, 1)}`;
     }
   });
@@ -798,12 +1656,48 @@
     el.grid.querySelectorAll('[data-skeleton="1"]').forEach((s) => s.remove());
   }
 
+  // Единый слой ранжирования — определяет порядок карточек внутри страницы,
+  // которая собирается по мере ответов источников (см. loadPage), а не то,
+  // какой источник просто ответил раньше остальных. Веса — обычные const,
+  // чтобы баланс было легко подправить, не переписывая саму логику.
+  const RANK_WEIGHTS = {
+    relevance: 3, // доля слов запроса, встретившихся в title/description/tags
+    hasText: 1, // есть непустые title или description
+    resolution: 2, // чем крупнее фото, тем выше (логарифмическая шкала)
+    source: 1.5, // эвристический вес источника, см. SOURCE_WEIGHTS
+  };
+  function scoreItem(item, queryTerms) {
+    let score = 0;
+    if (queryTerms.length) {
+      const haystack = [item.title, item.description, ...(item.tags || [])].filter(Boolean).join(" ").toLowerCase();
+      const hits = queryTerms.filter((t) => haystack.includes(t)).length;
+      score += RANK_WEIGHTS.relevance * (hits / queryTerms.length);
+    }
+    if (item.title || item.description) score += RANK_WEIGHTS.hasText;
+    const maxDim = Math.max(item.width || 0, item.height || 0);
+    if (maxDim > 0) score += RANK_WEIGHTS.resolution * Math.min(1, Math.log10(maxDim) / 4);
+    score += RANK_WEIGHTS.source * ((SOURCE_WEIGHTS[item.provider] ?? 1) - 1);
+    return score;
+  }
+
+  function isNearViewport(elm, margin = 800) {
+    const rect = elm.getBoundingClientRect();
+    return rect.top < (window.innerHeight || document.documentElement.clientHeight) + margin;
+  }
+
+  // ---------- Прогрессивная загрузка страницы ----------
+  // Каждый источник ищет независимо: как только он ответил (успехом,
+  // ошибкой или не уложился в PROVIDER_TIMEOUT_MS), его карточки сразу
+  // вставляются в ленту по рангу (см. scoreItem), не дожидаясь остальных.
+  // Один зависший/упавший источник никогда не блокирует ни отрисовку, ни
+  // остальные источники, ни переход к следующей странице.
   async function loadPage(isFirst, generation = searchGeneration, autoDepth = 0) {
     if (state.loading) return;
     state.loading = true;
     el.loadMoreBtn.disabled = true;
     el.loadMoreBtn.textContent = I18N.t("loading");
 
+    const signal = state.abortController?.signal;
     const now = Date.now();
     // Проактивно не дёргаем Unsplash, если сами видим, что лимит на этот час исчерпан.
     if (getUnsplashRemaining() <= 0 && !(state.cooldownUntil.unsplash > now)) {
@@ -819,131 +1713,238 @@
       const mins = Math.max(1, Math.round((state.cooldownUntil[p.id] - now) / 60000));
       return I18N.t("warn_cooldown", { label: p.label, mins });
     });
-    const totals = {};
+    const networkFailed = []; // источники, до которых не достучались (сеть/CORS)
 
-    const results = await Promise.all(
-      activeProviders.map(async (p) => {
-        const page = (state.pages[p.id] || 0) + 1;
-        try {
-          const { items, total } = await p.search(state.searchQuery, {
-            page,
-            orientation: state.orientation,
-            sort: state.sort,
-            color: state.color,
-            people: state.people,
-          });
+    function finishLoading() {
+      state.loading = false;
+      el.loadMoreBtn.disabled = false;
+      el.loadMoreBtn.textContent = I18N.t("load_more");
+    }
+
+    if (activeProviders.length === 0) {
+      if (isFirst) {
+        clearSkeletons();
+        if (state.items.length === 0) {
+          el.grid.hidden = true;
+          el.loadMoreWrap.hidden = true;
+          el.noResults.hidden = false;
+        }
+      }
+      el.providerWarnings.textContent = warnings.join("  ·  ");
+      finishLoading();
+      return;
+    }
+
+    const queryTerms = (state.searchQuery || "").toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
+    const hadItemsBefore = state.items.length > 0;
+    const pageStartIndex = state.items.length;
+    const pageLiveItems = []; // [{item, score}] — отсортирован по score убыв., зеркалит DOM-порядок этой страницы
+    const totals = {};
+    let skeletonsCleared = !isFirst;
+    let settledCount = 0;
+
+    // Вставляет новые элементы в pageLiveItems по рангу, а в DOM — точечно
+    // (insertBefore), не перестраивая уже показанные карточки этой страницы
+    // целиком: иначе на каждый ответ источника пришлось бы заново создавать
+    // (и заново грузить превью) все карточки страницы с нуля. Пока источники
+    // ещё отвечают, пользователь мог уйти в "Избранное" — там сейчас другая
+    // сетка (см. renderGridFromList), трогать #grid в этом случае нельзя;
+    // state.items всё равно обновляем, чтобы при возврате в поиск всё было
+    // на месте.
+    function insertScored(scoredItems) {
+      const isSearchView = state.view === "search";
+      for (const scored of scoredItems) {
+        let idx = pageLiveItems.length;
+        while (idx > 0 && pageLiveItems[idx - 1].score < scored.score) idx--;
+        pageLiveItems.splice(idx, 0, scored);
+        if (isSearchView) {
+          const refNode = el.grid.children[pageStartIndex + idx] || null;
+          el.grid.insertBefore(buildCard(scored.item), refNode);
+        }
+      }
+      state.items = state.items.slice(0, pageStartIndex).concat(pageLiveItems.map((x) => x.item));
+    }
+
+    function handleProviderResult(p, page, items, total) {
+      state.pages[p.id] = page;
+      state.hasMore[p.id] = items.length > 0;
+      totals[p.id] = total;
+
+      // Дедуп уровня 1 — дёшево, синхронно, без сети: точное совпадение
+      // ссылки на файл. Только то, что прошло его, идёт дальше на рендер;
+      // perceptual hash (уровень 2) запускается позже, в фоне, см. ниже.
+      let filtered = window.dedupeByUrl ? window.dedupeByUrl(items, state.seenUrls) : items;
+      const minPx = QUALITY_THRESHOLDS[state.quality] || 0;
+      if (minPx > 0) filtered = filtered.filter((it) => Math.max(it.width || 0, it.height || 0) >= minPx);
+      if (state.people !== "any" && window.matchesPeopleFilter) {
+        filtered = filtered.filter((it) => window.matchesPeopleFilter(it, state.people));
+      }
+      if (state.queryMatcher) filtered = filtered.filter(state.queryMatcher);
+      if (filtered.length === 0) return;
+
+      if (isFirst && !skeletonsCleared) { clearSkeletons(); skeletonsCleared = true; }
+      el.noResults.hidden = true;
+      insertScored(filtered.map((item) => ({ item, score: scoreItem(item, queryTerms) })));
+    }
+
+    function finalizeIfDone() {
+      if (settledCount < activeProviders.length) return; // ждём остальных
+      // Это поколение уже отменено новым поиском (см. abortCurrentSearch) —
+      // ему нечего дописывать: state.loading/кнопку уже сбросил новый поиск,
+      // а трогать resultsCount/warnings/сетку задним числом значило бы
+      // затереть то, что показывает уже АКТУАЛЬНый поиск.
+      if (generation !== searchGeneration) return;
+      // Как и в insertScored — страница могла доехать до конца уже после
+      // того, как пользователь ушёл в "Избранное"; счётчики/кнопки/пустое
+      // состояние ленты поиска в этом случае трогать нельзя, это не то,
+      // что сейчас видно.
+      const isSearchView = state.view === "search";
+      if (isFirst && !skeletonsCleared) { clearSkeletons(); skeletonsCleared = true; }
+
+      if (isSearchView) {
+        if (pageLiveItems.length === 0 && !hadItemsBefore) {
+          el.grid.hidden = true;
+          el.loadMoreWrap.hidden = true;
+          el.noResults.hidden = false;
+        } else {
+          el.noResults.hidden = true;
+          const anyMore = activeProviders.some((p) => state.hasMore[p.id]);
+          el.loadMoreWrap.hidden = !anyMore;
+        }
+        if (isFirst) {
+          const knownTotals = Object.values(totals).filter((t) => typeof t === "number");
+          const sum = knownTotals.reduce((a, b) => a + b, 0);
+          const n = sum > 0 ? sum.toLocaleString(I18N.t("locale")) : state.items.length;
+          el.resultsCount.textContent = state.items.length ? I18N.t("results_found", { n }) : "";
+        }
+        el.providerWarnings.textContent = formatWarnings(warnings, networkFailed);
+      }
+      finishLoading();
+
+      // Дедупликация уровня 2 (perceptual hash) качает байты каждого
+      // превью — запускаем в фоне уже после того, как страница показана,
+      // а не до, иначе первая карточка появлялась бы заметно позже.
+      if (window.dedupeItems && pageLiveItems.length > 0) {
+        removeDuplicatesInBackground(pageLiveItems.map((x) => x.item), generation);
+      }
+
+      // IntersectionObserver вызывает колбэк только при ИЗМЕНЕНИИ пересечения,
+      // а не пока оно просто остаётся истинным. Если новая страница добавила
+      // мало карточек (агрессивный дедуп/фильтры) и лента выросла недостаточно,
+      // кнопка "Показать ещё" как была в зоне наблюдателя, так и осталась —
+      // обсервер молчит, и бесконечный скролл выглядит "заглохшим", хотя грузить
+      // ещё есть что. Поэтому после каждой загрузки сами перепроверяем
+      // геометрию и, если сентинел всё ещё рядом с экраном, продолжаем без
+      // ожидания нового события скролла. autoDepth ограничивает такие
+      // самозапуски тремя подряд (сбрасывается любым настоящим кликом/скроллом)
+      // — иначе на очень высоком экране с огромной выдачей это могло бы само
+      // без остановки съедать лимиты API, гоняясь за постоянно "видимым" низом.
+      if (isSearchView && !el.loadMoreWrap.hidden && autoDepth < 3 && isNearViewport(el.loadMoreWrap)) {
+        loadPage(false, generation, autoDepth + 1);
+      }
+    }
+
+    activeProviders.forEach((p) => {
+      const page = (state.pages[p.id] || 0) + 1;
+      let settled = false;
+      const finishOnce = () => {
+        if (settled) return;
+        settled = true;
+        settledCount++;
+        finalizeIfDone();
+      };
+
+      p.search(state.searchQuery, {
+        page, orientation: state.orientation, sort: state.sort, color: state.color, people: state.people, signal,
+      }).then((result) => {
+        if (settled) return; // уже посчитан как timeout — не задваиваем
+        // generation !== searchGeneration: это поколение уже отменено новым
+        // поиском — finishOnce() всё равно вызываем (иначе settledCount для
+        // этой, уже заброшенной, страницы никогда не доберёт нужное число),
+        // но сами результаты никуда не вставляем — finalizeIfDone() для
+        // чужого поколения и так ничего не покажет, insertScored тут просто
+        // лишняя работа.
+        if (generation === searchGeneration) {
           if (p.id === "unsplash") logUnsplashRequest();
-          state.pages[p.id] = page;
-          state.hasMore[p.id] = items.length > 0;
-          totals[p.id] = total;
-          return { id: p.id, items };
-        } catch (err) {
+          handleProviderResult(p, page, result.items || [], result.total ?? null);
+        }
+        finishOnce();
+      }).catch((err) => {
+        if (settled) return; // уже посчитан как timeout — не задваиваем предупреждение
+        if (generation === searchGeneration && err.name !== "AbortError") {
           console.error(`[${p.label}]`, err);
           if (/HTTP 429/.test(err.message)) {
             state.cooldownUntil[p.id] = Date.now() + COOLDOWN_MS;
             warnings.push(I18N.t("warn_rate_limited", { label: p.label }));
+          } else if (p.id === "unsplash" && /HTTP 403/.test(err.message)) {
+            // Unsplash сообщает об исчерпанном часовом лимите ключа (общем на
+            // всех посетителей) кодом 403, а не 429. Не долбим его на каждом
+            // поиске, а ставим на паузу до следующей попытки.
+            state.cooldownUntil[p.id] = Date.now() + UNSPLASH_FORBIDDEN_COOLDOWN_MS;
+            warnings.push(I18N.t("warn_unsplash_forbidden"));
+          } else if (SOURCE_BROKEN_RE.test(err.message)) {
+            // Сырой текст ответа (JSON с переносами строк) посетителю ничего
+            // не скажет — он остаётся в консоли выше, а на экран короткая фраза.
+            state.cooldownUntil[p.id] = Date.now() + SOURCE_BROKEN_COOLDOWN_MS;
+            warnings.push(I18N.t("warn_source_unavailable", { label: p.label }));
+          } else if (err.isNetwork) {
+            networkFailed.push(p.label);
           } else {
             warnings.push(I18N.t("warn_with_message", { label: p.label, message: err.message || I18N.t("warn_generic_error") }));
           }
           state.hasMore[p.id] = false;
-          return { id: p.id, items: [] };
         }
-      })
-    );
+        finishOnce();
+      });
 
-    if (generation !== searchGeneration) {
-      // Пока грузили эту страницу, пользователь запустил новый поиск —
-      // не показываем устаревшие результаты и не трогаем его состояние.
-      state.loading = false;
-      el.loadMoreBtn.disabled = false;
-      el.loadMoreBtn.textContent = I18N.t("load_more");
+      // Таймаут не отменяет сам запрос (вдруг он всё же ответит — тогда
+      // сработает settled-заслон выше и результат тихо проигнорируется), а
+      // лишь не даёт одному зависшему источнику держать открытой "загрузку"
+      // страницы для всех остальных. hasMore для него не трогаем — это не
+      // "у источника больше нет результатов", а просто "не успел в этот раз",
+      // следующий клик "Показать ещё" даст ему ещё один шанс на той же странице.
+      setTimeout(() => {
+        if (settled) return;
+        if (generation === searchGeneration) {
+          warnings.push(I18N.t("warn_with_message", { label: p.label, message: I18N.t("warn_timeout") }));
+        }
+        finishOnce();
+      }, PROVIDER_TIMEOUT_MS);
+    });
+  }
+
+  // Считает хеши уже показанных карточек и убирает из ленты те, что
+  // оказались дублями (между разными стоками) — асинхронно, не блокируя
+  // основной рендер (см. вызов в loadPage). Карточка на экране могла успеть
+  // прокрутиться за это время — просто снимаем её из DOM и из state.items.
+  async function removeDuplicatesInBackground(batch, generation) {
+    let kept, hashes;
+    try {
+      ({ kept, hashes } = await window.dedupeItems(batch, state.dedupeHashes));
+    } catch (err) {
+      console.warn("Фоновая дедупликация не удалась:", err);
       return;
     }
+    if (generation !== searchGeneration) return; // поиск уже сменился — наш результат не нужен
+    state.dedupeHashes.push(...hashes);
+    if (kept.length === batch.length) return; // дублей не нашлось
 
-    let batch = weightedInterleave(results);
-    const minPx = QUALITY_THRESHOLDS[state.quality] || 0;
-    if (minPx > 0) {
-      batch = batch.filter((it) => Math.max(it.width || 0, it.height || 0) >= minPx);
-    }
-    if (state.people !== "any" && window.matchesPeopleFilter) {
-      batch = batch.filter((it) => window.matchesPeopleFilter(it, state.people));
-    }
-    if (state.queryMatcher) {
-      batch = batch.filter(state.queryMatcher);
-    }
-    if (window.dedupeItems && batch.length > 0) {
-      const { kept, hashes } = await window.dedupeItems(batch, state.dedupeHashes);
-      batch = kept;
-      state.dedupeHashes.push(...hashes);
-    }
-
-    if (isFirst) clearSkeletons();
-
-    if (batch.length === 0 && state.items.length === 0) {
-      el.grid.hidden = true;
-      el.loadMoreWrap.hidden = true;
-      el.noResults.hidden = false;
-    } else {
-      el.noResults.hidden = true;
-      appendCards(batch);
-      state.items = state.items.concat(batch);
-      const anyMore = activeProviders.some((p) => state.hasMore[p.id]);
-      el.loadMoreWrap.hidden = !anyMore;
-    }
-
-    if (isFirst) {
-      const knownTotals = Object.values(totals).filter((t) => typeof t === "number");
-      const sum = knownTotals.reduce((a, b) => a + b, 0);
-      const n = sum > 0 ? sum.toLocaleString(I18N.t("locale")) : state.items.length;
-      el.resultsCount.textContent = state.items.length ? I18N.t("results_found", { n }) : "";
-    }
-    el.providerWarnings.textContent = warnings.join("  ·  ");
-
-    state.loading = false;
-    el.loadMoreBtn.disabled = false;
-    el.loadMoreBtn.textContent = I18N.t("load_more");
-
-    // IntersectionObserver вызывает колбэк только при ИЗМЕНЕНИИ пересечения,
-    // а не пока оно просто остаётся истинным. Если новая страница добавила
-    // мало карточек (агрессивный дедуп/фильтры) и лента выросла недостаточно,
-    // кнопка "Показать ещё" как была в зоне наблюдателя, так и осталась —
-    // обсервер молчит, и бесконечный скролл выглядит "заглохшим", хотя грузить
-    // ещё есть что. Поэтому после каждой загрузки сами перепроверяем
-    // геометрию и, если сентинел всё ещё рядом с экраном, продолжаем без
-    // ожидания нового события скролла. autoDepth ограничивает такие
-    // самозапуски тремя подряд (сбрасывается любым настоящим кликом/скроллом)
-    // — иначе на очень высоком экране с огромной выдачей это могло бы само
-    // без остановки съедать лимиты API, гоняясь за постоянно "видимым" низом.
-    if (!el.loadMoreWrap.hidden && autoDepth < 3 && isNearViewport(el.loadMoreWrap)) {
-      loadPage(false, generation, autoDepth + 1);
-    }
-  }
-
-  function isNearViewport(elm, margin = 800) {
-    const rect = elm.getBoundingClientRect();
-    return rect.top < (window.innerHeight || document.documentElement.clientHeight) + margin;
-  }
-
-  // Взвешенное чередование источников (smooth weighted round-robin) вместо
-  // простого "по очереди" — источники с большим весом появляются чуть чаще.
-  function weightedInterleave(providerBatches) {
-    const sources = providerBatches
-      .map((p) => ({ id: p.id, items: p.items, idx: 0, credit: 0 }))
-      .filter((p) => p.items.length > 0);
-    const result = [];
-    let remaining = sources.reduce((s, p) => s + p.items.length, 0);
-    while (remaining > 0) {
-      const active = sources.filter((p) => p.idx < p.items.length);
-      const totalWeight = active.reduce((s, p) => s + (SOURCE_WEIGHTS[p.id] ?? 1), 0);
-      active.forEach((p) => { p.credit += SOURCE_WEIGHTS[p.id] ?? 1; });
-      let pick = active[0];
-      for (const p of active) if (p.credit > pick.credit) pick = p;
-      result.push(pick.items[pick.idx]);
-      pick.idx++;
-      pick.credit -= totalWeight;
-      remaining--;
-    }
-    return result;
+    const keptSet = new Set(kept);
+    const removed = batch.filter((it) => !keptSet.has(it));
+    if (removed.length === 0) return;
+    const removedIds = new Set(removed.map((it) => it.id));
+    state.items = state.items.filter((it) => !removedIds.has(it.id));
+    // Пока считали хеши, пользователь мог уйти в "Избранное" — там сейчас
+    // другой набор карточек (может включать те же id, если фото уже
+    // избранное), трогать DOM в этом случае нельзя.
+    if (state.view !== "search") return;
+    removed.forEach((it) => {
+      const card = el.grid.querySelector(`.card[data-id="${cssEscape(it.id)}"]`);
+      if (!card) return;
+      const img = card.querySelector("img");
+      if (img) masonryObserver.unobserve(img);
+      card.remove();
+    });
   }
 
   el.loadMoreBtn.addEventListener("click", () => loadPage(false));
@@ -989,7 +1990,14 @@
     }
 
     if (myGeneration !== iconSearchGeneration) return; // отменено более новым поиском
+    await startIconResultsLoad(myGeneration);
+  }
 
+  // Общий хвост запуска поиска иконок — используется и при обычном поиске
+  // (после перевода запроса), и при смене фильтров стиля/наборов иконок,
+  // когда переводить/добавлять в историю заново не нужно, а вот сбросить
+  // сетку и перезапросить текущий (уже переведённый) запрос — нужно.
+  async function startIconResultsLoad(generation) {
     state.iconItems = [];
     state.iconPage = 0;
     state.iconHasMore = false;
@@ -999,7 +2007,16 @@
     el.iconNoResults.hidden = true;
     el.providerWarnings.textContent = "";
     renderIconSkeletons(18);
-    await loadIconPage(true, myGeneration);
+    await loadIconPage(true, generation);
+  }
+
+  // Смена фильтра стиля/наборов иконок посреди уже открытого поиска: не
+  // трогаем историю/URL/перевод — просто отменяем текущую страницу (новое
+  // поколение) и грузим первую страницу заново с новыми фильтрами.
+  function rerunIconSearchWithFilters() {
+    if (!state.iconSearchQuery) return; // ещё ничего не искали — фильтр применится при следующем поиске
+    const myGeneration = ++iconSearchGeneration;
+    startIconResultsLoad(myGeneration);
   }
 
   function renderIconSkeletons(count) {
@@ -1021,12 +2038,19 @@
     el.iconLoadMoreBtn.textContent = I18N.t("loading");
 
     const page = state.iconPage + 1;
+    const prefixes = Array.from(state.activeIconSources);
     let items = [];
     let total = null;
     try {
-      const r = await window.IconSearch.search(state.iconSearchQuery, { page });
+      const r = await window.IconSearch.search(state.iconSearchQuery, { page, prefixes, palette: state.iconStyle });
       items = r.items;
       total = r.total;
+      // Сервер мог не поддержать/проигнорировать prefixes — фильтруем и на
+      // клиенте, это единственная гарантия (см. комментарий в icons.js).
+      if (prefixes.length) {
+        const wanted = state.activeIconSources;
+        items = items.filter((it) => wanted.has(it.prefix));
+      }
       await window.IconSearch.fetchIconBodies(items);
     } catch (err) {
       console.error("[Iconify]", err);
@@ -1046,7 +2070,27 @@
     // Иконки, для которых не удалось получить тело SVG (например, сеть
     // моргнула на конкретном наборе) — отбрасываем, показывать пустую
     // плитку смысла нет.
-    const renderable = items.filter((it) => window.IconSearch.getIconBody(it.prefix, it.name));
+    let renderable = items.filter((it) => window.IconSearch.getIconBody(it.prefix, it.name));
+
+    // Фильтр "стиль" (одноцветные/цветные) — по метаданным набора (palette),
+    // которые могли ещё не подгрузиться для совсем новых наборов; в этом
+    // случае иконку не прячем (лучше лишняя, чем ложно пустая выдача).
+    if (state.iconStyle !== "any" && renderable.length) {
+      const distinctPrefixes = Array.from(new Set(renderable.map((it) => it.prefix)));
+      await window.IconSearch.ensureCollectionsInfo(distinctPrefixes);
+      if (generation !== iconSearchGeneration) {
+        state.iconLoading = false;
+        el.iconLoadMoreBtn.disabled = false;
+        el.iconLoadMoreBtn.textContent = I18N.t("load_more");
+        return;
+      }
+      renderable = renderable.filter((it) => {
+        const info = window.IconSearch.getCollectionInfo(it.prefix);
+        if (!info) return true;
+        const isColor = !!info.palette;
+        return state.iconStyle === "color" ? isColor : !isColor;
+      });
+    }
 
     if (isFirst) clearIconSkeletons();
 
@@ -1272,12 +2316,406 @@
     });
   }
 
+  // ---------- Video search (см. js/videoProviders.js) ----------
+  // По архитектуре — уменьшенная копия фото-пайплайна (loadPage выше):
+  // несколько независимых источников, прогрессивный рендер по мере ответа
+  // каждого, тот же общий AbortController/scoreItem-ранжирование и дедуп
+  // уровня 1 (по URL). Чего нет специально: операторов запроса, спеллчекера,
+  // фильтров качества/цвета/людей (для видео это не осмысленно), избранного
+  // и множественного выбора/ZIP — как и у иконок, второй по значимости
+  // режим сознательно проще первого.
+  let videoSearchGeneration = 0;
+  async function runVideoSearch(opts = {}) {
+    const raw = el.input.value.trim();
+    if (!raw) { resetVideoToEmpty(); return; }
+    const myGeneration = ++videoSearchGeneration;
+    // Как и у фото (runSearch) — отменяем предыдущий поиск СРАЗУ, а не после
+    // перевода, чтобы его сетевые запросы (включая сам перевод) не тянулись
+    // впустую, и чтобы videoLoading гарантированно снялся немедленно, а не
+    // только когда домотает перевод НОВОГО поиска.
+    const signal = abortCurrentSearch();
+    exitSelectMode();
+    state.videoQuery = raw;
+    addToHistory(raw);
+    recordSearch();
+    updateUrlQuery(raw);
+    el.spellHint.hidden = true;
+
+    if (opts.forceOriginal) {
+      state.videoSearchQuery = raw;
+      el.translatedHint.hidden = true;
+    } else {
+      const result = await window.translateQuery(raw, { signal });
+      state.videoSearchQuery = result.translated;
+      if (result.wasTranslated) {
+        el.translatedHintText.textContent = result.translated;
+        el.translatedHint.hidden = false;
+      } else {
+        el.translatedHint.hidden = true;
+      }
+    }
+
+    if (myGeneration !== videoSearchGeneration) return; // отменено более новым поиском
+    await startVideoResultsLoad(myGeneration);
+  }
+
+  async function startVideoResultsLoad(generation) {
+    state.videoItems = [];
+    state.videoPages = {};
+    state.videoHasMore = {};
+    state.videoSeenUrls = new Set();
+    el.videoGrid.innerHTML = "";
+    el.videoGrid.hidden = false;
+    el.emptyState.hidden = true;
+    el.videoNoResults.hidden = true;
+    el.providerWarnings.textContent = "";
+    renderVideoSkeletons(12);
+    await loadVideoPage(true, generation);
+  }
+
+  function rerunVideoSearchWithFilters() {
+    if (!state.videoSearchQuery) return;
+    videoSearchGeneration++;
+    abortCurrentSearch();
+    startVideoResultsLoad(videoSearchGeneration);
+  }
+
+  function renderVideoSkeletons(count) {
+    for (let i = 0; i < count; i++) {
+      const s = document.createElement("div");
+      s.className = "card-skeleton video-card";
+      s.dataset.skeleton = "1";
+      el.videoGrid.appendChild(s);
+    }
+  }
+  function clearVideoSkeletons() {
+    el.videoGrid.querySelectorAll('[data-skeleton="1"]').forEach((s) => s.remove());
+  }
+
+  async function loadVideoPage(isFirst, generation = videoSearchGeneration, autoDepth = 0) {
+    if (state.videoLoading) return;
+    state.videoLoading = true;
+    el.videoLoadMoreBtn.disabled = true;
+    el.videoLoadMoreBtn.textContent = I18N.t("loading");
+
+    const signal = state.abortController?.signal;
+    const now = Date.now();
+    const activeProviders = (window.VIDEO_PROVIDERS || []).filter(
+      (p) => state.activeVideoSources.has(p.id) && p.enabled() && !(state.videoCooldownUntil[p.id] > now)
+    );
+    const skippedForCooldown = (window.VIDEO_PROVIDERS || []).filter(
+      (p) => state.activeVideoSources.has(p.id) && p.enabled() && state.videoCooldownUntil[p.id] > now
+    );
+    const warnings = skippedForCooldown.map((p) => {
+      const mins = Math.max(1, Math.round((state.videoCooldownUntil[p.id] - now) / 60000));
+      return I18N.t("warn_cooldown", { label: p.label, mins });
+    });
+    const networkFailed = [];
+
+    function finishLoading() {
+      state.videoLoading = false;
+      el.videoLoadMoreBtn.disabled = false;
+      el.videoLoadMoreBtn.textContent = I18N.t("load_more");
+    }
+
+    if (activeProviders.length === 0) {
+      if (isFirst) {
+        clearVideoSkeletons();
+        if (state.videoItems.length === 0) {
+          el.videoGrid.hidden = true;
+          el.videoLoadMoreWrap.hidden = true;
+          el.videoNoResults.hidden = false;
+        }
+      }
+      el.providerWarnings.textContent = warnings.join("  ·  ");
+      finishLoading();
+      return;
+    }
+
+    const queryTerms = (state.videoSearchQuery || "").toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
+    const hadItemsBefore = state.videoItems.length > 0;
+    const pageStartIndex = state.videoItems.length;
+    const pageLiveItems = [];
+    const totals = {};
+    let skeletonsCleared = !isFirst;
+    let settledCount = 0;
+
+    function insertScored(scoredItems) {
+      for (const scored of scoredItems) {
+        let idx = pageLiveItems.length;
+        while (idx > 0 && pageLiveItems[idx - 1].score < scored.score) idx--;
+        pageLiveItems.splice(idx, 0, scored);
+        const refNode = el.videoGrid.children[pageStartIndex + idx] || null;
+        el.videoGrid.insertBefore(buildVideoCard(scored.item), refNode);
+      }
+      state.videoItems = state.videoItems.slice(0, pageStartIndex).concat(pageLiveItems.map((x) => x.item));
+    }
+
+    function handleProviderResult(p, page, items, total) {
+      state.videoPages[p.id] = page;
+      state.videoHasMore[p.id] = items.length > 0;
+      totals[p.id] = total;
+
+      const filtered = window.dedupeByUrl ? window.dedupeByUrl(items, state.videoSeenUrls) : items;
+      if (filtered.length === 0) return;
+
+      if (isFirst && !skeletonsCleared) { clearVideoSkeletons(); skeletonsCleared = true; }
+      el.videoNoResults.hidden = true;
+      insertScored(filtered.map((item) => ({ item, score: scoreItem(item, queryTerms) })));
+    }
+
+    function finalizeIfDone() {
+      if (settledCount < activeProviders.length) return;
+      if (generation !== videoSearchGeneration) return;
+      if (isFirst && !skeletonsCleared) { clearVideoSkeletons(); skeletonsCleared = true; }
+
+      if (pageLiveItems.length === 0 && !hadItemsBefore) {
+        el.videoGrid.hidden = true;
+        el.videoLoadMoreWrap.hidden = true;
+        el.videoNoResults.hidden = false;
+      } else {
+        el.videoNoResults.hidden = true;
+        const anyMore = activeProviders.some((p) => state.videoHasMore[p.id]);
+        el.videoLoadMoreWrap.hidden = !anyMore;
+      }
+      if (isFirst) {
+        const knownTotals = Object.values(totals).filter((t) => typeof t === "number");
+        const sum = knownTotals.reduce((a, b) => a + b, 0);
+        const n = sum > 0 ? sum.toLocaleString(I18N.t("locale")) : state.videoItems.length;
+        el.resultsCount.textContent = state.videoItems.length ? I18N.t("results_videos_found", { n }) : "";
+      }
+      el.providerWarnings.textContent = formatWarnings(warnings, networkFailed);
+      finishLoading();
+
+      if (!el.videoLoadMoreWrap.hidden && autoDepth < 3 && isNearViewport(el.videoLoadMoreWrap)) {
+        loadVideoPage(false, generation, autoDepth + 1);
+      }
+    }
+
+    activeProviders.forEach((p) => {
+      const page = (state.videoPages[p.id] || 0) + 1;
+      let settled = false;
+      const finishOnce = () => {
+        if (settled) return;
+        settled = true;
+        settledCount++;
+        finalizeIfDone();
+      };
+
+      p.search(state.videoSearchQuery, { page, orientation: state.videoOrientation, sort: state.videoSort, signal })
+        .then((result) => {
+          if (settled) return;
+          if (generation === videoSearchGeneration) {
+            handleProviderResult(p, page, result.items || [], result.total ?? null);
+          }
+          finishOnce();
+        }).catch((err) => {
+          if (settled) return;
+          if (generation === videoSearchGeneration && err.name !== "AbortError") {
+            console.error(`[${p.label}]`, err);
+            if (/HTTP 429/.test(err.message)) {
+              state.videoCooldownUntil[p.id] = Date.now() + COOLDOWN_MS;
+              warnings.push(I18N.t("warn_rate_limited", { label: p.label }));
+            } else if (SOURCE_BROKEN_RE.test(err.message)) {
+              state.videoCooldownUntil[p.id] = Date.now() + SOURCE_BROKEN_COOLDOWN_MS;
+              warnings.push(I18N.t("warn_source_unavailable", { label: p.label }));
+            } else if (err.isNetwork) {
+              networkFailed.push(p.label);
+            } else {
+              warnings.push(I18N.t("warn_with_message", { label: p.label, message: err.message || I18N.t("warn_generic_error") }));
+            }
+            state.videoHasMore[p.id] = false;
+          }
+          finishOnce();
+        });
+
+      setTimeout(() => {
+        if (settled) return;
+        if (generation === videoSearchGeneration) {
+          warnings.push(I18N.t("warn_with_message", { label: p.label, message: I18N.t("warn_timeout") }));
+        }
+        finishOnce();
+      }, PROVIDER_TIMEOUT_MS);
+    });
+  }
+
+  function resetVideoToEmpty() {
+    videoSearchGeneration++;
+    abortCurrentSearch();
+    state.videoQuery = "";
+    state.videoSearchQuery = "";
+    state.videoItems = [];
+    updateUrlQuery("");
+    el.translatedHint.hidden = true;
+    el.videoGrid.hidden = true;
+    el.videoGrid.innerHTML = "";
+    el.videoLoadMoreWrap.hidden = true;
+    el.videoNoResults.hidden = true;
+    el.resultsCount.textContent = "";
+    el.providerWarnings.textContent = "";
+    el.emptyState.hidden = false;
+  }
+
+  el.videoLoadMoreBtn.addEventListener("click", () => loadVideoPage(false));
+  const videoInfiniteScrollObserver = new IntersectionObserver((entries) => {
+    if (entries[0].isIntersecting && !state.videoLoading && !el.videoLoadMoreWrap.hidden) {
+      loadVideoPage(false);
+    }
+  }, { rootMargin: "800px" });
+  videoInfiniteScrollObserver.observe(el.videoLoadMoreWrap);
+
+  function formatDuration(sec) {
+    if (!sec || !isFinite(sec) || sec <= 0) return null;
+    const m = Math.floor(sec / 60);
+    const s = Math.round(sec % 60);
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  function appendVideoCards(items) {
+    const frag = document.createDocumentFragment();
+    items.forEach((item) => frag.appendChild(buildVideoCard(item)));
+    el.videoGrid.appendChild(frag);
+  }
+
+  function buildVideoCard(item) {
+    const card = document.createElement("div");
+    card.className = "card video-card is-img-loading";
+    card.dataset.id = item.id;
+
+    const img = document.createElement("img");
+    img.alt = item.title || "";
+    img.loading = "lazy";
+    img.decoding = "async";
+    const stopLoading = () => card.classList.remove("is-img-loading");
+    img.addEventListener("load", stopLoading, { once: true });
+    img.addEventListener("error", stopLoading, { once: true });
+    img.src = item.thumb;
+    card.appendChild(img);
+
+    const play = document.createElement("span");
+    play.className = "video-card-play";
+    play.setAttribute("aria-hidden", "true");
+    card.appendChild(play);
+
+    const dur = formatDuration(item.duration);
+    if (dur) {
+      const durBadge = document.createElement("span");
+      durBadge.className = "video-card-duration";
+      durBadge.textContent = dur;
+      card.appendChild(durBadge);
+    }
+
+    const overlay = document.createElement("div");
+    overlay.className = "card-overlay";
+    const badgesWrap = document.createElement("div");
+    badgesWrap.className = "card-badges";
+    const badge = document.createElement("span");
+    badge.className = "card-source-badge";
+    badge.innerHTML = `<span class="dot dot-${item.provider}"></span>${PROVIDER_LABELS[item.provider]}`;
+    badgesWrap.appendChild(badge);
+    overlay.appendChild(badgesWrap);
+
+    const actionsWrap = document.createElement("div");
+    actionsWrap.className = "card-actions-bottom";
+    const dlBtn = document.createElement("button");
+    dlBtn.type = "button";
+    dlBtn.className = "card-round-btn card-download";
+    dlBtn.title = I18N.t("card_download_title");
+    dlBtn.innerHTML = '<span class="icon"></span>';
+    dlBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      downloadItem(item);
+    });
+    actionsWrap.appendChild(dlBtn);
+    overlay.appendChild(actionsWrap);
+    card.appendChild(overlay);
+
+    card.addEventListener("click", () => openVideoLightbox(state.videoItems.indexOf(item)));
+    return card;
+  }
+
+  // ---------- Video lightbox ----------
+  function openVideoLightbox(index) {
+    state.videoLightboxIndex = index;
+    renderVideoLightbox();
+    el.videoLightbox.hidden = false;
+    document.body.style.overflow = "hidden";
+  }
+  function closeVideoLightbox() {
+    el.videoLightbox.hidden = true;
+    el.vlPlayer.pause();
+    el.vlPlayer.removeAttribute("src");
+    el.vlPlayer.load();
+    document.body.style.overflow = "";
+  }
+  function renderVideoLightbox() {
+    const item = state.videoItems[state.videoLightboxIndex];
+    if (!item) return;
+
+    el.vlPlayer.poster = item.thumb || "";
+    el.vlPlayer.src = item.videoUrl;
+
+    el.vlSourceBadge.innerHTML = `<span class="dot dot-${item.provider}"></span>${PROVIDER_LABELS[item.provider]}`;
+    const dur = formatDuration(item.duration);
+    el.vlDurationBadge.hidden = !dur;
+    el.vlDurationBadge.textContent = dur || "";
+    el.vlTitle.textContent = item.title || I18N.t("lightbox_untitled");
+    el.vlDescription.textContent = item.description && item.description !== item.title ? item.description : "";
+    el.vlDescription.hidden = !el.vlDescription.textContent;
+
+    renderLicenseBadge(el.vlLicense, item.license);
+
+    el.vlTags.innerHTML = "";
+    (item.tags || []).slice(0, 8).forEach((tag) => {
+      const t = document.createElement("span");
+      t.className = "lightbox-tag";
+      t.textContent = tag;
+      el.vlTags.appendChild(t);
+    });
+
+    el.vlAuthor.textContent = item.author ? `${I18N.t("lightbox_author_prefix")} ${item.author}` : "";
+    el.vlAuthor.href = item.authorUrl || "#";
+    el.vlAuthor.style.visibility = item.author ? "visible" : "hidden";
+    el.vlSourceLink.href = item.pageUrl || "#";
+
+    el.vlPrev.disabled = state.videoLightboxIndex <= 0;
+    el.vlNext.disabled = state.videoLightboxIndex >= state.videoItems.length - 1;
+  }
+  document.querySelectorAll("[data-video-close]").forEach((n) => n.addEventListener("click", closeVideoLightbox));
+  el.vlPrev.addEventListener("click", () => {
+    if (state.videoLightboxIndex > 0) { state.videoLightboxIndex--; renderVideoLightbox(); }
+  });
+  el.vlNext.addEventListener("click", () => {
+    if (state.videoLightboxIndex < state.videoItems.length - 1) { state.videoLightboxIndex++; renderVideoLightbox(); }
+  });
+  document.addEventListener("keydown", (e) => {
+    if (el.videoLightbox.hidden) return;
+    if (e.key === "Escape") closeVideoLightbox();
+    else if (e.key === "ArrowLeft") el.vlPrev.click();
+    else if (e.key === "ArrowRight") el.vlNext.click();
+  });
+  el.vlCopy.addEventListener("click", async () => {
+    const item = state.videoItems[state.videoLightboxIndex];
+    if (!item) return;
+    try {
+      await navigator.clipboard.writeText(item.videoUrl);
+      showToast(I18N.t("toast_link_copied"));
+    } catch {
+      showToast(I18N.t("toast_copy_failed"));
+    }
+  });
+  el.vlDownload.addEventListener("click", () => {
+    const item = state.videoItems[state.videoLightboxIndex];
+    if (item) downloadItem(item);
+  });
+
   // ---------- Favorites ----------
   function loadFavorites() {
     try {
       const raw = JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]");
       raw.forEach((item) => state.favorites.set(item.id, item));
     } catch { /* битые данные — начинаем с пустого списка */ }
+    updateFavoritesCount();
   }
   function persistFavorites() {
     try {
@@ -1292,6 +2730,8 @@
     if (state.favorites.has(item.id)) state.favorites.delete(item.id);
     else state.favorites.set(item.id, item);
     persistFavorites();
+    updateFavoritesCount();
+    if (state.favorites.has(item.id)) goal("favorite", { source: item.provider });
     vibrate(15);
     const nowActive = isFavorited(item.id);
     document.querySelectorAll(`.card-heart[data-id="${cssEscape(item.id)}"]`).forEach((btn) => {
@@ -1309,6 +2749,10 @@
   }
 
   el.favoritesToggle.addEventListener("click", () => {
+    closeTopbarPopovers();
+    // Сохранённые — это фото: из режимов «Иконки»/«Видео» сначала
+    // переключаемся на фото.
+    if (state.mode !== "photos") setMode("photos");
     const goingToFavorites = state.view !== "favorites";
     state.view = goingToFavorites ? "favorites" : "search";
     el.favoritesToggle.setAttribute("aria-pressed", String(goingToFavorites));
@@ -1316,7 +2760,6 @@
     if (goingToFavorites) {
       renderFavoritesView();
     } else {
-      el.grid.innerHTML = "";
       if (state.query) {
         renderGridFromList(state.items);
         el.grid.hidden = state.items.length === 0;
@@ -1340,6 +2783,8 @@
       el.grid.hidden = true;
       el.emptyState.hidden = true;
       el.favoritesEmpty.hidden = false;
+      masonryObserver.disconnect();
+      clearImageLoadQueue();
       el.grid.innerHTML = "";
       return;
     }
@@ -1350,53 +2795,68 @@
   }
 
   function renderGridFromList(list) {
+    masonryObserver.disconnect();
+    clearImageLoadQueue();
     el.grid.innerHTML = "";
     const frag = document.createDocumentFragment();
-    list.forEach((item, i) => frag.appendChild(buildCard(item, i)));
+    list.forEach((item) => frag.appendChild(buildCard(item)));
     el.grid.appendChild(frag);
   }
 
   // ---------- Card rendering ----------
-  // Ограничиваем, сколько превью грузится одновременно — раньше сетка сразу
-  // запускала загрузку всех карточек скопом (пусть и с loading="lazy",
-  // видимая часть всё равно бьёт по сети одним залпом), из-за чего выдача
-  // визуально "тормозила". Теперь одновременно в работе не больше 3
-  // изображений: как только одно догрузилось (или упало с ошибкой) —
-  // в дело идёт следующее из очереди.
-  const IMAGE_LOAD_CONCURRENCY = 3;
-  const imageLoadQueue = [];
-  let activeImageLoads = 0;
-  function pumpImageQueue() {
-    while (activeImageLoads < IMAGE_LOAD_CONCURRENCY && imageLoadQueue.length > 0) {
-      const { img, src } = imageLoadQueue.shift();
-      activeImageLoads++;
-      const release = () => { activeImageLoads--; pumpImageQueue(); };
-      img.addEventListener("load", release, { once: true });
-      img.addEventListener("error", release, { once: true });
-      img.src = src;
-    }
+  // Превью начинает грузиться, только когда карточка подъезжает к экрану
+  // (с запасом IMAGE_PRELOAD_MARGIN), и сразу — без общей очереди со
+  // счётчиком слотов. Прежняя очередь (3 одновременно) заклинивало: превью,
+  // удалённое со страницы посреди загрузки (стёрли запрос / новый поиск),
+  // не присылало ни load, ни error, его слот не освобождался, и через пару
+  // прерванных поисков новые превью не грузились вовсе.
+  const IMAGE_PRELOAD_MARGIN = "800px 0px";
+  const imageObserver = "IntersectionObserver" in window
+    ? new IntersectionObserver((entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        imageObserver.unobserve(entry.target);
+        startImageLoad(entry.target);
+      }
+    }, { rootMargin: IMAGE_PRELOAD_MARGIN })
+    : null;
+  function startImageLoad(img) {
+    const src = img.dataset.src;
+    if (!src) return;
+    delete img.dataset.src;
+    img.src = src;
   }
   function queueImageLoad(img, src) {
-    imageLoadQueue.push({ img, src });
-    pumpImageQueue();
+    img.dataset.src = src;
+    if (imageObserver) imageObserver.observe(img);
+    else startImageLoad(img);
+  }
+  // Вызывается перед каждой очисткой сетки: снимает наблюдение и обрывает
+  // ещё не догруженные превью, чтобы они не занимали канал у нового поиска.
+  function clearImageLoadQueue() {
+    el.grid.querySelectorAll(".card.is-img-loading img").forEach((img) => {
+      imageObserver?.unobserve(img);
+      if (img.getAttribute("src")) img.removeAttribute("src");
+    });
   }
 
   function appendCards(items) {
-    const startIndex = state.items.length;
     const frag = document.createDocumentFragment();
-    items.forEach((item, i) => {
-      frag.appendChild(buildCard(item, startIndex + i));
-    });
+    items.forEach((item) => frag.appendChild(buildCard(item)));
     el.grid.appendChild(frag);
   }
 
-  function buildCard(item, index) {
+  function buildCard(item) {
     const card = document.createElement("div");
     card.className = "card is-img-loading";
+    // Не завязываемся на позицию в момент рендера — фоновая дедупликация
+    // (см. loadPage) может позже убрать какие-то карточки, из-за чего
+    // "застолблённый" при сборке числовой индекс у всех, что идут за ними,
+    // стал бы неверным. Вместо этого ищем свежий индекс по клику.
+    card.dataset.id = item.id;
 
     const img = document.createElement("img");
     img.alt = item.title || "";
-    img.loading = "lazy";
     img.decoding = "async";
     if (item.width && item.height) {
       img.style.aspectRatio = `${item.width} / ${item.height}`;
@@ -1432,10 +2892,22 @@
     const overlay = document.createElement("div");
     overlay.className = "card-overlay";
 
+    const badgesWrap = document.createElement("div");
+    badgesWrap.className = "card-badges";
+
     const badge = document.createElement("span");
     badge.className = "card-source-badge";
     badge.innerHTML = `<span class="dot dot-${item.provider}"></span>${PROVIDER_LABELS[item.provider]}`;
-    overlay.appendChild(badge);
+    badgesWrap.appendChild(badge);
+
+    if (item.aiGenerated) {
+      const aiBadge = document.createElement("span");
+      aiBadge.className = "card-ai-badge";
+      aiBadge.title = I18N.t("ai_generated_title");
+      aiBadge.textContent = I18N.t("ai_generated_badge");
+      badgesWrap.appendChild(aiBadge);
+    }
+    overlay.appendChild(badgesWrap);
 
     const actionsWrap = document.createElement("div");
     actionsWrap.className = "card-actions-bottom";
@@ -1472,7 +2944,7 @@
         toggleSelect(item.id, card);
         return;
       }
-      openLightbox(index);
+      openLightbox(getActiveList().indexOf(item));
     });
     return card;
   }
@@ -1483,6 +2955,7 @@
     else enterSelectMode();
   });
   function enterSelectMode() {
+    loadJSZip();
     state.selectMode = true;
     state.selected.clear();
     el.selectModeToggle.setAttribute("aria-pressed", "true");
@@ -1512,11 +2985,32 @@
   el.bulkCancel.addEventListener("click", exitSelectMode);
   el.bulkDownload.addEventListener("click", downloadSelectedAsZip);
 
+  // JSZip (~28 КБ сжатого JS) нужен только для скачивания архивом — грузим
+  // его по первому требованию, а не на каждом открытии сайта.
+  const JSZIP_URL = "https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js";
+  let jszipPromise = null;
+  function loadJSZip() {
+    if (window.JSZip) return Promise.resolve(window.JSZip);
+    if (!jszipPromise) {
+      jszipPromise = new Promise((resolve) => {
+        const s = document.createElement("script");
+        s.src = JSZIP_URL;
+        s.onload = () => resolve(window.JSZip || null);
+        s.onerror = () => { jszipPromise = null; resolve(null); };
+        document.head.appendChild(s);
+      });
+    }
+    return jszipPromise;
+  }
+
   async function downloadSelectedAsZip() {
     const list = getActiveList();
     const items = list.filter((it) => state.selected.has(it.id));
     if (items.length === 0) return;
 
+    el.bulkDownload.disabled = true;
+    await loadJSZip();
+    el.bulkDownload.disabled = false;
     if (!window.JSZip) {
       showToast(I18N.t("toast_archiver_missing"));
       for (const item of items) {
@@ -1574,7 +3068,12 @@
   }
 
   function filenameFor(item) {
-    return `${item.provider}-${item.id.split("-").pop()}.jpg`;
+    // item.id всегда "<provider>-<originalId>" (см. providers.js) — режем
+    // ровно префикс "provider-", а не берём последний "-"-сегмент: у
+    // Doodl/Pexafy originalId сам содержит дефисы (UUID), split("-").pop()
+    // обрезал бы его до последних 12 символов вместо полного идентификатора.
+    // fileExt — только у видео (см. js/videoProviders.js), фото всегда .jpg.
+    return `${item.provider}-${item.id.slice(item.provider.length + 1)}.${item.fileExt || "jpg"}`;
   }
 
   // ---------- Lightbox ----------
@@ -1599,22 +3098,42 @@
       targetEl.hidden = true;
       return;
     }
-    const nameHtml = license.url
-      ? `<a href="${license.url}" target="_blank" rel="noopener noreferrer">${license.name}</a>`
-      : license.name;
-    const flags = [];
-    if (license.commercial === true) {
-      flags.push(`<span class="license-flag">${I18N.t("license_commercial_ok")}</span>`);
+    targetEl.innerHTML = "";
+    // license.name/license.url для Wikimedia/Openverse приходят из метаданных
+    // файла, которые может отредактировать любой участник — строим DOM через
+    // textContent/setAttribute, а не подстановкой в innerHTML, и пускаем в
+    // href только http(s)-ссылки (иначе, например, javascript:-схема в
+    // LicenseUrl была бы кликабельным XSS).
+    const safeUrl = /^https?:\/\//i.test(license.url || "") ? license.url : null;
+    if (safeUrl) {
+      const a = document.createElement("a");
+      a.href = safeUrl;
+      a.target = "_blank";
+      a.rel = "noopener noreferrer";
+      a.textContent = license.name;
+      targetEl.appendChild(a);
+    } else {
+      targetEl.appendChild(document.createTextNode(license.name));
+    }
+    function addFlag(text, warn) {
+      const span = document.createElement("span");
+      span.className = warn ? "license-flag license-flag-warn" : "license-flag";
+      span.textContent = text;
+      targetEl.appendChild(span);
+    }
+    if (license.requiresPurchase) {
+      addFlag(I18N.t("license_requires_purchase"), true);
+    } else if (license.commercial === true) {
+      addFlag(I18N.t("license_commercial_ok"), false);
     } else if (license.commercial === false) {
-      flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_commercial_no")}</span>`);
+      addFlag(I18N.t("license_commercial_no"), true);
     }
-    if (license.attribution === true) {
-      flags.push(`<span class="license-flag">${I18N.t("license_attribution_required")}</span>`);
+    if (!license.requiresPurchase && license.attribution === true) {
+      addFlag(I18N.t("license_attribution_required"), false);
     }
-    if (license.commercial === undefined && license.attribution === undefined) {
-      flags.push(`<span class="license-flag license-flag-warn">${I18N.t("license_unknown")}</span>`);
+    if (!license.requiresPurchase && license.commercial === undefined && license.attribution === undefined) {
+      addFlag(I18N.t("license_unknown"), true);
     }
-    targetEl.innerHTML = `${nameHtml}${flags.join("")}`;
     targetEl.hidden = false;
   }
 
@@ -1639,6 +3158,7 @@
       ? `<a href="https://unsplash.com/?utm_source=${encodeURIComponent(window.APP_CONFIG?.UNSPLASH_APP_NAME || "photoseek")}&utm_medium=referral" target="_blank" rel="noopener noreferrer">${PROVIDER_LABELS[item.provider]}</a>`
       : PROVIDER_LABELS[item.provider];
     el.lbSourceBadge.innerHTML = `<span class="dot dot-${item.provider}"></span>${sourceLabel}`;
+    el.lbAiBadge.hidden = !item.aiGenerated;
     el.lbTitle.textContent = item.title || I18N.t("lightbox_untitled");
     el.lbDescription.textContent = item.description && item.description !== item.title ? item.description : "";
     el.lbDescription.hidden = !el.lbDescription.textContent;
@@ -1671,6 +3191,10 @@
   }
 
   document.querySelectorAll("[data-close]").forEach((n) => n.addEventListener("click", closeLightbox));
+  el.lbDownload.addEventListener("click", () => {
+    const item = getActiveList()[state.lightboxIndex];
+    if (item) downloadItem(item);
+  });
   el.lbPrev.addEventListener("click", () => {
     if (state.lightboxIndex > 0) { state.lightboxIndex--; renderLightbox(); }
   });
@@ -1706,11 +3230,6 @@
   el.lbHeart.addEventListener("click", () => {
     const item = getActiveList()[state.lightboxIndex];
     if (item) toggleFavorite(item);
-  });
-
-  el.lbDownload.addEventListener("click", () => {
-    const item = getActiveList()[state.lightboxIndex];
-    if (item) downloadItem(item);
   });
 
   el.lbCopy.addEventListener("click", async () => {
@@ -1840,6 +3359,7 @@
       const url = await resolveDownloadUrl(item);
       await forceDownload(url, filenameFor(item));
       recordDownload(item.provider);
+      goal("download", { source: item.provider });
       vibrate(20);
       showToast(I18N.t("toast_download_done"));
     } catch (err) {
@@ -1913,21 +3433,24 @@
   loadFavorites();
   initTheme();
 
-  // ---------- Сохранённый режим (Фото/Иконки) ----------
+  // ---------- Сохранённый режим (Фото/Иконки/Видео) ----------
   (function initSavedMode() {
     let saved = null;
     try { saved = localStorage.getItem(MODE_KEY); } catch { /* игнорируем */ }
-    if (saved === "icons") applyModeUI("icons");
+    if (saved === "icons" || saved === "video") applyModeUI(saved);
   })();
 
-  // ---------- Открытие по ссылке ?q=...&mode=icons ----------
+  // ---------- Открытие по ссылке ?q=...&mode=icons|video ----------
   const initialParams = new URLSearchParams(location.search);
-  const initialQuery = initialParams.get("q");
-  if (initialParams.get("mode") === "icons") applyModeUI("icons");
+  const initialQuery = initialParams.get("q") || (PAGE && PAGE.q) || null;
+  const initialMode = initialParams.get("mode") || (PAGE && PAGE.mode) || null;
+  // mode=photos тоже учитываем: иначе ссылка на фото открывалась бы в режиме,
+  // который посетитель выбрал в прошлый раз (например, «Иконки»).
+  if (initialMode === "photos" || initialMode === "icons" || initialMode === "video") applyModeUI(initialMode);
+  updateHomeSourcesList();
   if (initialQuery) {
     el.input.value = initialQuery;
     el.clearBtn.hidden = false;
-    if (state.mode === "icons") runIconSearch();
-    else runSearch({ skipSpellcheck: true });
+    runSearchForMode({ skipSpellcheck: true });
   }
 })();

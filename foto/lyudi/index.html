@@ -1,0 +1,743 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<!-- Сгенерировано seo/build.js из index.html и seo/pages.js — не редактировать вручную, запустите npm run pages. -->
+<meta charset="UTF-8">
+<base href="/">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Фото людей бесплатно — портреты и эмоции | Picta</title>
+<meta name="description" content="Бесплатные фото людей: портреты, эмоции, работа, семья и друзья. Pixabay, Pexels, Unsplash и другие стоки в одном поиске.">
+<!-- SEO: главный адрес сайта (www и старый github.io — его копии) и карточка
+     для ссылок в соцсетях и мессенджерах (картинка — og-image.jpg). -->
+<link rel="canonical" href="https://picta.cc/foto/lyudi/">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Picta">
+<meta property="og:url" content="https://picta.cc/foto/lyudi/">
+<meta property="og:title" content="Фото людей бесплатно — портреты и эмоции | Picta">
+<meta property="og:description" content="Бесплатные фото людей: портреты, эмоции, работа, семья и друзья. Pixabay, Pexels, Unsplash и другие стоки в одном поиске.">
+<meta property="og:image" content="https://picta.cc/og-image.jpg">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:locale" content="ru_RU">
+<meta name="twitter:card" content="summary_large_image">
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Picta","item":"https://picta.cc/"},{"@type":"ListItem","position":2,"name":"Фото людей и портреты","item":"https://picta.cc/foto/lyudi/"}]}
+</script>
+<meta name="theme-color" content="#0b0b0f">
+<link rel="manifest" href="manifest.webmanifest">
+<!-- Поиск Picta прямо из адресной строки браузера (см. opensearch.xml). -->
+<link rel="search" type="application/opensearchdescription+xml" title="Picta" href="/opensearch.xml">
+<link rel="icon" href="icons/favicon.svg?v=3" type="image/svg+xml">
+<link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
+<link rel="apple-touch-icon" href="icons/icon-192.png?v=3">
+<!-- Прогреваем только то, куда браузер реально пойдёт при первом поиске
+     с источниками по умолчанию: воркер (Pixabay/Pexels/Unsplash и др. идут
+     через него — к их API браузер напрямую не ходит), переводчик и
+     Wikimedia. Остальные хосты — только dns-prefetch: он почти бесплатный,
+     а лишние preconnect'ы на телефоне впустую открывают TLS-соединения.
+     Адрес воркера должен совпадать с WORKER_BASE_URL в js/config.js. -->
+<link rel="preconnect" href="https://photoseek-proxy.safarimax777.workers.dev" crossorigin>
+<link rel="preconnect" href="https://api.mymemory.translated.net" crossorigin>
+<link rel="preconnect" href="https://commons.wikimedia.org" crossorigin>
+<link rel="dns-prefetch" href="https://cdn.pixabay.com">
+<link rel="dns-prefetch" href="https://images.pexels.com">
+<link rel="dns-prefetch" href="https://upload.wikimedia.org">
+<link rel="dns-prefetch" href="https://speller.yandex.net">
+<link rel="dns-prefetch" href="https://images.unsplash.com">
+<link rel="dns-prefetch" href="https://api.openverse.org">
+<!-- Шрифты свои (fonts/, подключены в css/styles.css), а не с Google: без
+     лишнего сервера и работают офлайн. Без preload специально: так текст
+     появляется раньше (сначала системным шрифтом, через мгновение — Manrope). -->
+<link rel="stylesheet" href="css/styles.css">
+</head>
+<body>
+
+<div id="bgPhoto" class="bg-photo" aria-hidden="true"></div>
+
+<div class="app">
+
+  <header class="topbar" id="topbar">
+    <a class="brand" href="./" data-i18n-title="brand_home_title">
+      <span class="brand-mark" aria-hidden="true"></span>
+    </a>
+
+    <form class="searchbar" id="searchForm" role="search">
+      <span class="searchbar-icon" aria-hidden="true"></span>
+      <input
+        id="searchInput"
+        type="text"
+        class="searchbar-input"
+        data-i18n-placeholder="search_placeholder"
+        autocomplete="off"
+        spellcheck="false"
+        enterkeyhint="search"
+        data-i18n-title="search_operators_title"
+      >
+      <button type="button" id="micBtn" class="searchbar-mic" data-i18n-title="mic_title" hidden>
+        <span class="icon icon-mic" aria-hidden="true"></span>
+      </button>
+      <button type="button" id="clearBtn" class="searchbar-clear" data-i18n-title="clear_title" hidden></button>
+      <button type="submit" class="searchbar-submit" data-i18n-title="submit_title">
+        <span class="icon icon-search" aria-hidden="true"></span>
+      </button>
+    </form>
+
+    <!-- Справа три кнопки: "молния" (об авторе и контакты), профиль (вход и
+         регистрация) и меню со всем остальным. Всплывающие окна открывает и
+         закрывает bindTopbarPopover() в app.js. -->
+    <div class="topbar-actions">
+      <div class="topbar-pop-wrap" id="aboutWrap">
+        <button type="button" id="aboutToggle" class="icon-btn topbar-bolt" data-i18n-title="about_title" aria-expanded="false" aria-controls="aboutPopover">
+          <span class="icon icon-bolt" aria-hidden="true"></span>
+        </button>
+        <div id="aboutPopover" class="topbar-popover about-popover" hidden>
+          <p class="about-heading" data-i18n="about_heading">Об авторе</p>
+          <p class="about-text" data-i18n="about_text">Я делаю Picta — поиск фото, иконок и видео сразу по многим бесплатным стокам. Пишите, если есть идея, предложения или нашли ошибку.</p>
+          <p class="about-heading" data-i18n="about_contacts">Контакты</p>
+          <div class="about-contacts" id="aboutContacts"></div>
+        </div>
+      </div>
+
+      <div class="topbar-pop-wrap auth-wrap" id="authWrap">
+        <button type="button" id="authToggle" class="icon-btn topbar-avatar" data-i18n-title="auth_toggle_title" aria-expanded="false" aria-controls="authPopover">
+          <span class="icon icon-user" aria-hidden="true"></span>
+          <span id="authAvatar" class="auth-avatar" hidden aria-hidden="true"></span>
+        </button>
+        <div id="authPopover" class="topbar-popover auth-popover" hidden>
+          <p class="about-heading" data-i18n="auth_heading">Вход и регистрация</p>
+          <p id="authSoon" class="auth-soon" data-i18n="auth_soon">Регистрация скоро появится — сейчас она на доработке. Всё остальное работает без входа.</p>
+          <div id="authLoggedOut" hidden>
+            <button type="button" id="authGoogleBtn" class="btn btn-secondary auth-google-btn">
+              <svg class="auth-google-icon" viewBox="0 0 18 18" aria-hidden="true">
+                <path fill="#4285F4" d="M17.64 9.2c0-.64-.06-1.25-.16-1.84H9v3.48h4.84a4.14 4.14 0 0 1-1.8 2.72v2.26h2.9c1.7-1.57 2.7-3.87 2.7-6.62z"/>
+                <path fill="#34A853" d="M9 18c2.43 0 4.47-.8 5.96-2.18l-2.9-2.26c-.8.54-1.84.86-3.06.86-2.35 0-4.34-1.59-5.05-3.72H.98v2.33A9 9 0 0 0 9 18z"/>
+                <path fill="#FBBC05" d="M3.95 10.7A5.4 5.4 0 0 1 3.66 9c0-.59.1-1.17.29-1.7V4.97H.98A9 9 0 0 0 0 9c0 1.45.35 2.83.98 4.03l2.97-2.33z"/>
+                <path fill="#EA4335" d="M9 3.58c1.32 0 2.5.45 3.44 1.35l2.58-2.58C13.46.89 11.43 0 9 0A9 9 0 0 0 .98 4.97l2.97 2.33C4.66 5.17 6.65 3.58 9 3.58z"/>
+              </svg>
+              <span data-i18n="auth_google">Войти через Google</span>
+            </button>
+            <div class="auth-divider" data-i18n="auth_or">или</div>
+            <form id="authEmailForm" class="auth-email-form">
+              <input type="email" id="authEmailInput" class="auth-email-input" data-i18n-placeholder="auth_email_placeholder" autocomplete="email" required>
+              <button type="submit" class="btn btn-primary auth-email-submit" data-i18n="auth_email_submit">Прислать ссылку</button>
+            </form>
+            <p class="auth-email-note" data-i18n="auth_email_note">Пришлём ссылку для входа без пароля.</p>
+          </div>
+          <div id="authLoggedIn" hidden>
+            <p id="authEmailLabel" class="auth-email-label"></p>
+            <a id="authAdminLink" href="admin.html" class="btn btn-ghost auth-admin-link" hidden data-i18n="auth_admin_link">Админка</a>
+          </div>
+        </div>
+      </div>
+
+      <div class="topbar-pop-wrap" id="mainMenuWrap">
+        <button type="button" id="mainMenuToggle" class="icon-btn topbar-chevron" data-i18n-title="menu_title" aria-expanded="false" aria-controls="mainMenu" aria-haspopup="menu">
+          <span class="icon icon-chevron" aria-hidden="true"></span>
+        </button>
+        <div id="mainMenu" class="topbar-popover main-menu" role="menu" hidden>
+          <button type="button" id="favoritesToggle" class="menu-item" role="menuitem" aria-pressed="false">
+            <span class="icon icon-heart" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_favorites">Сохранённые фото</span>
+            <span class="menu-item-value" id="favoritesCount"></span>
+          </button>
+          <button type="button" id="insightsToggle" class="menu-item" role="menuitem" aria-expanded="false" aria-controls="insightsPanel">
+            <span class="icon icon-chart" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_insights">Статистика и лимиты</span>
+            <span class="icon icon-chevron menu-item-chevron" aria-hidden="true"></span>
+          </button>
+          <div id="insightsPanel" class="insights-panel" hidden></div>
+          <!-- Переключатели-«таблетки»: выбранный вариант — белый кружок. -->
+          <div class="menu-row">
+            <span class="menu-row-label" data-i18n="menu_theme">Тема</span>
+            <div class="seg" id="themeSeg" role="group">
+              <button type="button" class="seg-btn" data-theme-set="light" data-i18n-title="theme_mode_light" aria-pressed="false"><span class="icon icon-sun" aria-hidden="true"></span></button>
+              <button type="button" class="seg-btn" data-theme-set="dark" data-i18n-title="theme_mode_dark" aria-pressed="false"><span class="icon icon-moon" aria-hidden="true"></span></button>
+              <button type="button" class="seg-btn" data-theme-set="auto" data-i18n-title="theme_mode_auto" aria-pressed="false"><span class="icon icon-auto" aria-hidden="true"></span></button>
+            </div>
+          </div>
+          <div class="menu-row">
+            <span class="menu-row-label" data-i18n="menu_grid">Размер сетки</span>
+            <div class="seg" id="gridSeg" role="group">
+              <button type="button" class="seg-btn" data-grid-set="1" data-i18n-title="grid_size_1" aria-pressed="false"><span class="seg-bars" aria-hidden="true"><i></i></span></button>
+              <button type="button" class="seg-btn" data-grid-set="2" data-i18n-title="grid_size_2" aria-pressed="false"><span class="seg-bars" aria-hidden="true"><i></i><i></i></span></button>
+              <button type="button" class="seg-btn" data-grid-set="3" data-i18n-title="grid_size_3" aria-pressed="false"><span class="seg-bars" aria-hidden="true"><i></i><i></i><i></i></span></button>
+            </div>
+          </div>
+          <div class="menu-sep" role="separator"></div>
+          <button type="button" id="installAppBtn" class="menu-item" role="menuitem" hidden>
+            <span class="icon icon-download" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_install">Установить приложение</span>
+          </button>
+          <button type="button" id="shareSiteBtn" class="menu-item" role="menuitem">
+            <span class="icon icon-share" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_share_site">Рассказать о Picta</span>
+          </button>
+          <a id="donateLink" class="menu-item" role="menuitem" href="#" target="_blank" rel="noopener">
+            <span class="icon icon-coffee" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="menu_donate">Поддержать проект</span>
+          </a>
+          <button type="button" id="authSignOutBtn" class="menu-item" role="menuitem" hidden>
+            <span class="icon icon-logout" aria-hidden="true"></span>
+            <span class="menu-item-label" data-i18n="auth_sign_out_full">Выйти из аккаунта</span>
+          </button>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <div id="translatedHint" class="translated-hint" hidden>
+    <span data-i18n="translated_hint_prefix">Ищем как:</span> <strong id="translatedHintText"></strong>
+    <button type="button" id="translatedHintUndo" data-i18n="translated_hint_undo">искать как есть</button>
+  </div>
+  <div id="spellHint" class="translated-hint" hidden>
+    <span data-i18n="spell_hint_prefix">Возможно, вы имели в виду:</span> <strong id="spellHintText"></strong>
+    <button type="button" id="spellHintApply" data-i18n="spell_hint_apply">исправить</button>
+  </div>
+
+  <section class="landing-intro">
+    <nav class="landing-crumbs" aria-label="Навигация"><a href="/">Picta</a><span aria-hidden="true">/</span><span>Люди</span></nav>
+    <h1>Фото людей и портреты</h1>
+    <p>Портреты, эмоции, семья, друзья и работа — живые фото людей со всех бесплатных стоков.</p>
+  </section>
+
+  <div class="toolbar">
+    <div class="toolbar-row toolbar-row-main">
+      <div class="toolbar-row-scroll">
+        <div class="mode-switch" id="modeSwitch">
+          <button type="button" class="mode-tab is-active" data-mode="photos" data-i18n="mode_photos">Фото</button>
+          <button type="button" class="mode-tab" data-mode="icons" data-i18n="mode_icons">Иконки</button>
+          <button type="button" class="mode-tab" data-mode="video" data-i18n="mode_video">Видео</button>
+        </div>
+        <div class="sources" id="sourcesRow">
+          <button type="button" class="source-chip source-chip-external" id="yandexBtn" data-i18n-title="source_yandex_title">
+            <span class="icon icon-external" aria-hidden="true"></span><span data-i18n="source_yandex_label">Яндекс.Картинки</span>
+          </button>
+          <button type="button" class="source-chip source-chip-external" id="googleBtn" data-i18n-title="source_google_title">
+            <span class="icon icon-external" aria-hidden="true"></span><span data-i18n="source_google_label">Google Картинки</span>
+          </button>
+          <button type="button" class="source-chip source-chip-external" id="pinterestBtn" data-i18n-title="source_pinterest_title">
+            <span class="icon icon-external" aria-hidden="true"></span>Pinterest
+          </button>
+          <button type="button" class="source-chip source-chip-external" id="cosmosBtn" data-i18n-title="source_cosmos_title">
+            <span class="icon icon-external" aria-hidden="true"></span>Cosmos
+          </button>
+        </div>
+        <div class="sources" id="iconSources" hidden>
+          <button type="button" class="source-chip" data-icon-source="mdi" aria-pressed="false" data-i18n-title="icon_source_chip_title">Material Design</button>
+          <button type="button" class="source-chip" data-icon-source="tabler" aria-pressed="false" data-i18n-title="icon_source_chip_title">Tabler</button>
+          <button type="button" class="source-chip" data-icon-source="ph" aria-pressed="false" data-i18n-title="icon_source_chip_title">Phosphor</button>
+          <button type="button" class="source-chip" data-icon-source="bi" aria-pressed="false" data-i18n-title="icon_source_chip_title">Bootstrap</button>
+          <button type="button" class="source-chip" data-icon-source="lucide" aria-pressed="false" data-i18n-title="icon_source_chip_title">Lucide</button>
+          <button type="button" class="source-chip" data-icon-source="fa6-solid" aria-pressed="false" data-i18n-title="icon_source_chip_title">Font Awesome</button>
+          <button type="button" class="source-chip" data-icon-source="simple-icons" aria-pressed="false" data-i18n-title="icon_source_chip_title">Simple Icons</button>
+          <button type="button" class="source-chip" data-icon-source="twemoji" aria-pressed="false" data-i18n-title="icon_source_chip_title">Twemoji</button>
+        </div>
+        <div class="sources" id="videoSources" hidden>
+          <button type="button" class="source-chip" data-video-source="pixabay" aria-pressed="false">
+            <span class="dot dot-pixabay"></span>Pixabay
+          </button>
+          <button type="button" class="source-chip" data-video-source="pexels" aria-pressed="false">
+            <span class="dot dot-pexels"></span>Pexels
+          </button>
+          <button type="button" class="source-chip" data-video-source="wikimedia" aria-pressed="false">
+            <span class="dot dot-wikimedia"></span>Wikimedia
+          </button>
+          <button type="button" class="source-chip" data-video-source="archive" aria-pressed="false">
+            <span class="dot dot-archive"></span>Internet Archive
+          </button>
+          <button type="button" class="source-chip" data-video-source="coverr" aria-pressed="false">
+            <span class="dot dot-coverr"></span>Coverr
+          </button>
+        </div>
+      </div>
+
+      <div class="sources-menu-wrap" id="sourcesMenuWrap">
+        <button type="button" id="sourcesMenuToggle" class="source-chip sources-menu-toggle" data-i18n-title="sources_menu_title" aria-expanded="false">
+          <span class="icon icon-layers" aria-hidden="true"></span>
+          <span data-i18n="sources_menu_label">Источники</span>
+          <span id="sourcesMenuBadge" class="filters-badge sources-menu-badge"></span>
+        </button>
+        <div id="sourcesMenuPopover" class="filters-popover sources-menu-popover" hidden>
+          <p class="sources-menu-note" data-i18n="sources_menu_note">Можно выбрать не более 3 источников одновременно</p>
+          <div class="source-checklist" id="sources">
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="pixabay">
+              <span class="dot dot-pixabay"></span>
+              <span class="source-check-text"><span class="source-check-name">Pixabay</span><span class="source-check-desc" data-i18n="source_desc_pixabay">Универсальный сток</span></span>
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="pexels">
+              <span class="dot dot-pexels"></span>
+              <span class="source-check-text"><span class="source-check-name">Pexels</span><span class="source-check-desc" data-i18n="source_desc_pexels">Современные фотографии</span></span>
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="wikimedia">
+              <span class="dot dot-wikimedia"></span>
+              <span class="source-check-text"><span class="source-check-name">Wikimedia</span><span class="source-check-desc" data-i18n="source_desc_wikimedia">Энциклопедические фото</span></span>
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="openverse">
+              <span class="dot dot-openverse"></span>
+              <span class="source-check-text"><span class="source-check-name">Openverse</span><span class="source-check-desc" data-i18n="source_desc_openverse">Creative Commons</span></span>
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="doodl">
+              <span class="dot dot-doodl"></span>
+              <span class="source-check-text"><span class="source-check-name">Doodl</span><span class="source-check-desc" data-i18n="source_desc_doodl">AI-фотографии</span></span>
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="unsplash">
+              <span class="dot dot-unsplash"></span>
+              <span class="source-check-text"><span class="source-check-name">Unsplash</span><span class="source-check-desc" data-i18n="source_desc_unsplash">Премиум-качество</span></span>
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="shutterstock">
+              <span class="dot dot-shutterstock"></span>
+              <span class="source-check-text"><span class="source-check-name">Shutterstock</span><span class="source-check-desc" data-i18n="source_desc_shutterstock">Профи-контент</span></span>
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="pexafy">
+              <span class="dot dot-pexafy"></span>
+              <span class="source-check-text"><span class="source-check-name">Pexafy</span><span class="source-check-desc" data-i18n="source_desc_pexafy">Мультистоковый поиск</span></span>
+            </label>
+            <label class="source-check-row">
+              <input type="checkbox" class="source-checkbox" data-source="flickr">
+              <span class="dot dot-flickr"></span>
+              <span class="source-check-text"><span class="source-check-name">Flickr</span></span>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="filters-popover-wrap" id="filtersRow">
+        <button type="button" id="filtersToggle" class="icon-btn" data-i18n-title="filters_title" aria-expanded="false">
+          <span class="icon icon-filters" aria-hidden="true"></span>
+          <span id="filtersBadge" class="filters-badge" hidden></span>
+        </button>
+        <div id="filtersPopover" class="filters-popover" hidden>
+          <div class="filters">
+            <div class="dropdown" data-dropdown="quality">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="quality_label">Качество</span> <span class="dropdown-value" data-value data-i18n="quality_any">Любое</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="quality_any">Любое</button>
+                <button type="button" class="dropdown-item" data-val="2k" data-i18n="quality_2k">От 2K (2048px+)</button>
+                <button type="button" class="dropdown-item" data-val="4k" data-i18n="quality_4k">От 4K (3840px+)</button>
+                <button type="button" class="dropdown-item" data-val="8k" data-i18n="quality_8k">От 8K (7680px+)</button>
+              </div>
+            </div>
+
+            <div class="dropdown" data-dropdown="orientation">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="orientation_label">Ориентация</span> <span class="dropdown-value" data-value data-i18n="orientation_any">Любая</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="orientation_any">Любая</button>
+                <button type="button" class="dropdown-item" data-val="horizontal" data-i18n="orientation_horizontal">Горизонтальная</button>
+                <button type="button" class="dropdown-item" data-val="vertical" data-i18n="orientation_vertical">Вертикальная</button>
+                <button type="button" class="dropdown-item" data-val="square" data-i18n="orientation_square">Квадрат</button>
+              </div>
+            </div>
+
+            <div class="dropdown" data-dropdown="sort">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="sort_label">Сортировка</span> <span class="dropdown-value" data-value data-i18n="sort_popular">Популярное</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="popular" data-i18n="sort_popular">Популярное</button>
+                <button type="button" class="dropdown-item" data-val="newest" data-i18n="sort_newest">Новое</button>
+              </div>
+            </div>
+
+            <div class="dropdown" data-dropdown="people">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="people_label">Люди</span> <span class="dropdown-value" data-value data-i18n="people_any_short">Любые</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="people_any">Любые фото</button>
+                <button type="button" class="dropdown-item" data-val="with" data-i18n="people_with">Только с людьми</button>
+                <button type="button" class="dropdown-item" data-val="without" data-i18n="people_without">Без людей</button>
+              </div>
+            </div>
+
+            <div class="dropdown" data-dropdown="color">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="color_label">Цвет</span> <span class="dropdown-value" data-value data-i18n="color_any_short">Любой</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu dropdown-menu-colors" id="colorMenu">
+                <button type="button" class="dropdown-item is-any is-active" data-val="any" data-i18n="color_any">Любой цвет</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <button type="button" id="selectModeToggle" class="icon-btn" data-i18n-title="select_mode_title" aria-pressed="false">
+        <span class="icon icon-check-square" aria-hidden="true"></span>
+      </button>
+      <button type="button" id="shareSearchBtn" class="icon-btn" data-i18n-title="share_search_title">
+        <span class="icon icon-share" aria-hidden="true"></span>
+      </button>
+
+      <div class="filters-popover-wrap" id="iconFiltersRow" hidden>
+        <button type="button" id="iconFiltersToggle" class="icon-btn" data-i18n-title="filters_title" aria-expanded="false">
+          <span class="icon icon-filters" aria-hidden="true"></span>
+          <span id="iconFiltersBadge" class="filters-badge" hidden></span>
+        </button>
+        <div id="iconFiltersPopover" class="filters-popover" hidden>
+          <div class="filters">
+            <div class="dropdown" data-dropdown="iconStyle">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="icon_style_label">Стиль</span> <span class="dropdown-value" data-value data-i18n="icon_style_any">Любой</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="icon_style_any">Любой</button>
+                <button type="button" class="dropdown-item" data-val="mono" data-i18n="icon_style_mono">Одноцветные</button>
+                <button type="button" class="dropdown-item" data-val="color" data-i18n="icon_style_color">Цветные</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="filters-popover-wrap" id="videoFiltersRow" hidden>
+        <button type="button" id="videoFiltersToggle" class="icon-btn" data-i18n-title="filters_title" aria-expanded="false">
+          <span class="icon icon-filters" aria-hidden="true"></span>
+          <span id="videoFiltersBadge" class="filters-badge" hidden></span>
+        </button>
+        <div id="videoFiltersPopover" class="filters-popover" hidden>
+          <div class="filters">
+            <div class="dropdown" data-dropdown="videoOrientation">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="orientation_label">Ориентация</span> <span class="dropdown-value" data-value data-i18n="orientation_any">Любая</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="any" data-i18n="orientation_any">Любая</button>
+                <button type="button" class="dropdown-item" data-val="horizontal" data-i18n="orientation_horizontal">Горизонтальная</button>
+                <button type="button" class="dropdown-item" data-val="vertical" data-i18n="orientation_vertical">Вертикальная</button>
+                <button type="button" class="dropdown-item" data-val="square" data-i18n="orientation_square">Квадрат</button>
+              </div>
+            </div>
+
+            <div class="dropdown" data-dropdown="videoSort">
+              <button type="button" class="dropdown-btn">
+                <span data-i18n="sort_label">Сортировка</span> <span class="dropdown-value" data-value data-i18n="sort_popular">Популярное</span>
+                <span class="icon icon-chevron" aria-hidden="true"></span>
+              </button>
+              <div class="dropdown-menu">
+                <button type="button" class="dropdown-item is-active" data-val="popular" data-i18n="sort_popular">Популярное</button>
+                <button type="button" class="dropdown-item" data-val="newest" data-i18n="sort_newest">Новое</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="toolbar-row toolbar-status">
+      <span id="resultsCount" class="results-count"></span>
+      <span id="providerWarnings" class="provider-warnings"></span>
+    </div>
+  </div>
+
+  <main class="content">
+    <!-- Главный экран. Пока нет результатов, строка поиска, вкладки режимов и
+         "Источники" переносятся сюда из шапки/панели (см. applyHomeLayout в
+         app.js), после поиска — возвращаются на свои места. -->
+    <div id="emptyState" class="empty-state home-hero">
+      <div class="home-main">
+        <div class="home-wordmark"><span class="home-logo" aria-hidden="true"></span><span class="visually-hidden">Picta</span></div>
+        <p id="heroP" class="home-tagline" data-i18n="home_tagline">Найдите изображение в одном поиске</p>
+        <div class="home-search-slot" id="homeSearchSlot"></div>
+        <div class="home-controls">
+          <div id="homeModeSlot"></div>
+          <span class="home-controls-sep" id="homeControlsSep" aria-hidden="true"></span>
+          <div id="homeSourcesSlot"></div>
+        </div>
+        <p class="home-sources-list" id="homeSourcesList"></p>
+      </div>
+      <div class="home-suggest">
+        <div class="suggestions" id="recentSearches" hidden></div>
+        <div class="suggestions" id="suggestions">
+          <span class="suggestions-label" data-i18n="try_label">Попробуйте:</span>
+        </div>
+      </div>
+    </div>
+
+<!-- seo:about:start -->
+<!-- seo:about:end -->
+
+    <div id="favoritesEmpty" class="empty-state" hidden>
+      <h2 data-i18n="favorites_empty_h1">Пока пусто</h2>
+      <p data-i18n="favorites_empty_p">Нажимайте на сердечко на фото, чтобы добавить их сюда — избранное сохраняется в этом браузере.</p>
+    </div>
+
+    <div id="grid" class="grid" hidden></div>
+    <div id="iconGrid" class="grid icon-grid" hidden></div>
+    <div id="videoGrid" class="grid video-grid" hidden></div>
+
+    <div id="loadMoreWrap" class="load-more-wrap" hidden>
+      <button id="loadMoreBtn" class="btn btn-secondary" data-i18n="load_more">Показать ещё</button>
+    </div>
+    <div id="iconLoadMoreWrap" class="load-more-wrap" hidden>
+      <button id="iconLoadMoreBtn" class="btn btn-secondary" data-i18n="load_more">Показать ещё</button>
+    </div>
+    <div id="videoLoadMoreWrap" class="load-more-wrap" hidden>
+      <button id="videoLoadMoreBtn" class="btn btn-secondary" data-i18n="load_more">Показать ещё</button>
+    </div>
+
+    <div id="noResults" class="empty-state" hidden>
+      <h2 data-i18n="no_results_h1">Ничего не найдено</h2>
+      <p data-i18n="no_results_p">Попробуйте другой запрос или снимите часть фильтров.</p>
+    </div>
+    <div id="iconNoResults" class="empty-state" hidden>
+      <h2 data-i18n="no_results_h1">Ничего не найдено</h2>
+      <p data-i18n="icon_no_results_p">Попробуйте другое слово — обычно лучше всего работают короткие английские названия (home, user, settings…).</p>
+    </div>
+    <div id="videoNoResults" class="empty-state" hidden>
+      <h2 data-i18n="no_results_h1">Ничего не найдено</h2>
+      <p data-i18n="no_results_p">Попробуйте другой запрос или снимите часть фильтров.</p>
+    </div>
+    <section class="landing-more">
+      <h2>Фото людей и портреты: как искать</h2>
+      <p>Для сайтов и рекламы ищите сюжет: «улыбающаяся женщина», «команда в офисе», «семья на прогулке», «студент с ноутбуком». Фильтр «Люди» помогает оставить только кадры с людьми или, наоборот, без них.</p>
+      <p>Picta отмечает изображения, созданные нейросетью, — удобно, если нужны настоящие фотографии.</p>
+      <h2>Другие подборки</h2>
+      <nav class="landing-links" aria-label="Другие подборки">
+        <a href="/foto/priroda/">Природа</a>
+        <a href="/foto/koty/">Коты</a>
+        <a href="/foto/sobaki/">Собаки</a>
+        <a href="/foto/gorod/">Город</a>
+        <a href="/foto/more/">Море</a>
+        <a href="/foto/gory/">Горы</a>
+        <a href="/foto/kosmos/">Космос</a>
+        <a href="/foto/eda/">Еда</a>
+        <a href="/foto/kofe/">Кофе</a>
+        <a href="/foto/cvety/">Цветы</a>
+        <a href="/foto/biznes/">Бизнес и офис</a>
+        <a href="/foto/oboi/">Обои и фоны</a>
+        <a href="/foto/tekstury/">Текстуры</a>
+        <a href="/foto/osen/">Осень</a>
+        <a href="/foto/zima/">Зима</a>
+        <a href="/foto/novyj-god/">Новый год</a>
+        <a href="/foto/leto/">Лето</a>
+        <a href="/foto/vesna/">Весна</a>
+        <a href="/foto/den-rozhdeniya/">День рождения</a>
+        <a href="/foto/svadba/">Свадьба</a>
+        <a href="/foto/puteshestviya/">Путешествия</a>
+        <a href="/foto/sport/">Спорт</a>
+        <a href="/foto/mashiny/">Машины</a>
+        <a href="/foto/tehnologii/">Технологии</a>
+        <a href="/foto/abstrakciya/">Абстракция</a>
+        <a href="/ikonki/">Иконки</a>
+        <a href="/video/">Видео</a>
+        <a href="/">Все источники</a>
+      </nav>
+    </section>
+  </main>
+
+</div>
+
+<div id="bulkBar" class="bulk-bar" hidden>
+  <span id="bulkCount" class="bulk-count"></span>
+  <div class="bulk-actions">
+    <button type="button" id="bulkCancel" class="btn btn-ghost" data-i18n="bulk_cancel">Отмена</button>
+    <button type="button" id="bulkDownload" class="btn btn-primary">
+      <span class="icon icon-download" aria-hidden="true"></span><span data-i18n="bulk_download">Скачать zip</span>
+    </button>
+  </div>
+</div>
+
+<button type="button" id="backToTop" class="back-to-top" tabindex="-1" aria-hidden="true">
+  <span class="icon icon-chevron-up" aria-hidden="true"></span><span data-i18n="back_to_top">Наверх</span>
+</button>
+
+<div id="lightbox" class="lightbox" hidden>
+  <div class="lightbox-backdrop" data-close></div>
+  <div class="lightbox-dialog">
+    <button class="lightbox-close icon-btn" data-close data-i18n-title="lightbox_close_title">
+      <span class="icon icon-close" aria-hidden="true"></span>
+    </button>
+    <button class="lightbox-nav lightbox-prev icon-btn" id="lbPrev" data-i18n-title="lightbox_prev_title">
+      <span class="icon icon-arrow-left" aria-hidden="true"></span>
+    </button>
+    <button class="lightbox-nav lightbox-next icon-btn" id="lbNext" data-i18n-title="lightbox_next_title">
+      <span class="icon icon-arrow-right" aria-hidden="true"></span>
+    </button>
+
+    <div class="lightbox-image-wrap">
+      <img id="lbImage" class="lightbox-image" alt="">
+      <div class="lightbox-spinner" id="lbSpinner" aria-hidden="true"></div>
+      <button class="lightbox-heart icon-btn" id="lbHeart" data-i18n-title="lightbox_heart_title" aria-pressed="false">
+        <span class="icon icon-heart" aria-hidden="true"></span>
+      </button>
+    </div>
+
+    <aside class="lightbox-panel">
+      <div class="lightbox-panel-top">
+        <div class="lightbox-badges-row">
+          <span class="source-badge" id="lbSourceBadge"></span>
+          <span class="card-ai-badge" id="lbAiBadge" hidden data-i18n="ai_generated_badge" data-i18n-title="ai_generated_title"></span>
+        </div>
+        <div class="lightbox-actions">
+          <button class="btn btn-ghost" id="lbCopy" data-i18n-title="lightbox_copy_title">
+            <span class="icon icon-link" aria-hidden="true"></span><span data-i18n="lightbox_copy_label">Ссылка</span>
+          </button>
+          <button class="btn btn-ghost" id="lbCopyImage" data-i18n-title="lightbox_copy_image_title">
+            <span class="icon icon-copy" aria-hidden="true"></span><span data-i18n="lightbox_copy_image_label">Картинка</span>
+          </button>
+          <button class="btn btn-ghost" id="lbShare" data-i18n-title="lightbox_share_title" hidden>
+            <span class="icon icon-share" aria-hidden="true"></span><span data-i18n="lightbox_share_title">Поделиться</span>
+          </button>
+          <button class="btn btn-primary" id="lbDownload" data-i18n-title="lightbox_download_title">
+            <span class="icon icon-download" aria-hidden="true"></span><span data-i18n="lightbox_download_label">Скачать</span>
+          </button>
+        </div>
+      </div>
+
+      <h2 id="lbTitle" class="lightbox-title"></h2>
+      <p id="lbDescription" class="lightbox-description"></p>
+
+      <div id="lbLicense" class="license-badge" hidden></div>
+
+      <div id="lbTags" class="lightbox-tags"></div>
+
+      <div class="lightbox-meta">
+        <a id="lbAuthor" class="lightbox-author" target="_blank" rel="noopener noreferrer"></a>
+        <a id="lbSourceLink" class="lightbox-source-link" target="_blank" rel="noopener noreferrer">
+          <span data-i18n="lightbox_source_link">Открыть источник</span> <span class="icon icon-external" aria-hidden="true"></span>
+        </a>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="iconLightbox" class="lightbox icon-lightbox" hidden>
+  <div class="lightbox-backdrop" data-icon-close></div>
+  <div class="lightbox-dialog">
+    <button class="lightbox-close icon-btn" data-icon-close data-i18n-title="lightbox_close_title">
+      <span class="icon icon-close" aria-hidden="true"></span>
+    </button>
+    <button class="lightbox-nav lightbox-prev icon-btn" id="ilPrev" data-i18n-title="lightbox_prev_title">
+      <span class="icon icon-arrow-left" aria-hidden="true"></span>
+    </button>
+    <button class="lightbox-nav lightbox-next icon-btn" id="ilNext" data-i18n-title="lightbox_next_title">
+      <span class="icon icon-arrow-right" aria-hidden="true"></span>
+    </button>
+
+    <div class="icon-lightbox-preview">
+      <div id="ilPreview" class="icon-lightbox-svg"></div>
+    </div>
+
+    <aside class="lightbox-panel">
+      <div class="lightbox-panel-top">
+        <span class="source-badge" id="ilCollectionBadge"></span>
+        <div class="lightbox-actions">
+          <button class="btn btn-ghost" id="ilCopyName" data-i18n-title="icon_copy_name_title">
+            <span class="icon icon-link" aria-hidden="true"></span><span data-i18n="icon_copy_name_label">ID</span>
+          </button>
+          <button class="btn btn-ghost" id="ilCopySvg" data-i18n-title="icon_copy_svg_title">
+            <span class="icon icon-copy" aria-hidden="true"></span><span data-i18n="icon_copy_svg_label">SVG</span>
+          </button>
+          <button class="btn btn-ghost" id="ilDownloadSvg" data-i18n-title="icon_download_svg_title">
+            <span class="icon icon-download" aria-hidden="true"></span><span data-i18n="icon_download_svg_label">SVG</span>
+          </button>
+          <button class="btn btn-primary" id="ilDownloadPng" data-i18n-title="icon_download_png_title">
+            <span class="icon icon-download" aria-hidden="true"></span><span data-i18n="icon_download_png_label">PNG</span>
+          </button>
+        </div>
+      </div>
+
+      <h2 id="ilTitle" class="lightbox-title"></h2>
+
+      <div class="icon-color-swatches" id="ilColorSwatches"></div>
+
+      <div id="ilLicense" class="license-badge" hidden></div>
+
+      <div class="lightbox-meta">
+        <a id="ilSourceLink" class="lightbox-source-link" target="_blank" rel="noopener noreferrer">
+          <span data-i18n="lightbox_source_link">Открыть источник</span> <span class="icon icon-external" aria-hidden="true"></span>
+        </a>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="videoLightbox" class="lightbox video-lightbox" hidden>
+  <div class="lightbox-backdrop" data-video-close></div>
+  <div class="lightbox-dialog">
+    <button class="lightbox-close icon-btn" data-video-close data-i18n-title="lightbox_close_title">
+      <span class="icon icon-close" aria-hidden="true"></span>
+    </button>
+    <button class="lightbox-nav lightbox-prev icon-btn" id="vlPrev" data-i18n-title="lightbox_prev_title">
+      <span class="icon icon-arrow-left" aria-hidden="true"></span>
+    </button>
+    <button class="lightbox-nav lightbox-next icon-btn" id="vlNext" data-i18n-title="lightbox_next_title">
+      <span class="icon icon-arrow-right" aria-hidden="true"></span>
+    </button>
+
+    <div class="video-lightbox-wrap">
+      <video id="vlPlayer" class="video-lightbox-player" controls playsinline></video>
+    </div>
+
+    <aside class="lightbox-panel">
+      <div class="lightbox-panel-top">
+        <div class="lightbox-badges-row">
+          <span class="source-badge" id="vlSourceBadge"></span>
+          <span class="lightbox-duration-badge" id="vlDurationBadge" hidden></span>
+        </div>
+        <div class="lightbox-actions">
+          <button class="btn btn-ghost" id="vlCopy" data-i18n-title="lightbox_copy_title">
+            <span class="icon icon-link" aria-hidden="true"></span><span data-i18n="lightbox_copy_label">Ссылка</span>
+          </button>
+          <button class="btn btn-primary" id="vlDownload" data-i18n-title="lightbox_download_title">
+            <span class="icon icon-download" aria-hidden="true"></span><span data-i18n="lightbox_download_label">Скачать</span>
+          </button>
+        </div>
+      </div>
+
+      <h2 id="vlTitle" class="lightbox-title"></h2>
+      <p id="vlDescription" class="lightbox-description"></p>
+
+      <div id="vlLicense" class="license-badge" hidden></div>
+
+      <div id="vlTags" class="lightbox-tags"></div>
+
+      <div class="lightbox-meta">
+        <a id="vlAuthor" class="lightbox-author" target="_blank" rel="noopener noreferrer"></a>
+        <a id="vlSourceLink" class="lightbox-source-link" target="_blank" rel="noopener noreferrer">
+          <span data-i18n="lightbox_source_link">Открыть источник</span> <span class="icon icon-external" aria-hidden="true"></span>
+        </a>
+      </div>
+    </aside>
+  </div>
+</div>
+
+<div id="toast" class="toast" hidden></div>
+
+<script>window.PICTA_PAGE = {"q":"люди","mode":"photos"};</script>
+<script src="js/config.js"></script>
+<script src="js/i18n.js"></script>
+<script>window.I18N.applyStaticI18n();</script>
+<script src="js/auth.js"></script>
+<script src="js/providers.js"></script>
+<script src="js/icons.js"></script>
+<script src="js/videoProviders.js"></script>
+<script src="js/translate.js"></script>
+<script src="js/queryLogic.js"></script>
+<script src="js/spellcheck.js"></script>
+<script src="js/dedupe.js"></script>
+<script src="js/app.js"></script>
+<script src="js/background.js"></script>
+<script src="js/cursor.js"></script>
+<script src="js/analytics.js"></script>
+</body>
+</html>

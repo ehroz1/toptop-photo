@@ -1,3 +1,41 @@
+/* ---------- Шрифты (лежат в fonts/, лицензия SIL OFL) ----------
+   Manrope — интерфейс и текст, Unbounded Black — главные заголовки.
+   Файлы урезаны под сайт (fontTools): Manrope — вариативный, только
+   жирности 400–700; Unbounded — только Black (900). Оба — лишь нужные
+   буквы латиницы и кириллицы. Так шрифты весят ~63 КБ вместо ~120. */
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url("../fonts/manrope-cyrillic.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+@font-face {
+  font-family: "Manrope";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 400 700;
+  src: url("../fonts/manrope-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+@font-face {
+  font-family: "Unbounded";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 900;
+  src: url("../fonts/unbounded-black-cyrillic.woff2") format("woff2");
+  unicode-range: U+0301,U+0400-045F,U+0490-0491,U+04B0-04B1,U+2116;
+}
+@font-face {
+  font-family: "Unbounded";
+  font-style: normal;
+  font-display: swap;
+  font-weight: 900;
+  src: url("../fonts/unbounded-black-latin.woff2") format("woff2");
+  unicode-range: U+0000-00FF,U+0131,U+0152-0153,U+02BB-02BC,U+02C6,U+02DA,U+02DC,U+0304,U+0308,U+0329,U+2000-206F,U+20AC,U+2122,U+2191,U+2193,U+2212,U+2215,U+FEFF,U+FFFD;
+}
+
 :root {
   --bg: #fafafa;
   --bg-elevated: #ffffff;
@@ -23,7 +61,11 @@
   --wikimedia: #3366cc;
   --openverse: #ff6428;
   --flickr: #ff0084;
-  --shutterstock: #ee2b26;
+  --shutterstock: #ee2a24;
+  --pexafy: #7c5cff;
+  --doodl: #06b6d4;
+  --archive: #8b5e34;
+  --coverr: #e8a33d;
   color-scheme: light;
 
   --icon-search: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='11' cy='11' r='7'/%3E%3Cline x1='21' y1='21' x2='16.65' y2='16.65'/%3E%3C/svg%3E");
@@ -45,6 +87,12 @@
   --icon-mic: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Crect x='9' y='2' width='6' height='12' rx='3'/%3E%3Cpath d='M5 11a7 7 0 0 0 14 0'/%3E%3Cline x1='12' y1='18' x2='12' y2='22'/%3E%3Cline x1='8' y1='22' x2='16' y2='22'/%3E%3C/svg%3E");
   --icon-chart: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cline x1='5' y1='21' x2='5' y2='11'/%3E%3Cline x1='12' y1='21' x2='12' y2='4'/%3E%3Cline x1='19' y1='21' x2='19' y2='15'/%3E%3C/svg%3E");
   --icon-filters: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round'%3E%3Cline x1='4' y1='6' x2='20' y2='6'/%3E%3Ccircle cx='9' cy='6' r='2' fill='black' stroke='none'/%3E%3Cline x1='4' y1='12' x2='20' y2='12'/%3E%3Ccircle cx='16' cy='12' r='2' fill='black' stroke='none'/%3E%3Cline x1='4' y1='18' x2='20' y2='18'/%3E%3Ccircle cx='11' cy='18' r='2' fill='black' stroke='none'/%3E%3C/svg%3E");
+  --icon-layers: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolygon points='12 2 2 7 12 12 22 7 12 2'/%3E%3Cpolyline points='2 17 12 22 22 17'/%3E%3Cpolyline points='2 12 12 17 22 12'/%3E%3C/svg%3E");
+  --icon-bolt: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='1.9' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M13.5 2.5 4.5 13.5h7l-1 8 9-11h-7l1-8Z'/%3E%3C/svg%3E");
+  --icon-coffee: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M4 9h13v5a5 5 0 0 1-5 5H9a5 5 0 0 1-5-5V9Z'/%3E%3Cpath d='M17 11h1.5a2.5 2.5 0 0 1 0 5H17'/%3E%3Cline x1='8' y1='3' x2='8' y2='5.5'/%3E%3Cline x1='12' y1='3' x2='12' y2='5.5'/%3E%3C/svg%3E");
+  --icon-logout: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpolyline points='16 17 21 12 16 7'/%3E%3Cline x1='21' y1='12' x2='9' y2='12'/%3E%3C/svg%3E");
+  --icon-chevron-up: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 15 12 9 18 15'/%3E%3C/svg%3E");
+  --icon-user: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='8' r='4'/%3E%3Cpath d='M4 20c0-4 3.5-7 8-7s8 3 8 7'/%3E%3C/svg%3E");
 }
 
 :root[data-theme="dark"] {
@@ -91,12 +139,16 @@ body {
   margin: 0;
   background: var(--bg);
   color: var(--text);
-  font-family: Arial, Helvetica, sans-serif;
-  --font-display: Arial, Helvetica, sans-serif;
+  /* Интерфейс — Manrope 500 (кнопки и надписи), обычный текст — 400 (см.
+     p ниже), главные заголовки — Unbounded Black (--font-display). */
+  font-family: "Manrope", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+  font-weight: 500;
+  --font-display: "Unbounded", "Manrope", Arial, sans-serif;
   -webkit-font-smoothing: antialiased;
   transition: background 0.2s ease, color 0.2s ease;
-  letter-spacing: -0.03em;
+  letter-spacing: -0.01em;
 }
+p { font-weight: 400; }
 
 .icon {
   display: inline-block;
@@ -114,8 +166,59 @@ body {
 
 /* ---------- Layout ---------- */
 .app {
+  --app-pad-x: 32px;
   margin: 0 auto;
-  padding: 20px 32px 48px;
+  padding: 20px var(--app-pad-x) 48px;
+}
+
+/* ---------- Фоновое фото (тёмная тема, главный экран; см. js/background.js) ----------
+   Появляется "из дымки": из размытого, чуть увеличенного и прозрачного
+   состояния плавно становится чётким. Это единственное размытие на сайте
+   (tests/check.js пускает blur() только сюда). Поверх — лёгкое зерно и
+   затемнение с виньеткой, которое держит контраст текста. В светлой теме и
+   в результатах поиска фото нет. */
+.bg-photo {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  background: var(--bg) center / cover no-repeat;
+  opacity: 0;
+  transform: scale(1.1);
+  filter: blur(28px) saturate(1.5);
+  transition:
+    opacity 1.6s ease-out,
+    transform 3.4s cubic-bezier(0.16, 1, 0.3, 1),
+    filter 2.4s cubic-bezier(0.16, 1, 0.3, 1);
+}
+/* Уход в результаты поиска — быстро, чтобы не мешать выдаче. */
+body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, transform 0.4s ease; }
+/* Зерно: шум из SVG-фильтра, плиткой по всему экрану. */
+.bg-photo::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='1 0 0 0 0 1 0 0 0 0 1 0 0 0 0 0 0 0 0 1'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E") repeat;
+  background-size: 200px 200px;
+  opacity: 0.1;
+}
+.bg-photo::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background:
+    radial-gradient(120% 95% at 50% 30%, rgba(11, 11, 15, 0.58) 0%, rgba(11, 11, 15, 0.8) 65%, rgba(11, 11, 15, 0.93) 100%);
+}
+:root[data-theme="dark"] .bg-photo { display: block; }
+.bg-photo.is-shown {
+  opacity: 1;
+  transform: scale(1);
+  filter: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bg-photo { transform: none; filter: none; transition: opacity 0.8s ease-out; }
 }
 
 .topbar {
@@ -126,17 +229,37 @@ body {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: transparent;
-  border-radius: var(--radius-md);
-  transition: background 0.2s ease, box-shadow 0.2s ease, backdrop-filter 0.2s ease;
 }
-.topbar.is-scrolled {
-  background: color-mix(in srgb, var(--bg) 78%, transparent);
-  backdrop-filter: blur(16px) saturate(1.4);
-  -webkit-backdrop-filter: blur(16px) saturate(1.4);
-  box-shadow: var(--shadow-sm);
-  border-radius: 0;
+/* Подложка шапки при прокрутке: цвет фона сверху (в тёмной теме тёмный, в
+   светлой светлый), к низу плавно тает в прозрачность. Шире самой шапки —
+   на всю ширину экрана, за пределы боковых отступов .app. */
+.topbar::before {
+  content: "";
+  position: absolute;
+  z-index: -1;
+  top: -24px;
+  bottom: -88px;
+  left: calc(-1 * var(--app-pad-x, 32px));
+  right: calc(-1 * var(--app-pad-x, 32px));
+  pointer-events: none;
+  /* Много промежуточных точек по плавной кривой — так переход не читается
+     как край полосы, а просто растворяется. */
+  background: linear-gradient(180deg,
+    var(--bg) 0,
+    color-mix(in srgb, var(--bg) 96%, transparent) calc(100% - 128px),
+    color-mix(in srgb, var(--bg) 88%, transparent) calc(100% - 112px),
+    color-mix(in srgb, var(--bg) 77%, transparent) calc(100% - 96px),
+    color-mix(in srgb, var(--bg) 64%, transparent) calc(100% - 80px),
+    color-mix(in srgb, var(--bg) 50%, transparent) calc(100% - 64px),
+    color-mix(in srgb, var(--bg) 36%, transparent) calc(100% - 48px),
+    color-mix(in srgb, var(--bg) 23%, transparent) calc(100% - 34px),
+    color-mix(in srgb, var(--bg) 12%, transparent) calc(100% - 20px),
+    color-mix(in srgb, var(--bg) 4%, transparent) calc(100% - 8px),
+    transparent 100%);
+  opacity: 0;
+  transition: opacity 0.25s ease;
 }
+.topbar.is-scrolled::before { opacity: 1; }
 
 .brand {
   display: flex;
@@ -153,48 +276,124 @@ body {
 }
 .brand:hover { opacity: 0.7; }
 .brand:active { transform: scale(0.97); }
+/* Логотип — icons/logo.svg как маска: цвет берётся из темы (белый в тёмной,
+   чёрный в светлой). Пропорции файла ~2.86:1. */
 .brand-mark {
-  width: 26px;
-  height: 26px;
+  width: 72px;
+  height: 25px;
   background-color: var(--text);
-  -webkit-mask: url("../icons/logo-mark.png") center / contain no-repeat;
-  mask: url("../icons/logo-mark.png") center / contain no-repeat;
+  -webkit-mask: url("../icons/logo.svg") left center / contain no-repeat;
+  mask: url("../icons/logo.svg") left center / contain no-repeat;
   flex-shrink: 0;
   transition: transform 0.2s ease;
 }
-.brand:hover .brand-mark { transform: rotate(-6deg); }
+.brand:hover .brand-mark { transform: rotate(-3deg); }
 
 .topbar-actions {
   flex: 1 1 0;
+  position: relative;
   display: flex;
   align-items: center;
   justify-content: flex-end;
   gap: 8px;
 }
 
-.insights-wrap { position: relative; }
-.insights-panel {
-  position: absolute;
-  top: calc(100% + 8px);
-  right: 0;
-  min-width: 240px;
-  background: var(--bg-elevated);
-  border-radius: var(--radius-sm);
-  box-shadow: var(--shadow-md);
-  padding: 10px;
-  z-index: 50;
-  font-size: 13px;
+/* ---------- Шапка справа: «молния», профиль, меню ---------- */
+/* Окна всех трёх кнопок прижаты к правому краю группы кнопок (а не к
+   своей кнопке) — так «молния» на телефоне не уводит окно за левый край. */
+.topbar-pop-wrap { flex-shrink: 0; }
+/* Через id — чтобы общие правила .icon-btn (в том числе на главном экране)
+   не перебивали вид этих трёх кнопок. */
+#aboutToggle,
+#authToggle {
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--text) 22%, transparent);
+  overflow: hidden;
 }
+#aboutToggle:hover,
+#authToggle:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.topbar-bolt .icon-bolt { width: 20px; height: 20px; background-color: currentColor; -webkit-mask: var(--icon-bolt) center / contain no-repeat; mask: var(--icon-bolt) center / contain no-repeat; }
+#mainMenuToggle { width: 32px; background: transparent; color: var(--text-muted); }
+#mainMenuToggle:hover, #mainMenuToggle[aria-expanded="true"] { background: transparent; color: var(--text); }
+.topbar-chevron .icon-chevron,
+.menu-item-chevron { background-color: currentColor; -webkit-mask: var(--icon-chevron) center / contain no-repeat; mask: var(--icon-chevron) center / contain no-repeat; transition: transform 0.2s ease; }
+.topbar-chevron .icon-chevron { width: 22px; height: 22px; }
+.topbar-chevron[aria-expanded="true"] .icon-chevron,
+.menu-item[aria-expanded="true"] .menu-item-chevron { transform: rotate(180deg); }
+
+.topbar-popover {
+  position: absolute;
+  top: calc(100% + 10px);
+  right: 0;
+  z-index: 60;
+  width: max-content;
+  min-width: 250px;
+  max-width: min(320px, calc(100vw - 32px));
+  padding: 6px;
+  background: var(--bg-elevated);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  text-align: left;
+  letter-spacing: normal;
+}
+.topbar-popover[hidden] { display: none; }
+.topbar-popover:not([hidden]) { animation: dropdownIn 0.15s ease; }
+.about-popover, .auth-popover { padding: 14px; }
+
+.menu-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text);
+  font: inherit;
+  font-size: 14px;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.menu-item:hover, .menu-item:focus-visible { background: var(--accent-soft); outline: none; }
+.menu-item[hidden] { display: none; }
+.menu-item .icon { width: 18px; height: 18px; flex-shrink: 0; background-color: currentColor; }
+.menu-item-label { flex: 1; min-width: 0; }
+.menu-item-value { color: var(--text-muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+.menu-item-chevron { width: 16px !important; height: 16px !important; color: var(--text-muted); }
+.menu-item[aria-pressed="true"] { font-weight: 600; }
+.menu-item .icon-coffee { -webkit-mask: var(--icon-coffee) center / contain no-repeat; mask: var(--icon-coffee) center / contain no-repeat; }
+.menu-item .icon-logout { -webkit-mask: var(--icon-logout) center / contain no-repeat; mask: var(--icon-logout) center / contain no-repeat; }
+.menu-sep { height: 1px; margin: 6px 4px; background: var(--border); }
+.insights-panel { padding: 0 10px 8px 40px; font-size: 13px; }
 .insights-panel[hidden] { display: none; }
-.insights-panel:not([hidden]) { animation: dropdownIn 0.15s ease; }
 .insights-row {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  padding: 6px 4px;
+  padding: 5px 0;
   color: var(--text-muted);
 }
+
+.about-heading { margin: 0 0 6px; font-size: 12px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.about-text { margin: 0 0 14px; font-size: 14px; line-height: 1.5; color: var(--text); }
+.about-contacts { display: flex; flex-wrap: wrap; gap: 6px; }
+.about-contacts .about-text { margin: 0; color: var(--text-muted); }
+.about-contact {
+  display: inline-flex;
+  align-items: center;
+  padding: 7px 12px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 13.5px;
+  text-decoration: none;
+}
+.about-contact:hover { background: var(--accent-soft); }
+.auth-soon { margin: 0; font-size: 14px; line-height: 1.5; color: var(--text); }
+.auth-soon[hidden] { display: none; }
 .insights-row strong { color: var(--text); font-weight: 600; }
 .insights-sep { height: 1px; background: var(--border); margin: 4px 0; }
 
@@ -319,19 +518,46 @@ body {
 .icon-btn:active { transform: scale(0.92); }
 .icon-btn[aria-pressed="true"] { color: var(--accent); background: var(--accent-soft); }
 
-/* Иконка показывает выбранный РЕЖИМ (авто/светлая/тёмная), а не текущий
-   цвет — поэтому завязана на data-theme-mode, а не на data-theme (который
-   в режиме "авто" вообще не выставляется и следует за системой через CSS). */
-#themeToggle .icon-sun, #themeToggle .icon-moon, #themeToggle .icon-auto {
-  display: none;
-  background-color: currentColor;
+/* ---------- Переключатели-«таблетки» в меню (тема, размер сетки) ---------- */
+.menu-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 6px 6px 6px 10px; }
+.menu-row-label { font-size: 14px; color: var(--text); }
+.seg { display: inline-flex; gap: 2px; padding: 3px; border-radius: 999px; background: color-mix(in srgb, var(--text) 8%, transparent); }
+.seg-btn {
+  width: 36px; height: 30px; border: none; border-radius: 999px; padding: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: transparent; color: var(--text-muted); cursor: pointer;
+  transition: background 0.2s ease, color 0.2s ease;
 }
-#themeToggle .icon-sun { -webkit-mask: var(--icon-sun) center / contain no-repeat; mask: var(--icon-sun) center / contain no-repeat; }
-#themeToggle .icon-moon { -webkit-mask: var(--icon-moon) center / contain no-repeat; mask: var(--icon-moon) center / contain no-repeat; }
-#themeToggle .icon-auto { -webkit-mask: var(--icon-auto) center / contain no-repeat; mask: var(--icon-auto) center / contain no-repeat; }
-:root[data-theme-mode="light"] #themeToggle .icon-sun { display: block; }
-:root[data-theme-mode="dark"] #themeToggle .icon-moon { display: block; }
-:root[data-theme-mode="auto"] #themeToggle .icon-auto { display: block; }
+.seg-btn:hover { color: var(--text); }
+.seg-btn[aria-pressed="true"] { background: var(--accent); color: var(--accent-contrast); }
+.seg-btn .icon { width: 17px; height: 17px; background-color: currentColor; }
+.seg .icon-sun { -webkit-mask: var(--icon-sun) center / contain no-repeat; mask: var(--icon-sun) center / contain no-repeat; }
+.seg .icon-moon { -webkit-mask: var(--icon-moon) center / contain no-repeat; mask: var(--icon-moon) center / contain no-repeat; }
+.seg .icon-auto { -webkit-mask: var(--icon-auto) center / contain no-repeat; mask: var(--icon-auto) center / contain no-repeat; }
+.seg-bars { display: inline-flex; gap: 3px; }
+.seg-bars i { display: block; width: 2px; height: 13px; border-radius: 1px; background: currentColor; }
+
+/* ---------- Смена темы (см. transitionTheme в app.js) ----------
+   Новая тема проявляется поверх снимка старой кругом от кнопки. Край круга
+   мягкий: маска — радиальный градиент, сплошной до 70% радиуса и тающий к
+   краю (0.7 = THEME_REVEAL_SOLID в app.js). Размер и положение маски
+   анимирует app.js, здесь — стартовое состояние "круг нулевого размера". */
+:root.theme-reveal::view-transition-old(root),
+:root.theme-reveal::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+:root.theme-reveal::view-transition-new(root) {
+  -webkit-mask: radial-gradient(circle closest-side, #000 70%, rgba(0, 0, 0, 0.5) 86%, transparent 100%) 0 0 / 0 0 no-repeat;
+  mask: radial-gradient(circle closest-side, #000 70%, rgba(0, 0, 0, 0.5) 86%, transparent 100%) 0 0 / 0 0 no-repeat;
+}
+/* Браузеры без View Transitions: цвета просто плавно перетекают. */
+:root.theme-fading,
+:root.theme-fading *,
+:root.theme-fading *::before,
+:root.theme-fading *::after {
+  transition: background-color 0.5s ease, color 0.5s ease, border-color 0.5s ease, box-shadow 0.5s ease !important;
+}
 
 #favoritesToggle .icon-heart,
 #selectModeToggle .icon-check-square {
@@ -339,8 +565,74 @@ body {
 }
 #favoritesToggle .icon-heart { -webkit-mask: var(--icon-heart) center / contain no-repeat; mask: var(--icon-heart) center / contain no-repeat; }
 #favoritesToggle[aria-pressed="true"] .icon-heart { -webkit-mask-image: var(--icon-heart-filled); mask-image: var(--icon-heart-filled); }
+#shareSearchBtn .icon { background-color: currentColor; -webkit-mask: var(--icon-share) center / contain no-repeat; mask: var(--icon-share) center / contain no-repeat; }
+.menu-item .icon-share { -webkit-mask: var(--icon-share) center / contain no-repeat; mask: var(--icon-share) center / contain no-repeat; }
+.menu-item .icon-download { -webkit-mask: var(--icon-download) center / contain no-repeat; mask: var(--icon-download) center / contain no-repeat; }
 #selectModeToggle .icon-check-square { -webkit-mask: var(--icon-check-square) center / contain no-repeat; mask: var(--icon-check-square) center / contain no-repeat; }
-#filtersToggle .icon-filters { background-color: currentColor; -webkit-mask: var(--icon-filters) center / contain no-repeat; mask: var(--icon-filters) center / contain no-repeat; }
+#filtersToggle .icon-filters,
+#iconFiltersToggle .icon-filters,
+#videoFiltersToggle .icon-filters { background-color: currentColor; -webkit-mask: var(--icon-filters) center / contain no-repeat; mask: var(--icon-filters) center / contain no-repeat; }
+#insightsToggle .icon-chart { background-color: currentColor; -webkit-mask: var(--icon-chart) center / contain no-repeat; mask: var(--icon-chart) center / contain no-repeat; }
+
+/* ---------- Вход (Supabase: Google / почта) ---------- */
+#authToggle .icon-user { background-color: currentColor; -webkit-mask: var(--icon-user) center / contain no-repeat; mask: var(--icon-user) center / contain no-repeat; }
+#authToggle .icon-user[hidden] { display: none; }
+.auth-avatar {
+  width: 100%;
+  height: 100%;
+  border-radius: 50%;
+  background: var(--accent) center / cover no-repeat;
+  color: var(--accent-contrast);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.auth-avatar[hidden] { display: none; }
+.auth-popover { display: flex; flex-direction: column; gap: 10px; }
+.auth-popover .about-heading { margin: 0; }
+.auth-google-btn { width: 100%; justify-content: center; }
+.auth-google-icon { width: 16px; height: 16px; flex-shrink: 0; }
+.auth-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: var(--text-muted);
+  font-size: 12px;
+  text-align: center;
+}
+.auth-divider::before, .auth-divider::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.auth-email-form { display: flex; flex-direction: column; gap: 8px; }
+.auth-email-input {
+  width: 100%;
+  padding: 10px 12px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border-strong);
+  background: var(--bg);
+  color: var(--text);
+  font: inherit;
+  font-size: 13.5px;
+}
+.auth-email-input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.auth-email-submit { width: 100%; justify-content: center; }
+.auth-email-note { margin: 0; font-size: 11.5px; color: var(--text-muted); line-height: 1.4; }
+.auth-email-label {
+  margin: 0 0 4px;
+  padding: 0 2px;
+  font-size: 13px;
+  color: var(--text-muted);
+  word-break: break-all;
+}
+.auth-admin-link { width: 100%; justify-content: center; }
+#authLoggedIn { display: flex; flex-direction: column; gap: 6px; }
+#authLoggedIn[hidden], #authLoggedOut[hidden] { display: none; }
 
 /* ---------- Translated query hint ---------- */
 .translated-hint {
@@ -439,6 +731,72 @@ body {
   margin: 0 4px;
   flex-shrink: 0;
 }
+
+/* ---------- Единая кнопка "Источники" (popover со списком чекбоксов) ----------
+   Раньше это был ряд из 9 всегда видимых плашек-переключателей фотостоков.
+   Один popover с чекбоксами компактнее и явно показывает лимит выбора. */
+.sources-menu-wrap { position: relative; flex-shrink: 0; }
+.sources-menu-toggle { gap: 6px; }
+.sources-menu-toggle .icon {
+  width: 15px; height: 15px;
+  background-color: currentColor;
+  -webkit-mask: var(--icon-layers) center / contain no-repeat;
+  mask: var(--icon-layers) center / contain no-repeat;
+}
+.sources-menu-badge {
+  position: static;
+  min-width: 16px;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font-size: 10.5px;
+  font-weight: 700;
+  line-height: 16px;
+  text-align: center;
+}
+.sources-menu-popover { min-width: 250px; }
+.sources-menu-note {
+  margin: 0 0 8px;
+  padding: 0 4px;
+  font-size: 12px;
+  color: var(--text-muted);
+  line-height: 1.4;
+}
+.source-checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  /* Все 8 источников с подписями помещаются без прокрутки; на низких
+     экранах список всё равно ограничен и прокручивается. */
+  max-height: min(420px, 65vh);
+  overflow-y: auto;
+}
+.source-check-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 8px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--text);
+  transition: background 0.15s ease, opacity 0.15s ease;
+}
+.source-check-row:hover { background: var(--accent-soft); }
+.source-check-text { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
+.source-check-name { line-height: 1.25; }
+.source-check-desc { font-size: 12px; line-height: 1.25; color: var(--text-muted); }
+.source-check-row:has(> input[hidden]) { display: none; }
+.source-check-row.is-capped { opacity: 0.45; }
+.source-checkbox {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
 .source-chip {
   display: inline-flex;
   align-items: center;
@@ -472,11 +830,19 @@ body {
 .dot-openverse { background: var(--openverse); }
 .dot-flickr { background: var(--flickr); }
 .dot-shutterstock { background: var(--shutterstock); }
+.dot-pexafy { background: var(--pexafy); }
+.dot-doodl { background: var(--doodl); }
+.dot-archive { background: var(--archive); }
+.dot-coverr { background: var(--coverr); }
 .source-chip[aria-pressed="true"] {
   color: var(--text);
   background: var(--accent-soft);
 }
 .source-chip[aria-pressed="true"] .dot { opacity: 1; }
+/* Максимум одновременно выбранных источников (см. MAX_ACTIVE_SOURCES в
+   app.js) — остальные чипы визуально притушены, пока лимит не освободится,
+   но клик по ним всё равно работает (показывает тост с объяснением). */
+.source-chip.is-capped:not([aria-pressed="true"]) { opacity: 0.4; }
 .source-chip-external {
   color: var(--text-muted);
 }
@@ -508,7 +874,7 @@ body {
   text-align: center;
 }
 .filters-badge.is-pop { animation: heartPop 0.4s ease; }
-#filtersToggle.has-active-filters { color: var(--accent); background: var(--accent-soft); }
+#filtersToggle.has-active-filters, #iconFiltersToggle.has-active-filters, #videoFiltersToggle.has-active-filters { color: var(--accent); background: var(--accent-soft); }
 .filters-popover {
   position: absolute;
   top: calc(100% + 8px);
@@ -646,52 +1012,12 @@ body {
   max-width: 600px;
   margin: 0 auto;
 }
-.empty-state-logo {
-  width: 60px;
-  height: 60px;
-  margin: 0 auto 22px;
-  border-radius: 50%;
-  background: var(--accent-soft);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-.empty-state-logo::before {
-  content: "";
-  width: 30px;
-  height: 30px;
-  background-color: var(--text);
-  -webkit-mask: url("../icons/logo-mark.png") center / contain no-repeat;
-  mask: url("../icons/logo-mark.png") center / contain no-repeat;
-}
-.eyebrow {
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 12px;
-  font-weight: 600;
-  text-transform: uppercase;
-  color: var(--text-muted);
-  margin-bottom: 14px;
-}
-.eyebrow::before {
-  content: "";
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--text);
-  flex-shrink: 0;
-}
-.underline-accent {
-  text-decoration: underline;
-  text-decoration-color: currentColor;
-  text-decoration-thickness: 3px;
-  text-underline-offset: 6px;
-}
-.empty-state h1 {
+.empty-state h1,
+.empty-state h2 {
   font-family: var(--font-display);
-  font-size: clamp(28px, 4vw, 44px);
-  font-weight: 600;
+  font-size: clamp(24px, 3.4vw, 38px);
+  font-weight: 900;
+  letter-spacing: -0.02em;
   margin: 0 0 12px;
 }
 .empty-state p { color: var(--text-muted); font-size: 15.5px; line-height: 1.55; margin: 0; }
@@ -718,7 +1044,302 @@ body {
 }
 .suggestion-chip:hover { background: var(--accent-soft); transform: translateY(-1px); }
 
+/* ---------- Главный экран (body.is-home, см. applyHomeLayout в app.js) ----------
+   По центру — надпись, подзаголовок, крупная строка поиска, вкладки режимов
+   и "Источники"; внизу — "Попробуйте:" простыми ссылками. Строка поиска,
+   вкладки и "Источники" — те же узлы, что в шапке/панели, просто перенесены
+   сюда, пока нет результатов. */
+.home-hero {
+  max-width: none;
+  padding: 0 0 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  min-height: calc(100svh - 150px);
+}
+/* display:flex выше перебил бы атрибут hidden — без этого главный экран
+   оставался бы на месте после поиска, а выдача уезжала вниз. */
+.home-hero[hidden] { display: none; }
+.home-main {
+  /* Выше блока подсказок: иначе строки "Недавние"/"Попробуйте" рисуются
+     поверх открытого окна "Источники". fill-mode backwards (не both) —
+     после анимации она не должна держать отдельный слой (stacking context),
+     внутри которого z-index окна ничего бы не значил. */
+  position: relative;
+  z-index: 2;
+  margin-top: auto;
+  width: 100%;
+  max-width: 720px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  animation: homeIn 0.7s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+@keyframes homeIn {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: none; }
+}
+.home-hero .home-wordmark { margin: 0; line-height: 0; }
+.home-logo {
+  display: inline-block;
+  width: clamp(190px, 24vw, 300px);
+  aspect-ratio: 1089 / 381;
+  background-color: var(--text);
+  -webkit-mask: url("../icons/logo.svg") center / contain no-repeat;
+  mask: url("../icons/logo.svg") center / contain no-repeat;
+}
+/* Текст только для поисковиков и экранных дикторов — на экране его нет. */
+.visually-hidden {
+  position: absolute !important;
+  width: 1px; height: 1px;
+  margin: -1px; padding: 0; border: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+.home-hero .home-tagline {
+  margin: 18px 0 34px;
+  font-size: clamp(15px, 1.6vw, 18px);
+  color: var(--text-muted);
+}
+.home-search-slot { width: 100%; }
+.is-home .searchbar {
+  width: 100%;
+  max-width: none;
+  height: 58px;
+  padding: 6px 8px 6px 20px;
+  background: color-mix(in srgb, var(--bg-elevated) 86%, transparent);
+  border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
+  box-shadow: none;
+  transition: border-color 0.2s ease, background 0.2s ease;
+}
+.is-home .searchbar:focus-within {
+  background: var(--bg-elevated);
+  border-color: color-mix(in srgb, var(--text) 32%, transparent);
+}
+.is-home .searchbar-input { font-size: 16px; }
+.is-home .searchbar-submit { width: 42px; height: 42px; }
+.is-home .searchbar-submit .icon { -webkit-mask-image: var(--icon-arrow-right); mask-image: var(--icon-arrow-right); }
+
+.home-controls {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 22px;
+  margin-top: 26px;
+}
+.home-controls-sep {
+  width: 1px;
+  height: 26px;
+  background: color-mix(in srgb, var(--text) 18%, transparent);
+}
+.home-controls-sep[hidden] { display: none; }
+.is-home .mode-switch { background: transparent; padding: 0; gap: 14px; }
+.is-home .mode-tab {
+  position: relative;
+  padding: 8px 10px;
+  border-radius: 0;
+  font-size: 14.5px;
+}
+.is-home .mode-tab.is-active { background: transparent; }
+.is-home .mode-tab.is-active::after {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  bottom: -5px;
+  height: 2px;
+  border-radius: 2px;
+  background: var(--text);
+}
+.is-home .sources-menu-toggle { background: transparent; color: var(--text); font-size: 14.5px; }
+.is-home .sources-menu-toggle:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.is-home .sources-menu-badge {
+  position: static;
+  background: color-mix(in srgb, var(--text) 14%, transparent);
+  color: var(--text);
+}
+.is-home .sources-menu-toggle::after {
+  content: "";
+  width: 11px;
+  height: 11px;
+  background-color: currentColor;
+  opacity: 0.7;
+  -webkit-mask: var(--icon-chevron) center / contain no-repeat;
+  mask: var(--icon-chevron) center / contain no-repeat;
+}
+.is-home .sources-menu-popover { right: auto; left: 50%; margin-left: -125px; text-align: left; }
+/* ---------- Текст о сервисе и FAQ под первым экраном главной ---------- */
+.home-about {
+  position: relative;
+  z-index: 1;
+  max-width: 760px;
+  margin: 0 auto;
+  padding: 72px 4px 40px;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+body:not(.is-home) .home-about { display: none; }
+.home-about h2 {
+  margin: 0 0 14px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(20px, 2.6vw, 26px);
+  line-height: 1.25;
+  letter-spacing: -0.02em;
+}
+.home-about h2 + .home-faq-item { margin-top: 4px; }
+.home-about h3 { margin: 0 0 6px; color: var(--text); font-size: 15px; font-weight: 700; }
+.home-about p { margin: 0; }
+.home-about-intro { margin-bottom: 28px !important; }
+.home-about-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 24px;
+  margin-bottom: 56px;
+}
+.home-faq-item { border-top: 1px solid var(--border); }
+.home-faq-item:last-child { border-bottom: 1px solid var(--border); }
+.home-faq-item summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 0;
+  color: var(--text);
+  font-weight: 600;
+  cursor: pointer;
+  list-style: none;
+}
+.home-faq-item summary::-webkit-details-marker { display: none; }
+.home-faq-item summary::after {
+  content: "";
+  width: 16px; height: 16px; flex-shrink: 0;
+  background-color: var(--text-muted);
+  -webkit-mask: var(--icon-chevron) center / contain no-repeat;
+  mask: var(--icon-chevron) center / contain no-repeat;
+  transition: transform 0.2s ease;
+}
+.home-faq-item[open] summary::after { transform: rotate(180deg); }
+.home-faq-item p { padding: 0 0 18px; }
+
+/* ---------- Страницы подборок (/foto/priroda/ и т.п., см. seo/build.js) ----------
+   Над выдачей — «хлебные крошки», заголовок и фраза о подборке; под
+   выдачей — текст и ссылки на другие подборки. На главном экране (если
+   запрос очистили) этих блоков нет. */
+.landing-intro { max-width: 760px; margin: 6px 0 18px; }
+.landing-crumbs { display: flex; gap: 8px; margin-bottom: 8px; font-size: 13px; color: var(--text-muted); }
+.landing-crumbs a { color: inherit; text-decoration: none; }
+.landing-crumbs a:hover { color: var(--text); }
+.landing-intro h1 {
+  margin: 0 0 6px;
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(22px, 3vw, 32px);
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+}
+.landing-intro p { margin: 0; color: var(--text-muted); font-size: 15px; }
+.landing-more {
+  max-width: 760px;
+  margin: 56px auto 0;
+  color: var(--text-muted);
+  font-size: 15px;
+  line-height: 1.6;
+}
+.landing-more h2 {
+  margin: 0 0 12px;
+  color: var(--text);
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: clamp(18px, 2.2vw, 22px);
+  letter-spacing: -0.02em;
+}
+.landing-more p { margin: 0 0 12px; }
+.landing-more .landing-links { margin-top: 4px; }
+.landing-more p + h2 { margin-top: 32px; }
+.is-home .landing-intro,
+.is-home .landing-more { display: none; }
+.landing-links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 48px; }
+.landing-links a {
+  padding: 8px 14px;
+  border-radius: 999px;
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  font-size: 14px;
+  text-decoration: none;
+  transition: background 0.15s ease;
+}
+.landing-links a:hover { background: var(--accent-soft); }
+
+.home-hero .home-sources-list {
+  margin: 18px 0 0;
+  min-height: 1.4em;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+
+.home-suggest {
+  margin-top: auto;
+  padding-top: 56px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+}
+.is-home .suggestions { margin-top: 0; gap: 2px; }
+.is-home .suggestion-chip {
+  background: transparent;
+  padding: 4px 4px;
+  font-size: 13.5px;
+  opacity: 0.85;
+}
+.is-home .suggestion-chip:hover {
+  background: transparent;
+  transform: none;
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 4px;
+}
+.is-home .suggestion-chip + .suggestion-chip::before {
+  content: "·";
+  display: inline-block;
+  margin-right: 10px;
+  color: var(--text-muted);
+}
+
+.is-home .topbar .icon-btn { background: transparent; }
+.is-home .topbar .icon-btn:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
+.is-home .toolbar,
+.is-home #translatedHint,
+.is-home #spellHint { display: none; }
+
+@media (max-width: 680px) {
+  .home-hero { min-height: calc(100svh - 110px); }
+  .home-hero .home-tagline { margin-bottom: 26px; }
+  .is-home .searchbar { height: 54px; }
+  .home-controls { gap: 8px 12px; margin-top: 20px; }
+  .home-controls-sep { display: none; }
+  .is-home .mode-switch { gap: 4px; }
+  .home-suggest { padding-top: 40px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .home-main { animation: none; }
+}
+
 /* ---------- Grid ---------- */
+/* Размер сетки из меню: I — крупные фото, II — средние, III — мелкие. */
+:root { --grid-min: 240px; }
+:root[data-grid="1"] { --grid-min: 360px; }
+:root[data-grid="3"] { --grid-min: 170px; }
+@media (max-width: 680px) {
+  :root { --grid-min: 150px; }
+  :root[data-grid="1"] { --grid-min: 100%; }
+  :root[data-grid="3"] { --grid-min: 100px; }
+}
 .grid {
   /* CSS-колонки (columns:) заполняются СВЕРХУ ВНИЗ по одной колонке за раз —
      карточка №2 уходила под №1 в том же левом столбце, а не вправо от неё.
@@ -729,26 +1350,24 @@ body {
      превью грузятся параллельно — они теперь физически в одном верхнем
      ряду, а не друг под другом в одной колонке. */
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(var(--grid-min, 240px), 1fr));
   grid-auto-rows: 4px;
-  gap: 8px;
+  gap: 12px; /* = GRID_GAP в app.js */
 }
 @media (max-width: 680px) {
-  .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(var(--grid-min, 150px), 1fr)); }
+  /* На узких карточках рядом с плашкой источника — два круглых действия
+     (сердце/скачать), места мало; длинные имена вроде "Shutterstock" иначе
+     переносятся на вторую строку внутри пилюли. */
+  .card-source-badge { max-width: 76px; }
 }
 
 .card {
   position: relative;
-  border-radius: var(--radius-md);
+  border-radius: 4px;
   overflow: hidden;
   background: var(--bg-elevated);
-  box-shadow: var(--shadow-sm);
   cursor: pointer;
-  transition: transform 0.25s cubic-bezier(.2,.8,.2,1), box-shadow 0.25s ease;
-}
-.card:hover {
-  transform: translateY(-3px);
-  box-shadow: var(--shadow-md);
 }
 .card.is-img-loading {
   background: linear-gradient(100deg, var(--border) 30%, var(--border-strong) 50%, var(--border) 70%);
@@ -766,11 +1385,12 @@ body {
 /* Лёгкий "проявочный" эффект вместо простого fade — превью чуть подрастает
    до полного размера, пока проявляется. */
 .card.is-img-loading img { opacity: 0; transform: scale(0.96); }
-.card:hover img { transform: scale(1.035); }
+/* При наведении — ровная полупрозрачная тёмная заливка всей карточки, без
+   движения и градиентов. */
 .card-overlay {
   position: absolute;
   inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0) 55%, rgba(0,0,0,0.55) 100%);
+  background: rgba(0, 0, 0, 0.4);
   opacity: 0;
   transition: opacity 0.2s ease;
   display: flex;
@@ -789,8 +1409,27 @@ body {
   color: #101114;
   font-size: 11px;
   font-weight: 600;
+  max-width: 140px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
 }
 .card-source-badge .dot { width: 6px; height: 6px; border-radius: 50%; }
+/* Обёртка вместо одиночного badge слева — так бейдж "AI" встаёт рядом с
+   источником, не отнимая место у круглых кнопок справа (justify-content:
+   space-between у .card-overlay всё равно держит их по разным краям). */
+.card-badges { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; min-width: 0; }
+.card-ai-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(139, 92, 246, 0.92);
+  color: #fff;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
 .card-actions-bottom { display: flex; gap: 6px; }
 .card-round-btn {
   width: 32px;
@@ -806,7 +1445,7 @@ body {
   flex-shrink: 0;
   transition: background 0.15s ease, transform 0.1s ease;
 }
-.card-round-btn:hover { background: #fff; transform: scale(1.08); }
+.card-round-btn:hover { background: #fff; }
 .card-round-btn:active { transform: scale(0.92); }
 .card-round-btn .icon { width: 16px; height: 16px; background-color: currentColor; }
 .card-download .icon { -webkit-mask: var(--icon-download) center / contain no-repeat; mask: var(--icon-download) center / contain no-repeat; }
@@ -846,15 +1485,104 @@ body {
 .is-select-mode .card-select { display: flex; }
 .card-select.is-checked { background: var(--accent); }
 .card-select.is-checked .icon { opacity: 1; }
-.is-select-mode .card-overlay { opacity: 1; }
+/* В режиме выбора кнопки видны всегда, а заливка — только под курсором. */
+.is-select-mode .card-overlay { opacity: 1; background: transparent; }
+.is-select-mode .card:hover .card-overlay { background: rgba(0, 0, 0, 0.4); }
 
 .card-skeleton {
-  border-radius: var(--radius-md);
+  border-radius: 4px;
   background: linear-gradient(100deg, var(--border) 30%, var(--border-strong) 50%, var(--border) 70%);
   background-size: 200% 100%;
   animation: shimmer 1.3s ease-in-out infinite;
 }
 @keyframes shimmer { 0% { background-position: 150% 0; } 100% { background-position: -50% 0; } }
+
+/* ---------- Video grid (режим "Видео") ----------
+   Видео-превью в отличие от фото почти всегда 16:9 — фиксированный
+   аспект вместо JS-считаемого masonry-span (см. .grid/masonryObserver
+   в app.js), поэтому .video-card сама задаёт себе высоту через CSS. */
+.grid.video-grid { grid-auto-rows: auto; }
+@media (max-width: 680px) {
+  .grid.video-grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+}
+.video-card {
+  aspect-ratio: 16 / 9;
+  background: #0b0b0d;
+}
+.video-card img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  opacity: 1;
+  transform: none;
+}
+.video-card.is-img-loading img { opacity: 0; }
+.video-card-play {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: 46px;
+  height: 46px;
+  border-radius: 50%;
+  background: rgba(0,0,0,0.55);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: none;
+  transition: transform 0.2s ease, background 0.2s ease;
+}
+.video-card:hover .video-card-play { background: rgba(0,0,0,0.75); }
+.video-card-play::after {
+  content: "";
+  width: 0;
+  height: 0;
+  margin-left: 3px;
+  border-style: solid;
+  border-width: 8px 0 8px 14px;
+  border-color: transparent transparent transparent #fff;
+}
+.video-card-duration {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: rgba(0,0,0,0.75);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+.video-card .card-source-badge { background: rgba(0,0,0,0.55); color: #fff; }
+
+/* ---------- Video lightbox ---------- */
+.video-lightbox-wrap {
+  flex: 1.6;
+  background: #000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 0;
+}
+.video-lightbox-player {
+  max-width: 100%;
+  max-height: 88vh;
+  width: 100%;
+  display: block;
+}
+.lightbox-duration-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: var(--accent-soft);
+  color: var(--text-muted);
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+.lightbox-duration-badge[hidden] { display: none; }
 
 /* ---------- Icon grid (режим "Иконки") ----------
    В отличие от фото-сетки (masonry-колонки под разную высоту фото), иконки
@@ -879,9 +1607,9 @@ body {
   cursor: pointer;
   position: relative;
   overflow: hidden;
-  transition: transform 0.2s cubic-bezier(.2,.8,.2,1), box-shadow 0.2s ease;
+  transition: background 0.15s ease;
 }
-.icon-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+.icon-card:hover { background: var(--accent-soft); }
 .icon-card-svg {
   width: 40%;
   height: 40%;
@@ -1016,8 +1744,7 @@ body {
 .lightbox-backdrop {
   position: absolute;
   inset: 0;
-  background: rgba(8, 8, 11, 0.75);
-  backdrop-filter: blur(6px);
+  background: rgba(8, 8, 11, 0.82);
 }
 .lightbox-dialog {
   position: relative;
@@ -1087,6 +1814,8 @@ body {
   gap: 14px;
 }
 .lightbox-panel-top { display: flex; flex-direction: column; gap: 12px; }
+.lightbox-badges-row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.lightbox-badges-row .card-ai-badge[hidden] { display: none; }
 .source-badge {
   align-self: flex-start;
   display: inline-flex;
@@ -1220,8 +1949,95 @@ body {
 @media (max-width: 780px) {
   .topbar { flex-wrap: wrap; }
   .searchbar { order: 3; max-width: none; flex-basis: 100%; }
-  .app { padding: 16px; }
+  .app { --app-pad-x: 16px; padding: 16px; }
   .icon-btn { width: 44px; height: 44px; }
   .source-chip, .dropdown-btn { padding-top: 10px; padding-bottom: 10px; }
   .bulk-bar { left: 16px; right: 16px; transform: none; bottom: 16px; justify-content: space-between; }
 }
+
+/* ---------- Кнопка «Наверх» ----------
+   Пилюля снизу по центру: в тёмной теме белая, в светлой — чёрная.
+   Появляется после прокрутки (класс .is-visible ставит app.js). Пока внизу
+   панель массового скачивания — не показывается. */
+.back-to-top {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  z-index: 90;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 46px;
+  padding: 0 22px 0 18px;
+  border: none;
+  border-radius: 999px;
+  background: var(--accent);
+  color: var(--accent-contrast);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  cursor: pointer;
+  opacity: 0;
+  pointer-events: none;
+  transform: translate(-50%, 14px);
+  transition: opacity 0.25s ease, transform 0.3s cubic-bezier(0.2, 0.8, 0.2, 1), background 0.15s ease;
+}
+.back-to-top.is-visible { opacity: 1; pointer-events: auto; transform: translate(-50%, 0); }
+.back-to-top:hover { background: var(--accent-hover); }
+.back-to-top:active { transform: translate(-50%, 0) scale(0.96); }
+.back-to-top .icon { width: 18px; height: 18px; background-color: currentColor; -webkit-mask: var(--icon-chevron-up) center / contain no-repeat; mask: var(--icon-chevron-up) center / contain no-repeat; }
+.bulk-bar:not([hidden]) ~ .back-to-top { display: none; }
+/* Уведомление не должно лечь поверх кнопки. */
+.back-to-top.is-visible ~ .toast { bottom: 84px; }
+
+/* ---------- Курсор-точка (только главный экран, см. js/cursor.js) ----------
+   Белая точка в режиме "difference" — на тёмном фоне светлая, на светлом
+   тёмная, над фото инвертирует цвета. Над кнопками и ссылками раздувается,
+   над полем ввода перетекает в тонкую вертикальную черту (текстовый
+   курсор). На телефоне — крупнее, под палец. */
+body.magic-cursor-on,
+body.magic-cursor-on * { cursor: none !important; }
+.magic-cursor {
+  position: fixed;
+  left: 0;
+  top: 0;
+  z-index: 10000;
+  width: 0;
+  height: 0;
+  pointer-events: none;
+  mix-blend-mode: difference;
+  opacity: 0;
+  transition: opacity 0.3s ease;
+  will-change: transform;
+}
+.magic-cursor.is-visible { opacity: 1; }
+.magic-cursor-dot {
+  position: absolute;
+  left: -5px;
+  top: -5px;
+  width: 10px;
+  height: 10px;
+  border-radius: 5px;
+  background: #fff;
+  transition:
+    transform 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.25),
+    width 0.25s cubic-bezier(0.2, 0.9, 0.3, 1),
+    height 0.25s cubic-bezier(0.2, 0.9, 0.3, 1),
+    left 0.25s cubic-bezier(0.2, 0.9, 0.3, 1),
+    top 0.25s cubic-bezier(0.2, 0.9, 0.3, 1),
+    border-radius 0.25s ease;
+}
+.magic-cursor.is-hover .magic-cursor-dot { transform: scale(4); }
+.magic-cursor.is-down .magic-cursor-dot { transform: scale(0.55); }
+.magic-cursor.is-hover.is-down .magic-cursor-dot { transform: scale(3.3); }
+.magic-cursor.is-text .magic-cursor-dot {
+  left: -1px;
+  top: -12px;
+  width: 2px;
+  height: 24px;
+  border-radius: 1px;
+  transform: none;
+}
+.magic-cursor.is-touch .magic-cursor-dot { transform: scale(2.2); }
+.magic-cursor.is-touch.is-down .magic-cursor-dot { transform: scale(1.7); }
