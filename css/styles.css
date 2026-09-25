@@ -1060,6 +1060,10 @@ body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, 
 /* display:flex выше перебил бы атрибут hidden — без этого главный экран
    оставался бы на месте после поиска, а выдача уезжала вниз. */
 .home-hero[hidden] { display: none; }
+/* Слой «жидкого» поиска шире самой строки (--goo-pad) — не даём ему
+   раздвинуть страницу вбок на узких экранах. clip (не hidden) режет только
+   по горизонтали и не мешает окну «Источники» выпадать вниз. */
+.home-hero { overflow-x: clip; }
 .home-main {
   /* Выше блока подсказок: иначе строки "Недавние"/"Попробуйте" рисуются
      поверх открытого окна "Источники". fill-mode backwards (не both) —
@@ -1113,6 +1117,7 @@ body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, 
   --goo-l: 0px;
   --goo-r: 0px;
   --drop-r: 0px;
+  --goo-pad: 40px;
   --goo-ease: cubic-bezier(0.45, 1.45, 0.4, 1);
   position: relative;
   isolation: isolate;
@@ -1138,13 +1143,17 @@ body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, 
    другом слипаются, как жидкость. Контур — четыре тени по 1px вокруг
    итоговой формы.
    - При открытии главной полоса «вытекает» из круга с лупой в центре;
-   - когда в поле есть текст, полоса отступает, и кнопка отрывается каплей. */
+   - когда в поле есть текст, полоса отступает, и кнопка отрывается каплей.
+   Слой шире строки на --goo-pad с каждой стороны: при «пружинном» раскрытии
+   полоса чуть выходит за края, и всё, что рисует фильтр, должно оставаться
+   внутри самого слоя — иначе браузер может не перерисовать эти места и
+   оставить «следы». */
 .goo-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
 .goo-layer, .goo-seed { display: none; }
 .is-home .goo-layer {
   display: block;
   position: absolute;
-  inset: -1px;
+  inset: -1px calc(-1px - var(--goo-pad));
   z-index: -1;
   pointer-events: none;
   opacity: var(--goo-opacity);
@@ -1161,23 +1170,35 @@ body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, 
   background: var(--goo-fill);
 }
 .is-home .goo-pill {
-  left: var(--goo-l);
-  right: var(--goo-r);
+  left: calc(var(--goo-pad) + var(--goo-l));
+  right: calc(var(--goo-pad) + var(--goo-r));
   border-radius: 999px;
   transition: left 0.8s var(--goo-ease), right 0.8s var(--goo-ease);
 }
 .is-home .goo-drop {
-  right: var(--drop-r);
+  right: calc(var(--goo-pad) + var(--drop-r));
   width: var(--goo-size);
   border-radius: 50%;
   transition: right 0.8s var(--goo-ease);
 }
-/* Закрыто: только круг с лупой в центре. */
+/* Закрыто: только круг с лупой в центре (50% — от ширины слоя, поэтому
+   вычитаем его запас по краям). */
 .is-home .searchbar.goo-closed {
-  --goo-l: calc(50% - var(--goo-size) / 2);
-  --goo-r: calc(50% - var(--goo-size) / 2);
-  --drop-r: calc(50% - var(--goo-size) / 2);
+  --goo-l: calc(50% - var(--goo-pad) - var(--goo-size) / 2);
+  --goo-r: calc(50% - var(--goo-pad) - var(--goo-size) / 2);
+  --drop-r: calc(50% - var(--goo-pad) - var(--goo-size) / 2);
 }
+/* Safari и все браузеры на iPhone/iPad (движок WebKit) рисуют SVG-фильтр
+   поверх HTML с ошибками: во время анимации остаются полосатые «следы» по
+   краям и пунктир вокруг капли. Там те же формы и то же движение, но без
+   слипания: у полосы и капли своя чёткая обводка (класс ставит
+   initGooeySearch в app.js). Полоса лежит над каплей — пока кнопка не
+   оторвалась, видна одна общая форма. */
+.is-home .searchbar.goo-plain { --goo-pad: 0px; }
+.is-home .searchbar.goo-plain .goo-layer { filter: none; }
+.is-home .searchbar.goo-plain .goo-pill,
+.is-home .searchbar.goo-plain .goo-drop { box-shadow: 0 0 0 1px var(--goo-line); }
+.is-home .searchbar.goo-plain .goo-pill { z-index: 1; }
 .is-home .goo-seed {
   display: block;
   position: absolute;

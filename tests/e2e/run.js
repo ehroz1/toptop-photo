@@ -427,7 +427,7 @@ async function testGooeySearch(browser, base) {
     filter: getComputedStyle(document.querySelector(".goo-layer")).filter,
     pillR: parseFloat(getComputedStyle(document.querySelector(".goo-pill")).right),
   }));
-  check(opened.seenClosed && !opened.closedNow && /picta-goo/.test(opened.filter) && Math.abs(opened.pillR) < 1,
+  check(opened.seenClosed && !opened.closedNow && /picta-goo/.test(opened.filter) && Math.abs(opened.pillR - 40) < 1,
     `жидкий поиск: на главной строка вытекает из круга и раскрывается (${JSON.stringify(opened)})`);
   await page.type("#searchInput", "кот");
   await page.waitForTimeout(1200);
@@ -435,12 +435,45 @@ async function testGooeySearch(browser, base) {
     hasText: document.getElementById("searchForm").classList.contains("goo-has-text"),
     pillR: parseFloat(getComputedStyle(document.querySelector(".goo-pill")).right),
   }));
-  check(drop.hasText && drop.pillR > 50, `жидкий поиск: с текстом кнопка отрывается каплей (отступ полосы ${Math.round(drop.pillR)} px)`);
+  check(drop.hasText && drop.pillR > 90, `жидкий поиск: с текстом кнопка отрывается каплей (отступ полосы ${Math.round(drop.pillR)} px)`);
   await page.press("#searchInput", "Enter");
   await page.waitForSelector("#grid .card");
   const inTopbar = await page.evaluate(() => getComputedStyle(document.querySelector(".goo-layer")).display);
   check(inTopbar === "none", `жидкий поиск: в выдаче обычная строка (${inTopbar})`);
   await context.close();
+
+  // Safari/iPhone (WebKit): SVG-фильтр оставляет там «следы» — те же формы,
+  // но без фильтра и с обводкой у каждой.
+  const safari = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
+  await safari.addInitScript(() => Object.defineProperty(Navigator.prototype, "vendor", { get: () => "Apple Computer, Inc." }));
+  const sp = await safari.newPage();
+  await installMocks(sp, { imgDelay: 10 });
+  await sp.goto(base);
+  await sp.waitForTimeout(1500);
+  await sp.type("#searchInput", "кот");
+  await sp.waitForTimeout(1200);
+  const plain = await sp.evaluate(() => ({
+    plain: document.getElementById("searchForm").classList.contains("goo-plain"),
+    filter: getComputedStyle(document.querySelector(".goo-layer")).filter,
+    pillLine: getComputedStyle(document.querySelector(".goo-pill")).boxShadow,
+    dropLine: getComputedStyle(document.querySelector(".goo-drop")).boxShadow,
+    pillR: parseFloat(getComputedStyle(document.querySelector(".goo-pill")).right),
+  }));
+  check(plain.plain && plain.filter === "none" && plain.pillLine !== "none" && plain.dropLine !== "none" && plain.pillR > 50,
+    `жидкий поиск в Safari: без SVG-фильтра, у полосы и капли своя обводка (${JSON.stringify(plain)})`);
+  await safari.close();
+
+  // Слой шире строки — но страница от этого не должна прокручиваться вбок.
+  for (const width of [360, 768]) {
+    const narrow = await browser.newContext({ serviceWorkers: "block", viewport: { width, height: 800 } });
+    const np = await narrow.newPage();
+    await installMocks(np, { imgDelay: 10 });
+    await np.goto(base);
+    await np.waitForTimeout(1500);
+    const w = await np.evaluate(() => ({ scroll: document.documentElement.scrollWidth, view: document.documentElement.clientWidth }));
+    check(w.scroll <= w.view, `жидкий поиск: на ширине ${width} px страница не едет вбок (${w.scroll} / ${w.view})`);
+    await narrow.close();
+  }
 }
 
 // Страницы подборок (seo/build.js): сразу показывают поиск по теме со своим

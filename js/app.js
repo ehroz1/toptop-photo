@@ -612,6 +612,9 @@
   // не мелькала сначала готовая строка.
   (function initGooeySearch() {
     const form = el.form;
+    // WebKit (Safari, любой браузер на iPhone/iPad) — без SVG-фильтра, см.
+    // .goo-plain в styles.css.
+    if (/Apple/.test(navigator.vendor || "")) form.classList.add("goo-plain");
     const syncText = () => form.classList.toggle("goo-has-text", el.input.value.trim().length > 0);
     el.input.addEventListener("input", syncText);
     el.clearBtn.addEventListener("click", syncText);
