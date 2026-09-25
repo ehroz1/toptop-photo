@@ -90,6 +90,34 @@ function memoryKV() {
   const extra = await worker.fetch(new Request("https://photoseek-proxy.example.workers.dev/pixabay?q=cat", { headers: { Origin: "https://preview.example" } }), { PIXABAY_KEY: "k", ALLOWED_ORIGINS: "https://preview.example" });
   if (extra.status !== 200) fail("адрес из ALLOWED_ORIGINS не добавился к встроенным");
 
+  // 5. Общий счётчик скачиваний: GET читает, POST прибавляет пачку, мусор
+  //    и накрутки отклоняются, кончились записи в KV — число не падает.
+  const statsKV = memoryKV();
+  const envStats = { LIMITS: statsKV };
+  const post = (body) => new Request("https://photoseek-proxy.example.workers.dev/stats/downloads", {
+    method: "POST", headers: { Origin: "https://picta.cc" }, body,
+  });
+  const getCount = async () => (await (await worker.fetch(request("/stats/downloads"), envStats)).json()).downloads;
+  if ((await getCount()) !== 0) fail("новый счётчик скачиваний должен начинаться с 0");
+  let r = await worker.fetch(post(JSON.stringify({ count: 3 })), envStats);
+  if (r.status !== 200 || (await r.json()).downloads !== 3) fail("POST {count:3} не прибавил 3");
+  if (r.headers.get("Access-Control-Allow-Origin") !== "https://picta.cc") fail("ответ счётчика без CORS для picta.cc");
+  r = await worker.fetch(post(""), envStats);
+  if ((await r.json()).downloads !== 4) fail("POST без тела должен прибавить 1");
+  for (const bad of [{ count: 0 }, { count: -5 }, { count: 101 }, { count: "abc" }]) {
+    r = await worker.fetch(post(JSON.stringify(bad)), envStats);
+    if (r.status !== 400) fail(`POST ${JSON.stringify(bad)} должен отклоняться (статус ${r.status})`);
+  }
+  if ((await getCount()) !== 4) fail(`после отклонённых запросов счётчик изменился: ${await getCount()}`);
+  if (statsKV.writes !== 2) fail(`на 2 прибавления должно быть 2 записи в KV, а их ${statsKV.writes}`);
+  const fullKV = memoryKV();
+  await fullKV.put("stats:downloads", "10");
+  fullKV.put = async () => { throw new Error("KV put() limit exceeded for the day"); };
+  r = await worker.fetch(post(JSON.stringify({ count: 1 })), { LIMITS: fullKV });
+  if (r.status !== 200 || (await r.json()).downloads !== 10) fail("при исчерпанных записях KV счётчик должен отвечать прежним числом");
+  r = await worker.fetch(new Request("https://photoseek-proxy.example.workers.dev/stats/downloads", { headers: { Origin: "https://evil.example" } }), envStats);
+  if (r.status !== 403) fail("чужой сайт не должен читать/накручивать счётчик");
+
   console.log(ok ? "\n=== TEST19 OK ===" : "\n=== TEST19 FAILED ===");
   if (!ok) process.exitCode = 1;
 })().catch((err) => { console.error("EXCEPTION:", err); process.exit(1); });

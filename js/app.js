@@ -59,6 +59,8 @@
     micBtn: document.getElementById("micBtn"),
     insightsToggle: document.getElementById("insightsToggle"),
     insightsPanel: document.getElementById("insightsPanel"),
+    homeCounter: document.getElementById("homeCounter"),
+    homeCounterNum: document.getElementById("homeCounterNum"),
     authWrap: document.getElementById("authWrap"),
     authToggle: document.getElementById("authToggle"),
     authAvatar: document.getElementById("authAvatar"),
@@ -932,7 +934,68 @@
     stats.byProvider = stats.byProvider || {};
     stats.byProvider[provider] = (stats.byProvider[provider] || 0) + 1;
     saveStats();
+    countGlobalDownload();
   }
+
+  // ---------- Общий счётчик скачиваний всех посетителей ----------
+  // Число хранит воркер (/stats/downloads, KV LIMITS). Показываем его на
+  // главной (#homeCounter, во время поиска скрыт стилями) и в «Статистике».
+  // Скачивания копим пару секунд и отправляем одним запросом: архив из 30
+  // фото — одна запись в KV, а не 30. Пока воркер не отвечает (например, на
+  // Cloudflare ещё старая версия), счётчика просто не видно.
+  const globalDownloads = { total: null, pending: 0, timer: null };
+  const DOWNLOADS_FLUSH_MS = 2000;
+
+  function downloadsEndpoint() {
+    const base = window.APP_CONFIG?.WORKER_BASE_URL;
+    return base ? `${base}/stats/downloads` : null;
+  }
+  function renderGlobalDownloads() {
+    const known = typeof globalDownloads.total === "number";
+    el.homeCounter.hidden = !known;
+    if (known) el.homeCounterNum.textContent = globalDownloads.total.toLocaleString(I18N.t("locale"));
+    if (!el.insightsPanel.hidden) renderInsights();
+  }
+  function applyDownloadsResponse(data) {
+    if (!data || typeof data.downloads !== "number") return;
+    // Пока ответ шёл, могли скачать ещё — их уже прибавили к числу на экране.
+    globalDownloads.total = data.downloads + globalDownloads.pending;
+    renderGlobalDownloads();
+  }
+  function loadGlobalDownloads() {
+    const url = downloadsEndpoint();
+    if (!url) return;
+    fetch(url)
+      .then((res) => (res.ok ? res.json() : null))
+      .then(applyDownloadsResponse)
+      .catch(() => {});
+  }
+  function flushGlobalDownloads() {
+    clearTimeout(globalDownloads.timer);
+    globalDownloads.timer = null;
+    const url = downloadsEndpoint();
+    const count = Math.min(globalDownloads.pending, 100);
+    if (!url || !count) return;
+    globalDownloads.pending -= count;
+    // Тело — обычный текст (без Content-Type: application/json), чтобы браузер
+    // не слал лишний предварительный запрос OPTIONS; keepalive — чтобы
+    // отправилось, даже если человек сразу закрыл вкладку.
+    fetch(url, { method: "POST", body: JSON.stringify({ count }), keepalive: true })
+      .then((res) => (res.ok ? res.json() : null))
+      .then(applyDownloadsResponse)
+      .catch(() => {});
+    if (globalDownloads.pending) flushGlobalDownloads();
+  }
+  function countGlobalDownload(n = 1) {
+    globalDownloads.pending += n;
+    if (typeof globalDownloads.total === "number") {
+      globalDownloads.total += n;
+      renderGlobalDownloads();
+    }
+    if (!globalDownloads.timer) globalDownloads.timer = setTimeout(flushGlobalDownloads, DOWNLOADS_FLUSH_MS);
+  }
+  window.addEventListener("pagehide", () => { if (globalDownloads.pending) flushGlobalDownloads(); });
+  loadGlobalDownloads();
 
   function readUnsplashLog() {
     let log = [];
@@ -959,7 +1022,11 @@
         const mins = Math.max(1, Math.round((until - Date.now()) / 60000));
         return `<div class="insights-row"><span>${PROVIDER_LABELS[id] || id}</span><strong>${I18N.t("insights_cooldown", { mins })}</strong></div>`;
       }).join("");
+    const totalLine = typeof globalDownloads.total === "number"
+      ? `<div class="insights-row"><span>${I18N.t("downloads_total")}</span><strong>${globalDownloads.total.toLocaleString(I18N.t("locale"))}</strong></div>`
+      : "";
     el.insightsPanel.innerHTML = `
+      ${totalLine}
       <div class="insights-row"><span>${I18N.t("insights_downloads")}</span><strong>${stats.downloads || 0}</strong></div>
       <div class="insights-row"><span>${I18N.t("insights_searches")}</span><strong>${stats.searches || 0}</strong></div>
       <div class="insights-row"><span>${I18N.t("insights_top_source")}</span><strong>${topLine}</strong></div>
@@ -2308,6 +2375,7 @@
     if (!item || !markup) return;
     const blob = new Blob([markup], { type: "image/svg+xml" });
     downloadBlob(blob, `${item.prefix}-${item.name}.svg`);
+    countGlobalDownload();
     showToast(I18N.t("toast_download_done"));
   });
 
@@ -2318,6 +2386,7 @@
     try {
       const blob = await svgMarkupToPngBlob(markup, 512);
       downloadBlob(blob, `${item.prefix}-${item.name}.png`);
+      countGlobalDownload();
       showToast(I18N.t("toast_download_done"));
     } catch (err) {
       console.error(err);

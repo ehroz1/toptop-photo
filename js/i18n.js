@@ -213,7 +213,8 @@
       icon_download_png_label: "PNG",
       icon_color_auto_title: "Цвет темы (по умолчанию)",
 
-      insights_downloads: "Скачано фото",
+      insights_downloads: "Скачано вами",
+      downloads_total: "Скачано через Picta",
       insights_searches: "Поисков выполнено",
       insights_top_source: "Любимый источник",
       insights_unsplash_limit: "Лимит Unsplash (в час)",
@@ -471,7 +472,8 @@
       icon_download_png_label: "PNG",
       icon_color_auto_title: "Theme color (default)",
 
-      insights_downloads: "Photos downloaded",
+      insights_downloads: "Downloaded by you",
+      downloads_total: "Downloaded via Picta",
       insights_searches: "Searches made",
       insights_top_source: "Top source",
       insights_unsplash_limit: "Unsplash limit (per hour)",

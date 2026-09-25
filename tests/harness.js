@@ -87,6 +87,8 @@ async function buildPage(opts = {}) {
   // ---- Подменный fetch: маршрутизируем по URL на синтетические ответы ----
   window.__fetchLog = [];
   window.__providerBehavior = {}; // providerId -> {delayMs, items, total, status, errorBody, throwNetwork, aiGenerated}
+  // Поведение, нужное уже при загрузке страницы (до выполнения app.js).
+  Object.assign(window.__providerBehavior, opts.providerBehavior || {});
   window.__iconifyBehavior = {}; // {delayMs, icons, collectionInfo, respectPrefixes, respectPalette}
   window.fetch = (url, opts) => {
     const u = String(url);
@@ -101,6 +103,7 @@ async function buildPage(opts = {}) {
     else if (u.includes("archive.org/advancedsearch")) providerId = "archive-search";
     else if (u.includes("archive.org/metadata/")) providerId = "archive-metadata";
     else if (u.includes("archive.org/services/img/")) providerId = "archive-thumb";
+    else if (u.includes("/stats/downloads")) providerId = "downloads";
     else if (u.includes("/coverr")) providerId = "coverr";
     else if (u.includes("/pixabay")) providerId = "pixabay";
     else if (u.includes("/pexels")) providerId = "pexels";
@@ -217,6 +220,8 @@ async function buildPage(opts = {}) {
     // схлопывал бы "страницу 2" в дубли "страницы 1", маскируя баг пагинации.
     const base = (page - 1) * 1000;
     switch (providerId) {
+      case "downloads":
+        return { downloads: behavior.downloads ?? 1234 };
       case "pixabay":
         return { hits: Array.from({ length: n }, (_, i) => ({ id: 1000 + base + i, webformatURL: `https://x/pixabay/${base + i}.jpg`, largeImageURL: `https://x/pixabay/${base + i}-l.jpg`, imageWidth: 1200, imageHeight: 800, tags: "cat, animal", user: "u", user_id: 1, pageURL: "https://x" })), totalHits: total };
       case "pexels":
