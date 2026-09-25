@@ -1370,6 +1370,19 @@ body:not(.is-home) .home-about { display: none; }
   color: var(--text-muted);
 }
 
+.home-counter {
+  margin: 10px 0 0;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+.home-counter strong {
+  color: var(--text);
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+/* Счётчик — только на главной; во время поиска он есть в «Статистике». */
+body:not(.is-home) .home-counter { display: none; }
+
 .home-suggest {
   margin-top: auto;
   padding-top: 56px;

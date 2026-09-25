@@ -14,8 +14,10 @@ const { buildPage, sleep } = require("../harness");
   }
   await sleep(900); // дольше прежнего таймера (550 мс) — поиск не должен стартовать сам
   const cardsAfterTyping = doc.querySelectorAll("#grid .card").length;
-  console.log("Запросов после набора текста:", win.__fetchLog.length, "| карточек:", cardsAfterTyping);
-  if (win.__fetchLog.length !== 0 || cardsAfterTyping !== 0) { console.error("FAIL: поиск запустился без нажатия Enter"); ok = false; }
+  // Запрос общего счётчика скачиваний при открытии страницы — не поиск.
+  const searchRequests = win.__fetchLog.filter((u) => !u.includes("/stats/downloads"));
+  console.log("Запросов после набора текста:", searchRequests.length, "| карточек:", cardsAfterTyping);
+  if (searchRequests.length !== 0 || cardsAfterTyping !== 0) { console.error("FAIL: поиск запустился без нажатия Enter"); ok = false; }
   if (doc.getElementById("clearBtn").hidden) { console.error("FAIL: кнопка очистки должна появиться при вводе"); ok = false; }
 
   doc.getElementById("searchForm").dispatchEvent(new win.Event("submit", { bubbles: true, cancelable: true }));

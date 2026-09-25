@@ -137,12 +137,15 @@ async function testHomeLayout(browser, base) {
     heroShown: getComputedStyle(document.getElementById("emptyState")).display !== "none",
     sources: document.getElementById("homeSourcesList").textContent,
     about: getComputedStyle(document.querySelector(".home-about")).display !== "none",
+    counter: getComputedStyle(document.getElementById("homeCounter")).display !== "none" ? document.getElementById("homeCounter").textContent : null,
     firstCardTop: document.querySelector("#grid .card")?.getBoundingClientRect().top ?? null,
   }));
+  await page.waitForSelector("#homeCounter:not([hidden])", { timeout: 3000 }).catch(() => {});
   let s = await state();
   check(s.home && s.formInHero && s.heroShown, "главная: строка поиска в центре главного экрана");
   check(s.about, "главная: под первым экраном есть текст о сервисе и частые вопросы");
   check(/Pixabay/.test(s.sources), `главная: строка активных источников (${s.sources})`);
+  check(/1[\s,.\u00a0\u202f]?234/.test(s.counter || ""), `главная: общий счётчик скачиваний (${s.counter})`);
   await page.fill("#searchInput", "cat");
   await page.press("#searchInput", "Enter");
   await page.waitForSelector("#grid .card");
@@ -150,6 +153,7 @@ async function testHomeLayout(browser, base) {
   s = await state();
   check(!s.home && s.formInTopbar && !s.heroShown, "после поиска: главный экран скрыт, поиск в шапке");
   check(!s.about, "после поиска: текста о сервисе в выдаче нет");
+  check(s.counter === null, "после поиска: счётчика скачиваний над выдачей нет (он в «Статистике»)");
   check(s.firstCardTop !== null && s.firstCardTop < 800, `после поиска: выдача видна сразу (верх первой карточки ${Math.round(s.firstCardTop)} px)`);
   await page.click("#clearBtn");
   await page.waitForTimeout(200);

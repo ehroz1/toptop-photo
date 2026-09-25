@@ -43,6 +43,7 @@ async function installMocks(page, opts = {}) {
     if (url.hostname.includes("openverse")) return json({ results: [], result_count: 0 });
     if (url.hostname.includes("doodl")) return json({ results: [], total: 0 });
     if (url.pathname.endsWith("/log-search")) return json({ ok: true });
+    if (url.pathname.endsWith("/stats/downloads")) return json({ downloads: 1234 });
     return route.abort();
   });
   return stats;

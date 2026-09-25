@@ -301,6 +301,50 @@ async function logSearch(request, origin, env, user) {
 }
 
 // ---------------------------------------------------------------------------
+// Общий счётчик скачиваний всех посетителей (показывается на главной и в
+// «Статистике и лимитах»): GET /stats/downloads — { downloads: n },
+// POST /stats/downloads с телом { count } — прибавить и вернуть новое число.
+// Хранится в KV LIMITS одним ключом. Каждое прибавление — одна запись в KV
+// (на бесплатном тарифе ~1000 в сутки): сайт копит скачивания и шлёт их
+// пачкой. Если записи на сегодня кончились, счётчик до полуночи UTC стоит на
+// месте, сайт работает как обычно. KV не атомарен: при почти одновременных
+// скачиваниях из разных стран пара штук может потеряться — для витринной
+// цифры это не страшно.
+// ---------------------------------------------------------------------------
+
+const DOWNLOADS_KEY = "stats:downloads";
+const DOWNLOADS_MAX_BATCH = 100; // не больше за один запрос — от накруток
+
+async function readDownloads(env) {
+  const n = Number(await env.LIMITS.get(DOWNLOADS_KEY));
+  return Number.isFinite(n) && n > 0 ? Math.floor(n) : 0;
+}
+
+async function handleDownloadsStats(request, origin, env) {
+  if (!env.LIMITS) return jsonError(origin, env, "KV namespace LIMITS не подключён к воркеру", 500);
+  if (request.method === "GET") return jsonOk(origin, env, { downloads: await readDownloads(env) });
+  if (request.method !== "POST") return jsonError(origin, env, "method not allowed", 405);
+
+  let body = {};
+  try {
+    body = await request.json();
+  } catch (_) {
+    // без тела — считаем одно скачивание
+  }
+  const count = body && body.count !== undefined ? Math.floor(Number(body.count)) : 1;
+  if (!(count >= 1 && count <= DOWNLOADS_MAX_BATCH)) return jsonError(origin, env, "invalid count", 400);
+
+  const next = (await readDownloads(env)) + count;
+  try {
+    await env.LIMITS.put(DOWNLOADS_KEY, String(next));
+  } catch (_) {
+    // закончились бесплатные записи в KV на сегодня — отдаём прежнее число
+    return jsonOk(origin, env, { downloads: next - count });
+  }
+  return jsonOk(origin, env, { downloads: next });
+}
+
+// ---------------------------------------------------------------------------
 // Админка: /admin/keys (GET список / PUT сохранить / DELETE удалить),
 // /admin/stats (GET). Доступ только вошедшим через Supabase пользователям с
 // profiles.is_admin = true (см. supabase/migrations/0001_init.sql).
@@ -410,6 +454,10 @@ export default {
       if (request.method !== "POST") return jsonError(origin, env, "method not allowed", 405);
       const user = await verifyUser(request, env);
       return logSearch(request, origin, env, user);
+    }
+
+    if (url.pathname === "/stats/downloads") {
+      return handleDownloadsStats(request, origin, env);
     }
 
     if (request.method !== "GET") {
