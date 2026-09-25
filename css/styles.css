@@ -1103,19 +1103,107 @@ body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, 
   color: var(--text-muted);
 }
 .home-search-slot { width: 100%; }
+/* Фон и рамку строки на главной рисует «жидкий» слой .goo-layer (ниже),
+   сама строка прозрачная. */
 .is-home .searchbar {
+  --goo-size: 58px;
+  --goo-fill: var(--bg-elevated);
+  --goo-line: color-mix(in srgb, var(--text) 16%, transparent);
+  --goo-opacity: 1;
+  --goo-l: 0px;
+  --goo-r: 0px;
+  --drop-r: 0px;
+  --goo-ease: cubic-bezier(0.45, 1.45, 0.4, 1);
+  position: relative;
+  isolation: isolate;
   width: 100%;
   max-width: none;
-  height: 58px;
+  height: var(--goo-size);
   padding: 6px 8px 6px 20px;
-  background: color-mix(in srgb, var(--bg-elevated) 86%, transparent);
-  border: 1px solid color-mix(in srgb, var(--text) 16%, transparent);
+  background: transparent;
+  border: 1px solid transparent;
   box-shadow: none;
-  transition: border-color 0.2s ease, background 0.2s ease;
 }
 .is-home .searchbar:focus-within {
-  background: var(--bg-elevated);
-  border-color: color-mix(in srgb, var(--text) 32%, transparent);
+  background: transparent;
+  --goo-line: color-mix(in srgb, var(--text) 32%, transparent);
+  --goo-opacity: 1;
+}
+:root[data-theme="dark"] .is-home .searchbar { --goo-opacity: 0.88; }
+:root[data-theme="dark"] .is-home .searchbar:focus-within { --goo-opacity: 1; }
+
+/* ---------- «Жидкий» поиск на главной (см. initGooeySearch в app.js) ----------
+   Две формы одного цвета — полоса строки и круглая «капля» под кнопкой
+   «искать» — лежат в слое с SVG-фильтром #picta-goo, поэтому рядом друг с
+   другом слипаются, как жидкость. Контур — четыре тени по 1px вокруг
+   итоговой формы.
+   - При открытии главной полоса «вытекает» из круга с лупой в центре;
+   - когда в поле есть текст, полоса отступает, и кнопка отрывается каплей. */
+.goo-defs { position: absolute; width: 0; height: 0; overflow: hidden; }
+.goo-layer, .goo-seed { display: none; }
+.is-home .goo-layer {
+  display: block;
+  position: absolute;
+  inset: -1px;
+  z-index: -1;
+  pointer-events: none;
+  opacity: var(--goo-opacity);
+  filter: url(#picta-goo)
+    drop-shadow(1px 0 0 var(--goo-line)) drop-shadow(-1px 0 0 var(--goo-line))
+    drop-shadow(0 1px 0 var(--goo-line)) drop-shadow(0 -1px 0 var(--goo-line));
+  transition: opacity 0.2s ease;
+}
+.is-home .goo-pill,
+.is-home .goo-drop {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  background: var(--goo-fill);
+}
+.is-home .goo-pill {
+  left: var(--goo-l);
+  right: var(--goo-r);
+  border-radius: 999px;
+  transition: left 0.8s var(--goo-ease), right 0.8s var(--goo-ease);
+}
+.is-home .goo-drop {
+  right: var(--drop-r);
+  width: var(--goo-size);
+  border-radius: 50%;
+  transition: right 0.8s var(--goo-ease);
+}
+/* Закрыто: только круг с лупой в центре. */
+.is-home .searchbar.goo-closed {
+  --goo-l: calc(50% - var(--goo-size) / 2);
+  --goo-r: calc(50% - var(--goo-size) / 2);
+  --drop-r: calc(50% - var(--goo-size) / 2);
+}
+.is-home .goo-seed {
+  display: block;
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 20px;
+  height: 20px;
+  margin: -10px 0 0 -10px;
+  background-color: var(--text);
+  -webkit-mask: var(--icon-search) center / contain no-repeat;
+  mask: var(--icon-search) center / contain no-repeat;
+  opacity: 0;
+  transform: scale(0.6);
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.3s ease;
+}
+.is-home .searchbar.goo-closed .goo-seed { opacity: 1; transform: none; }
+.is-home .searchbar.goo-closed > :not(.goo-layer):not(.goo-seed) { opacity: 0; }
+.is-home .searchbar.goo-opening > :not(.goo-layer):not(.goo-seed) { animation: gooContentIn 0.45s ease 0.28s backwards; }
+@keyframes gooContentIn { from { opacity: 0; } to { opacity: 1; } }
+/* Есть текст: полоса отступает, кнопка «искать» остаётся отдельной каплей. */
+.is-home .searchbar.goo-has-text { --goo-r: calc(var(--goo-size) + 10px); }
+.is-home .searchbar-submit { transition: background 0.15s ease, transform 0.1s ease, margin 0.6s var(--goo-ease); }
+.is-home .searchbar.goo-has-text .searchbar-submit { margin-left: 20px; }
+@media (prefers-reduced-motion: reduce) {
+  .is-home .goo-pill, .is-home .goo-drop, .is-home .searchbar-submit { transition: none; }
 }
 .is-home .searchbar-input { font-size: 16px; }
 .is-home .searchbar-submit { width: 42px; height: 42px; }
@@ -1320,7 +1408,7 @@ body:not(.is-home) .home-about { display: none; }
 @media (max-width: 680px) {
   .home-hero { min-height: calc(100svh - 110px); }
   .home-hero .home-tagline { margin-bottom: 26px; }
-  .is-home .searchbar { height: 54px; }
+  .is-home .searchbar { --goo-size: 54px; padding-right: 5px; }
   .home-controls { gap: 8px 12px; margin-top: 20px; }
   .home-controls-sep { display: none; }
   .is-home .mode-switch { gap: 4px; }

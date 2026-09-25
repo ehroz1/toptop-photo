@@ -402,6 +402,43 @@ async function testMagicCursor(browser, base) {
   await phone.close();
 }
 
+// «Жидкий» поиск на главной: строка вытекает из круга с лупой при открытии,
+// кнопка «искать» отрывается каплей, когда в поле есть текст. В выдаче
+// (поиск в шапке) жидкого слоя нет.
+async function testGooeySearch(browser, base) {
+  const context = await browser.newContext({ serviceWorkers: "block", viewport: { width: 1280, height: 800 } });
+  await context.addInitScript(() => {
+    window.__gooSeenClosed = false;
+    new MutationObserver((list) => {
+      for (const m of list) if (m.target.id === "searchForm" && m.target.classList.contains("goo-closed")) window.__gooSeenClosed = true;
+    }).observe(document, { subtree: true, attributes: true, attributeFilter: ["class"] });
+  });
+  const page = await context.newPage();
+  await installMocks(page, { imgDelay: 10 });
+  await page.goto(base);
+  await page.waitForTimeout(1500);
+  const opened = await page.evaluate(() => ({
+    seenClosed: window.__gooSeenClosed,
+    closedNow: document.getElementById("searchForm").classList.contains("goo-closed"),
+    filter: getComputedStyle(document.querySelector(".goo-layer")).filter,
+    pillR: parseFloat(getComputedStyle(document.querySelector(".goo-pill")).right),
+  }));
+  check(opened.seenClosed && !opened.closedNow && /picta-goo/.test(opened.filter) && Math.abs(opened.pillR) < 1,
+    `жидкий поиск: на главной строка вытекает из круга и раскрывается (${JSON.stringify(opened)})`);
+  await page.type("#searchInput", "кот");
+  await page.waitForTimeout(1200);
+  const drop = await page.evaluate(() => ({
+    hasText: document.getElementById("searchForm").classList.contains("goo-has-text"),
+    pillR: parseFloat(getComputedStyle(document.querySelector(".goo-pill")).right),
+  }));
+  check(drop.hasText && drop.pillR > 50, `жидкий поиск: с текстом кнопка отрывается каплей (отступ полосы ${Math.round(drop.pillR)} px)`);
+  await page.press("#searchInput", "Enter");
+  await page.waitForSelector("#grid .card");
+  const inTopbar = await page.evaluate(() => getComputedStyle(document.querySelector(".goo-layer")).display);
+  check(inTopbar === "none", `жидкий поиск: в выдаче обычная строка (${inTopbar})`);
+  await context.close();
+}
+
 // Страницы подборок (seo/build.js): сразу показывают поиск по теме со своим
 // заголовком, адрес остаётся чистым; новый запрос уводит на главную (/?q=…).
 // Страница-режим (/ikonki/) открывается в режиме «Иконки» с текстом о них.
@@ -527,6 +564,7 @@ async function measure(browser, base, runs = 5) {
     await testMagicCursor(browser, base);
     await testHomeLayout(browser, base);
     await testLandingPages(browser, base);
+    await testGooeySearch(browser, base);
     const m = await measure(browser, base);
     console.log(`\nСкорость (мобильный 4G, процессор x4, медиана из 5):`);
     console.log(`  первая отрисовка ${m.fcp} мс · сайт готов ${m.ready} мс · первое превью после Enter ${m.firstThumb} мс`);

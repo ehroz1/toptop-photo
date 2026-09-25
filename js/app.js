@@ -603,6 +603,38 @@
     }
   }
   new MutationObserver(applyHomeLayout).observe(el.emptyState, { attributes: true, attributeFilter: ["hidden"] });
+
+  // «Жидкий» поиск на главной (.goo-* в styles.css): при открытии страницы
+  // строка вытекает из круга с лупой, а кнопка «искать» отрывается каплей,
+  // когда в поле есть текст. Класс ставим до первой отрисовки главной, чтобы
+  // не мелькала сначала готовая строка.
+  (function initGooeySearch() {
+    const form = el.form;
+    const syncText = () => form.classList.toggle("goo-has-text", el.input.value.trim().length > 0);
+    el.input.addEventListener("input", syncText);
+    el.clearBtn.addEventListener("click", syncText);
+    // Запрос подставили из подсказки/истории или вернулись на главную.
+    new MutationObserver(syncText).observe(el.emptyState, { attributes: true, attributeFilter: ["hidden"] });
+    syncText();
+
+    const startsWithSearch = new URLSearchParams(location.search).get("q") || (window.PICTA_PAGE && window.PICTA_PAGE.q);
+    const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    if (calm || startsWithSearch || el.emptyState.hidden) return;
+    form.classList.add("goo-closed");
+    let opened = false;
+    const open = () => {
+      if (opened) return;
+      opened = true;
+      form.classList.remove("goo-closed");
+      form.classList.add("goo-opening");
+      setTimeout(() => form.classList.remove("goo-opening"), 1200);
+    };
+    setTimeout(open, 350);
+    // Не ждём, если человек уже тянется к поиску.
+    form.addEventListener("pointerdown", open);
+    el.input.addEventListener("focus", open);
+    el.input.addEventListener("keydown", open);
+  })();
   applyHomeLayout();
 
   // ---------- Suggestions ----------

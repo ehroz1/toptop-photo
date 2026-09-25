@@ -55,6 +55,17 @@
 
 <div id="bgPhoto" class="bg-photo" aria-hidden="true"></div>
 
+<!-- «Жидкий» фильтр для строки поиска на главной (.goo-layer в styles.css):
+     размывает формы и снова делает края резкими — близкие круги и полоски
+     слипаются, как капли. Сам текст и кнопки фильтр не трогает. -->
+<svg class="goo-defs" width="0" height="0" aria-hidden="true" focusable="false">
+  <filter id="picta-goo" x="-20%" y="-50%" width="140%" height="200%">
+    <feGaussianBlur in="SourceGraphic" stdDeviation="7" result="soft"/>
+    <feColorMatrix in="soft" mode="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  0 0 0 22 -10" result="goo"/>
+    <feComposite in="SourceGraphic" in2="goo" operator="atop"/>
+  </filter>
+</svg>
+
 <div class="app">
 
   <header class="topbar" id="topbar">
@@ -63,6 +74,8 @@
     </a>
 
     <form class="searchbar" id="searchForm" role="search">
+      <span class="goo-layer" aria-hidden="true"><span class="goo-pill"></span><span class="goo-drop"></span></span>
+      <span class="goo-seed" aria-hidden="true"></span>
       <span class="searchbar-icon" aria-hidden="true"></span>
       <input
         id="searchInput"
