@@ -79,9 +79,10 @@ function buildPage(index, page) {
     return `<script type="application/ld+json">\n${JSON.stringify(crumbs)}\n</script>\n`;
   });
 
+  // В <head>: его читает и встроенный скрипт главной (до первой отрисовки).
   const pageCfg = { q: page.q || "", mode: page.mode || "photos" };
-  html = replaceOnce(html, '<script src="js/config.js"></script>',
-    `<script>window.PICTA_PAGE = ${JSON.stringify(pageCfg)};</script>\n<script src="js/config.js"></script>`, "PICTA_PAGE");
+  html = replaceOnce(html, "</head>",
+    `<script>window.PICTA_PAGE = ${JSON.stringify(pageCfg)};</script>\n</head>`, "PICTA_PAGE");
 
   const aboutStart = "<!-- seo:about:start -->";
   const aboutEnd = "<!-- seo:about:end -->";

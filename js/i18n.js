@@ -560,4 +560,5 @@
   }
 
   global.I18N = { t, LANG, applyStaticI18n };
+  applyStaticI18n();
 })(window);

@@ -1372,6 +1372,10 @@ body:not(.is-home) .home-about { display: none; }
 .landing-more p + h2 { margin-top: 32px; }
 .is-home .landing-intro,
 .is-home .landing-more { display: none; }
+/* Подборка сразу ищет: текст под выдачей прячем, пока не появилась сетка
+   (body.search-start снимает app.js) — иначе он виден наверху, а потом
+   сетка выталкивает его вниз. */
+.search-start .landing-more { visibility: hidden; }
 .landing-links { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 48px; }
 .landing-links a {
   padding: 8px 14px;
@@ -1405,6 +1409,9 @@ body:not(.is-home) .home-about { display: none; }
 body:not(.is-home) .home-counter { display: none; }
 
 .home-suggest {
+  /* Во всю ширину: иначе блок сужен по содержимому и «съезжает», когда
+     app.js дорисовывает подсказки. Сами подсказки — по центру. */
+  width: 100%;
   margin-top: auto;
   padding-top: 56px;
   display: flex;
@@ -1433,6 +1440,16 @@ body:not(.is-home) .home-counter { display: none; }
   color: var(--text-muted);
 }
 
+/* Пока встроенный скрипт в index.html не перенёс строку поиска и вкладки на
+   главную (body.home-pending — доли секунды при разборе страницы), её не
+   видно: иначе браузер мог бы нарисовать её недособранной, а потом сдвинуть. */
+.home-pending .topbar > .searchbar { display: none; }
+.home-pending #emptyState { visibility: hidden; }
+/* Подсказки «Попробуйте:» дорисовывает app.js — место под них заранее
+   (одна строка, на телефоне две), чтобы центр главной потом не съезжал. */
+.is-home #suggestions { min-height: 26px; }
+.is-home #suggestions:not(:has(.suggestion-chip)) { visibility: hidden; }
+
 .is-home .topbar .icon-btn { background: transparent; }
 .is-home .topbar .icon-btn:hover { background: color-mix(in srgb, var(--text) 8%, transparent); }
 .is-home .toolbar,
@@ -1447,6 +1464,7 @@ body:not(.is-home) .home-counter { display: none; }
   .home-controls-sep { display: none; }
   .is-home .mode-switch { gap: 4px; }
   .home-suggest { padding-top: 40px; }
+  .is-home #suggestions { min-height: 54px; }
 }
 @media (prefers-reduced-motion: reduce) {
   .home-main { animation: none; }

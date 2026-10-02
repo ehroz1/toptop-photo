@@ -278,7 +278,6 @@ async function buildPage(opts = {}) {
   for (const rel of scripts) {
     const code = fs.readFileSync(path.join(ROOT, rel), "utf8");
     window.eval(code);
-    if (rel === "js/i18n.js") window.I18N.applyStaticI18n();
   }
 
   return { dom, window, document: window.document };

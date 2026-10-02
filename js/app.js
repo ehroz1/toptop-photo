@@ -579,7 +579,9 @@
   // и "Источники" живут в центре главного экрана; после поиска возвращаются
   // в шапку и панель над выдачей. Узлы переносятся целиком (со всеми
   // обработчиками), на исходных местах остаются невидимые метки-якоря.
-  const homeMoves = [
+  // Метки ставит и первый перенос делает встроенный скрипт в index.html (до
+  // первой отрисовки); здесь — запасной путь, если он не выполнялся.
+  const homeMoves = window.PICTA_HOME_MOVES || [
     [el.form, el.homeSearchSlot],
     [el.modeSwitch, el.homeModeSlot],
     [el.sourcesMenuWrap, el.homeSourcesSlot],
@@ -606,39 +608,17 @@
   }
   new MutationObserver(applyHomeLayout).observe(el.emptyState, { attributes: true, attributeFilter: ["hidden"] });
 
-  // «Жидкий» поиск на главной (.goo-* в styles.css): при открытии страницы
-  // строка вытекает из круга с лупой, а кнопка «искать» отрывается каплей,
-  // когда в поле есть текст. Класс ставим до первой отрисовки главной, чтобы
-  // не мелькала сначала готовая строка.
+  // «Жидкий» поиск на главной (.goo-* в styles.css): кнопка «искать»
+  // отрывается каплей, когда в поле есть текст. Раскрытие строки из круга при
+  // открытии страницы запускает встроенный скрипт в index.html — сразу, не
+  // дожидаясь загрузки этого файла.
   (function initGooeySearch() {
-    const form = el.form;
-    // WebKit (Safari, любой браузер на iPhone/iPad) — без SVG-фильтра, см.
-    // .goo-plain в styles.css.
-    if (/Apple/.test(navigator.vendor || "")) form.classList.add("goo-plain");
-    const syncText = () => form.classList.toggle("goo-has-text", el.input.value.trim().length > 0);
+    const syncText = () => el.form.classList.toggle("goo-has-text", el.input.value.trim().length > 0);
     el.input.addEventListener("input", syncText);
     el.clearBtn.addEventListener("click", syncText);
     // Запрос подставили из подсказки/истории или вернулись на главную.
     new MutationObserver(syncText).observe(el.emptyState, { attributes: true, attributeFilter: ["hidden"] });
     syncText();
-
-    const startsWithSearch = new URLSearchParams(location.search).get("q") || (window.PICTA_PAGE && window.PICTA_PAGE.q);
-    const calm = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-    if (calm || startsWithSearch || el.emptyState.hidden) return;
-    form.classList.add("goo-closed");
-    let opened = false;
-    const open = () => {
-      if (opened) return;
-      opened = true;
-      form.classList.remove("goo-closed");
-      form.classList.add("goo-opening");
-      setTimeout(() => form.classList.remove("goo-opening"), 1200);
-    };
-    setTimeout(open, 350);
-    // Не ждём, если человек уже тянется к поиску.
-    form.addEventListener("pointerdown", open);
-    el.input.addEventListener("focus", open);
-    el.input.addEventListener("keydown", open);
   })();
   applyHomeLayout();
 
@@ -1665,6 +1645,7 @@
     clearImageLoadQueue();
     el.grid.innerHTML = "";
     el.grid.hidden = false;
+    document.body.classList.remove("search-start");
     el.emptyState.hidden = true;
     el.favoritesEmpty.hidden = true;
     el.noResults.hidden = true;
@@ -1739,16 +1720,26 @@
       // съехало. Скелетоны (у них своя явная высота) — по-прежнему вверх,
       // чтобы не залезали на соседа снизу.
       const round = entry.target.tagName === "IMG" ? Math.floor : Math.ceil;
-      const span = round((entry.contentRect.height + GRID_GAP) / (GRID_ROW_UNIT + GRID_GAP));
-      target.style.gridRowEnd = `span ${Math.max(span, 1)}`;
+      target.style.gridRowEnd = gridSpan(entry.contentRect.height, round);
     }
   });
+  function gridSpan(height, round) {
+    return `span ${Math.max(round((height + GRID_GAP) / (GRID_ROW_UNIT + GRID_GAP)), 1)}`;
+  }
+  // Ширина колонки сетки (все колонки равны); 0, если сетка скрыта.
+  function gridColumnWidth() {
+    return parseFloat(getComputedStyle(el.grid).gridTemplateColumns) || 0;
+  }
 
   function renderSkeletons(count) {
     for (let i = 0; i < count; i++) {
       const s = document.createElement("div");
+      const height = 180 + Math.round(Math.random() * 140);
       s.className = "card-skeleton";
-      s.style.height = `${180 + Math.round(Math.random() * 140)}px`;
+      s.style.height = `${height}px`;
+      // Высоту в строках сетки ставим сразу, не дожидаясь masonryObserver:
+      // он срабатывает уже после раскладки, и сетка успевала «прыгнуть».
+      s.style.gridRowEnd = gridSpan(height, Math.ceil);
       s.dataset.skeleton = "1";
       el.grid.appendChild(s);
       masonryObserver.observe(s);
@@ -2964,6 +2955,9 @@
     img.decoding = "async";
     if (item.width && item.height) {
       img.style.aspectRatio = `${item.width} / ${item.height}`;
+      // Пропорции известны — высоту карточки ставим сразу (см. renderSkeletons).
+      const colWidth = gridColumnWidth();
+      if (colWidth) card.style.gridRowEnd = gridSpan(colWidth * item.height / item.width, Math.floor);
     }
     masonryObserver.observe(img);
     const stopLoading = () => card.classList.remove("is-img-loading");

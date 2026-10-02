@@ -88,7 +88,7 @@ try {
 if (/rel="search"/.test(indexHtml) && !fs.existsSync(path.join(ROOT, "opensearch.xml"))) problems.push("index.html ссылается на opensearch.xml, а файла нет");
 
 // 4. Переводы
-const sandbox = { window: {}, navigator: { language: "ru" }, document: { documentElement: {} } };
+const sandbox = { window: {}, navigator: { language: "ru" }, document: { documentElement: {}, querySelector: () => null, querySelectorAll: () => [] } };
 vm.runInNewContext(read("js/i18n.js").replace("global.I18N = {", "global.__DICT = DICT; global.I18N = {"), sandbox);
 const DICT = sandbox.window.__DICT;
 const i18nKeys = new Set([...indexHtml.matchAll(/data-i18n(?:-title|-placeholder)?="([^"]+)"/g)].map((m) => m[1]));

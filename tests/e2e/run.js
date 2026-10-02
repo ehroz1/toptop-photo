@@ -298,10 +298,12 @@ async function testScrollHeaderAndCards(browser, base) {
   const gaps = sizes.filter((x) => x.card > x.img + 0.5);
   check(sizes.length > 0 && gaps.length === 0, `карточки без полоски под фото (выше картинки: ${gaps.length} из ${sizes.length})`);
 
-  await page.hover("#grid .card");
-  await page.waitForTimeout(350);
+  // Наводим на уже загруженное превью и ждём дольше его «проявления»
+  // (transition 0.4s у .card img) — иначе ловим конец той анимации.
+  await page.hover("#grid .card:not(.is-img-loading)");
+  await page.waitForTimeout(500);
   const hover = await page.evaluate(() => {
-    const card = document.querySelector("#grid .card");
+    const card = document.querySelector("#grid .card:not(.is-img-loading)");
     const overlay = getComputedStyle(card.querySelector(".card-overlay"));
     return {
       cardTransform: getComputedStyle(card).transform,
@@ -557,6 +559,44 @@ async function testIconsHaveMasks(browser, base) {
   await context.close();
 }
 
+// Страница не «прыгает» при открытии (CLS, как в PageSpeed): главная и
+// подборка, которая сразу ищет. Раньше главная рисовалась «выдачей» и
+// перестраивалась после загрузки скриптов (0.23), подборки — до 1.5.
+async function testLayoutStability(browser, base) {
+  const profiles = [
+    { name: "компьютер", viewport: { width: 1350, height: 940 }, cpu: 1 },
+    { name: "телефон", viewport: { width: 412, height: 823 }, cpu: 4, mobile: true },
+  ];
+  for (const path of ["", "foto/koty/"]) {
+    for (const p of profiles) {
+      const context = await browser.newContext({ serviceWorkers: "block", viewport: p.viewport, isMobile: !!p.mobile, hasTouch: !!p.mobile });
+      await context.addInitScript(() => {
+        window.__cls = [];
+        new PerformanceObserver((l) => {
+          for (const e of l.getEntries()) {
+            if (e.hadRecentInput) continue;
+            const src = (e.sources || []).map((s) => (s.node && (s.node.id || s.node.className)) || "?").join(",");
+            window.__cls.push({ v: e.value, src });
+          }
+        }).observe({ type: "layout-shift", buffered: true });
+      });
+      const page = await context.newPage();
+      const cdp = await context.newCDPSession(page);
+      await cdp.send("Network.enable");
+      await cdp.send("Emulation.setCPUThrottlingRate", { rate: p.cpu });
+      if (p.mobile) await cdp.send("Network.emulateNetworkConditions", { offline: false, latency: 150, downloadThroughput: 1.6e6 / 8, uploadThroughput: 750e3 / 8 });
+      await installMocks(page, { imgDelay: 600, apiDelay: 300 });
+      await page.goto(base + path, { waitUntil: "load" });
+      await page.waitForTimeout(3500);
+      const shifts = await page.evaluate(() => window.__cls);
+      const total = shifts.reduce((a, s) => a + s.v, 0);
+      const worst = shifts.sort((a, b) => b.v - a.v)[0];
+      check(total < 0.1, `${path || "главная"}, ${p.name}: страница не прыгает при открытии (CLS ${total.toFixed(3)}${worst ? `, больше всего — ${worst.src}` : ""})`);
+      await context.close();
+    }
+  }
+}
+
 async function measure(browser, base, runs = 5) {
   const RTT = 150;
   const samples = [];
@@ -602,6 +642,7 @@ async function measure(browser, base, runs = 5) {
     await testHomeLayout(browser, base);
     await testLandingPages(browser, base);
     await testGooeySearch(browser, base);
+    await testLayoutStability(browser, base);
     const m = await measure(browser, base);
     console.log(`\nСкорость (мобильный 4G, процессор x4, медиана из 5):`);
     console.log(`  первая отрисовка ${m.fcp} мс · сайт готов ${m.ready} мс · первое превью после Enter ${m.firstThumb} мс`);

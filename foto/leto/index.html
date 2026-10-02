@@ -30,15 +30,15 @@
 <link rel="icon" href="icons/favicon.svg?v=3" type="image/svg+xml">
 <link rel="icon" href="icons/favicon-32.png?v=3" sizes="32x32">
 <link rel="apple-touch-icon" href="icons/icon-192.png?v=3">
-<!-- Прогреваем только то, куда браузер реально пойдёт при первом поиске
-     с источниками по умолчанию: воркер (Pixabay/Pexels/Unsplash и др. идут
-     через него — к их API браузер напрямую не ходит), переводчик и
-     Wikimedia. Остальные хосты — только dns-prefetch: он почти бесплатный,
-     а лишние preconnect'ы на телефоне впустую открывают TLS-соединения.
+<!-- Соединение заранее открываем только с воркером: к нему браузер идёт
+     сразу при открытии (счётчик скачиваний) и при каждом поиске (через него
+     идут Pixabay/Pexels/Unsplash и др.). Переводчик и Wikimedia нужны лишь
+     после ввода запроса, а неиспользованное соединение браузер закрывает
+     через ~10 секунд — им, как и остальным хостам, хватает dns-prefetch.
      Адрес воркера должен совпадать с WORKER_BASE_URL в js/config.js. -->
 <link rel="preconnect" href="https://photoseek-proxy.safarimax777.workers.dev" crossorigin>
-<link rel="preconnect" href="https://api.mymemory.translated.net" crossorigin>
-<link rel="preconnect" href="https://commons.wikimedia.org" crossorigin>
+<link rel="dns-prefetch" href="https://api.mymemory.translated.net">
+<link rel="dns-prefetch" href="https://commons.wikimedia.org">
 <link rel="dns-prefetch" href="https://cdn.pixabay.com">
 <link rel="dns-prefetch" href="https://images.pexels.com">
 <link rel="dns-prefetch" href="https://upload.wikimedia.org">
@@ -49,8 +49,17 @@
      лишнего сервера и работают офлайн. Без preload специально: так текст
      появляется раньше (сначала системным шрифтом, через мгновение — Manrope). -->
 <link rel="stylesheet" href="css/styles.css">
+<script>window.PICTA_PAGE = {"q":"лето","mode":"photos"};</script>
 </head>
 <body>
+<!-- Режим главной включаем до отрисовки шапки. home-pending — пока
+     встроенный скрипт ниже не перенёс на главную строку поиска и вкладки.
+     Поиск по ссылке ?q= и подборки с запросом сразу открывают выдачу:
+     search-start — пока её нет (см. styles.css). -->
+<script>
+if (new URLSearchParams(location.search).get("q") || (window.PICTA_PAGE && window.PICTA_PAGE.q)) document.body.classList.add("search-start");
+else document.body.classList.add("is-home", "home-pending");
+</script>
 
 <div id="bgPhoto" class="bg-photo" aria-hidden="true"></div>
 
@@ -81,6 +90,7 @@
         type="text"
         class="searchbar-input"
         data-i18n-placeholder="search_placeholder"
+        placeholder="Например: закат над океаном, кот, город ночью…"
         autocomplete="off"
         spellcheck="false"
         enterkeyhint="search"
@@ -475,6 +485,50 @@
           <span class="home-controls-sep" id="homeControlsSep" aria-hidden="true"></span>
           <div id="homeSourcesSlot"></div>
         </div>
+        <!-- Главную собираем здесь, до первой отрисовки, а не в app.js
+             (скрипты грузятся позже): иначе страница сначала рисуется
+             «выдачей», а потом прыгает. Дальше переключает applyHomeLayout. -->
+        <script>
+        (function () {
+          const body = document.body;
+          const moves = [["searchForm", "homeSearchSlot"], ["modeSwitch", "homeModeSlot"], ["sourcesMenuWrap", "homeSourcesSlot"]].map(([nodeId, slotId]) => {
+            const node = document.getElementById(nodeId);
+            const anchor = document.createComment("home-anchor");
+            node.parentNode.insertBefore(anchor, node);
+            return { node, slot: document.getElementById(slotId), anchor };
+          });
+          window.PICTA_HOME_MOVES = moves;
+          const form = moves[0].node;
+          // WebKit (Safari, любой браузер на iPhone/iPad) — без SVG-фильтра, см. .goo-plain.
+          if (/Apple/.test(navigator.vendor || "")) form.classList.add("goo-plain");
+          // Страница сразу ищет (?q=, подборка) — главную не показываем вовсе,
+          // иначе она мелькнёт и сменится выдачей.
+          if (!body.classList.contains("is-home")) {
+            document.getElementById("emptyState").hidden = true;
+            return;
+          }
+          for (const { node, slot } of moves) slot.appendChild(node);
+          body.classList.remove("home-pending");
+
+          // «Жидкий» поиск: строка вытекает из круга с лупой (.goo-* в styles.css).
+          if (window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches) return;
+          form.classList.add("goo-closed");
+          let opened = false;
+          const open = () => {
+            if (opened) return;
+            opened = true;
+            form.classList.remove("goo-closed");
+            form.classList.add("goo-opening");
+            setTimeout(() => form.classList.remove("goo-opening"), 1200);
+          };
+          setTimeout(open, 350);
+          // Не ждём, если человек уже тянется к поиску.
+          const input = document.getElementById("searchInput");
+          form.addEventListener("pointerdown", open);
+          input.addEventListener("focus", open);
+          input.addEventListener("keydown", open);
+        })();
+        </script>
         <p class="home-sources-list" id="homeSourcesList"></p>
         <p class="home-counter" id="homeCounter" hidden><span data-i18n="downloads_total">Скачано через Picta</span>: <strong id="homeCounterNum"></strong></p>
       </div>
@@ -737,21 +791,21 @@
 
 <div id="toast" class="toast" hidden></div>
 
-<script>window.PICTA_PAGE = {"q":"лето","mode":"photos"};</script>
-<script src="js/config.js"></script>
-<script src="js/i18n.js"></script>
-<script>window.I18N.applyStaticI18n();</script>
-<script src="js/auth.js"></script>
-<script src="js/providers.js"></script>
-<script src="js/icons.js"></script>
-<script src="js/videoProviders.js"></script>
-<script src="js/translate.js"></script>
-<script src="js/queryLogic.js"></script>
-<script src="js/spellcheck.js"></script>
-<script src="js/dedupe.js"></script>
-<script src="js/app.js"></script>
-<script src="js/background.js"></script>
-<script src="js/cursor.js"></script>
-<script src="js/analytics.js"></script>
+<!-- defer: скрипты качаются параллельно и не задерживают первую отрисовку,
+     а выполняются по порядку после разбора страницы. -->
+<script defer src="js/config.js"></script>
+<script defer src="js/i18n.js"></script>
+<script defer src="js/auth.js"></script>
+<script defer src="js/providers.js"></script>
+<script defer src="js/icons.js"></script>
+<script defer src="js/videoProviders.js"></script>
+<script defer src="js/translate.js"></script>
+<script defer src="js/queryLogic.js"></script>
+<script defer src="js/spellcheck.js"></script>
+<script defer src="js/dedupe.js"></script>
+<script defer src="js/app.js"></script>
+<script defer src="js/background.js"></script>
+<script defer src="js/cursor.js"></script>
+<script defer src="js/analytics.js"></script>
 </body>
 </html>
