@@ -1637,6 +1637,68 @@ body:not(.is-home) .home-counter { display: none; }
 }
 @keyframes shimmer { 0% { background-position: 150% 0; } 100% { background-position: -50% 0; } }
 
+/* ---------- Цвета (режим «Цвета», как picular.co) ----------
+   Квадраты вплотную; под курсором проявляется фото, из которого взят цвет. */
+.color-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(170px, 1fr));
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+@media (max-width: 680px) {
+  .color-grid { grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); }
+}
+.color-tile {
+  position: relative;
+  aspect-ratio: 1;
+  border: none;
+  padding: 0;
+  margin: 0;
+  background: var(--tile-color);
+  color: #fff;
+  cursor: pointer;
+  overflow: hidden;
+  font: inherit;
+  animation: colorTileIn 0.45s ease both;
+}
+.color-tile.is-light { color: #101114; }
+.color-tile::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background: var(--tile-photo) center / cover no-repeat;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+@media (hover: hover) {
+  .color-tile:hover::before { opacity: 1; }
+  .color-tile:hover .color-tile-hex { background: var(--tile-color); }
+}
+.color-tile:focus-visible { outline: 2px solid var(--text); outline-offset: -4px; }
+.color-tile-hex {
+  position: absolute;
+  left: 10px;
+  bottom: 10px;
+  padding: 4px 8px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  transition: background 0.25s ease;
+}
+.color-tile.is-copied .color-tile-hex { background: var(--tile-color); }
+.color-tile-skeleton {
+  cursor: default;
+  background: linear-gradient(100deg, var(--border) 30%, var(--border-strong) 50%, var(--border) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.3s ease-in-out infinite;
+}
+@keyframes colorTileIn { from { opacity: 0; } to { opacity: 1; } }
+@media (prefers-reduced-motion: reduce) {
+  .color-tile { animation: none; }
+}
+
 /* ---------- Video grid (режим "Видео") ----------
    Видео-превью в отличие от фото почти всегда 16:9 — фиксированный
    аспект вместо JS-считаемого masonry-span (см. .grid/masonryObserver

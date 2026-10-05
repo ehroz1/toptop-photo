@@ -230,6 +230,7 @@ else document.body.classList.add("is-home", "home-pending");
           <button type="button" class="mode-tab is-active" data-mode="photos" data-i18n="mode_photos">Фото</button>
           <button type="button" class="mode-tab" data-mode="icons" data-i18n="mode_icons">Иконки</button>
           <button type="button" class="mode-tab" data-mode="video" data-i18n="mode_video">Видео</button>
+          <button type="button" class="mode-tab" data-mode="colors" data-i18n="mode_colors">Цвета</button>
         </div>
         <div class="sources" id="sourcesRow">
           <button type="button" class="source-chip source-chip-external" id="yandexBtn" data-i18n-title="source_yandex_title">
@@ -551,6 +552,7 @@ else document.body.classList.add("is-home", "home-pending");
     <div id="grid" class="grid" hidden></div>
     <div id="iconGrid" class="grid icon-grid" hidden></div>
     <div id="videoGrid" class="grid video-grid" hidden></div>
+    <div id="colorGrid" class="color-grid" hidden></div>
 
     <div id="loadMoreWrap" class="load-more-wrap" hidden>
       <button id="loadMoreBtn" class="btn btn-secondary" data-i18n="load_more">Показать ещё</button>
@@ -573,6 +575,10 @@ else document.body.classList.add("is-home", "home-pending");
     <div id="videoNoResults" class="empty-state" hidden>
       <h2 data-i18n="no_results_h1">Ничего не найдено</h2>
       <p data-i18n="no_results_p">Попробуйте другой запрос или снимите часть фильтров.</p>
+    </div>
+    <div id="colorNoResults" class="empty-state" hidden>
+      <h2 data-i18n="no_results_h1">Ничего не найдено</h2>
+      <p data-i18n="color_no_results_p">Попробуйте другое слово — например, предмет, место или настроение.</p>
     </div>
     <section class="landing-more">
       <h2>Осенние фото: как искать</h2>
@@ -803,6 +809,7 @@ else document.body.classList.add("is-home", "home-pending");
 <script defer src="js/queryLogic.js"></script>
 <script defer src="js/spellcheck.js"></script>
 <script defer src="js/dedupe.js"></script>
+<script defer src="js/colors.js"></script>
 <script defer src="js/app.js"></script>
 <script defer src="js/background.js"></script>
 <script defer src="js/cursor.js"></script>

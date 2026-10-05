@@ -9,7 +9,7 @@
 // сайта старая версия могла показываться ещё один-два захода, пока кэш не
 // обновится в фоне. CACHE_NAME нужно поднимать при каждом заметном релизе,
 // чтобы гарантированно почистить старый кэш при активации.
-const CACHE_NAME = "picta-shell-v33";
+const CACHE_NAME = "picta-shell-v34";
 const SHELL_FILES = [
   "./",
   "./index.html",
@@ -24,6 +24,7 @@ const SHELL_FILES = [
   "./js/queryLogic.js",
   "./js/spellcheck.js",
   "./js/dedupe.js",
+  "./js/colors.js",
   "./js/app.js",
   "./js/background.js",
   "./js/cursor.js",

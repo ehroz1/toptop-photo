@@ -550,12 +550,44 @@ async function testIconsHaveMasks(browser, base) {
   await page.waitForSelector("#lightbox:not([hidden])");
   await scan();
   await page.keyboard.press("Escape");
-  for (const mode of ["icons", "video"]) {
+  for (const mode of ["icons", "video", "colors"]) {
     await page.click(`.mode-tab[data-mode="${mode}"]`);
     await page.waitForTimeout(400);
     await scan();
   }
   check(found.size === 0, `у всех видимых иконок есть маска, нет «чёрных квадратов» (${[...found].join(", ") || "нет"})`);
+  await context.close();
+}
+
+// Режим «Цвета»: главный цвет считается по настоящим пикселям превью
+// (canvas), клик копирует код. Превью — однотонные картинки известных цветов.
+async function testColorPalette(browser, base) {
+  const COLORS = ["#D92626", "#2E7BF6", "#2FB344", "#F5A623", "#8B5CF6"];
+  const context = await browser.newContext({ serviceWorkers: "block", permissions: ["clipboard-read", "clipboard-write"] });
+  const page = await context.newPage();
+  await installMocks(page, { imgDelay: 10 });
+  await page.route("https://img.test/**", (route) => {
+    const i = Number((route.request().url().match(/\/(\d+)\.png$/) || [])[1]) || 0;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="40" height="30"><rect width="40" height="30" fill="${COLORS[i % COLORS.length]}"/></svg>`;
+    return route.fulfill({ status: 200, contentType: "image/svg+xml", body: svg, headers: { "access-control-allow-origin": "*" } }).catch(() => {});
+  });
+  await page.goto(`${base}?mode=colors`);
+  check(await page.isVisible('.mode-tab[data-mode="colors"].is-active'), "ссылка ?mode=colors открывает режим «Цвета»");
+  await page.fill("#searchInput", "banana");
+  await page.press("#searchInput", "Enter");
+  await page.waitForSelector("#colorGrid .color-tile[data-hex]");
+  await page.waitForFunction(() => !document.querySelector('#colorGrid [data-skeleton="1"]'), null, { timeout: 10000 });
+  const tiles = await page.$$eval("#colorGrid .color-tile[data-hex]", (els) => els.map((t) => ({
+    hex: t.dataset.hex, photo: t.style.getPropertyValue("--tile-photo"), bg: getComputedStyle(t).backgroundColor,
+    w: t.getBoundingClientRect().width, h: t.getBoundingClientRect().height,
+  })));
+  check(tiles.length === COLORS.length, `одна плитка на каждый разный цвет, повторы схлопнуты (${tiles.length})`);
+  const red = tiles.find((t) => /\/0\.png/.test(t.photo));
+  check(red && red.hex === COLORS[0], `цвет посчитан по пикселям превью (${red && red.hex})`);
+  check(tiles.every((t) => Math.abs(t.w - t.h) < 1), "плитки квадратные");
+  await page.click("#colorGrid .color-tile[data-hex]");
+  const copied = await page.evaluate(() => navigator.clipboard.readText());
+  check(copied === tiles[0].hex, `клик копирует код цвета (${copied})`);
   await context.close();
 }
 
@@ -634,6 +666,7 @@ async function measure(browser, base, runs = 5) {
     await testThumbnailsAfterInterruptedSearches(browser, base);
     await testLightboxDownload(browser, base);
     await testIconsHaveMasks(browser, base);
+    await testColorPalette(browser, base);
     await testKeyboardHidesOnMobile(browser, base);
     await testDarkThemeBackground(browser, base);
     await testThemeSwitch(browser, base);

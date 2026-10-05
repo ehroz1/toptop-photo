@@ -4,6 +4,7 @@
   const SUGGESTIONS = I18N.t("suggestions");
   const ICON_SUGGESTIONS = I18N.t("suggestions_icons");
   const VIDEO_SUGGESTIONS = I18N.t("suggestions_video");
+  const COLOR_SUGGESTIONS = I18N.t("suggestions_colors");
   const FAVORITES_KEY = "photoseek-favorites";
   const FILTERS_KEY = "photoseek-filters";
   const ICON_FILTERS_KEY = "photoseek-icon-filters";
@@ -11,6 +12,7 @@
   const HISTORY_KEY = "photoseek-history";
   const ICON_HISTORY_KEY = "photoseek-icon-history";
   const VIDEO_HISTORY_KEY = "photoseek-video-history";
+  const COLOR_HISTORY_KEY = "photoseek-color-history";
   const STATS_KEY = "photoseek-stats";
   const THEME_KEY = "photoseek-theme";
   const MODE_KEY = "photoseek-mode";
@@ -187,10 +189,12 @@
     vlLicense: document.getElementById("vlLicense"),
     vlPrev: document.getElementById("vlPrev"),
     vlNext: document.getElementById("vlNext"),
+    colorGrid: document.getElementById("colorGrid"),
+    colorNoResults: document.getElementById("colorNoResults"),
   };
 
   const state = {
-    mode: "photos", // "photos" | "icons" | "video"
+    mode: "photos", // "photos" | "icons" | "video" | "colors"
     query: "",
     searchQuery: "",
     view: "search", // "search" | "favorites"
@@ -467,11 +471,13 @@
     if (el.input.value.trim() && window.PictaAnalytics) window.PictaAnalytics.goal("search", { mode: state.mode });
     if (state.mode === "icons") runIconSearch(opts);
     else if (state.mode === "video") runVideoSearch(opts);
+    else if (state.mode === "colors") runColorSearch(opts);
     else runSearch(opts);
   }
   function resetForMode() {
     if (state.mode === "icons") resetIconToEmpty();
     else if (state.mode === "video") resetVideoToEmpty();
+    else if (state.mode === "colors") resetColorToEmpty();
     else resetToEmpty();
   }
 
@@ -544,6 +550,13 @@
       videoSearchGeneration++;
       abortCurrentSearch();
     }
+    if (prevMode === "colors" && mode !== "colors") {
+      colorSearchGeneration++;
+      abortCurrentSearch();
+      el.colorGrid.hidden = true;
+      el.colorGrid.innerHTML = "";
+      el.colorNoResults.hidden = true;
+    }
     const q = el.input.value.trim();
     if (q) runSearchForMode(); else resetForMode();
   }
@@ -551,7 +564,7 @@
     btn.addEventListener("click", () => setMode(btn.dataset.mode));
   });
   function applyHeroForMode() {
-    const suffix = state.mode === "icons" ? "_icons" : state.mode === "video" ? "_video" : "";
+    const suffix = state.mode === "photos" ? "" : `_${state.mode}`;
     el.heroP.textContent = I18N.t(`home_tagline${suffix}`);
     el.homeControlsSep.hidden = state.mode !== "photos";
     updateHomeSourcesList();
@@ -625,7 +638,8 @@
   // ---------- Suggestions ----------
   function renderSuggestionChips() {
     el.suggestions.querySelectorAll(".suggestion-chip").forEach((c) => c.remove());
-    const list = state.mode === "icons" ? ICON_SUGGESTIONS : state.mode === "video" ? VIDEO_SUGGESTIONS : SUGGESTIONS;
+    const list = state.mode === "icons" ? ICON_SUGGESTIONS : state.mode === "video" ? VIDEO_SUGGESTIONS
+      : state.mode === "colors" ? COLOR_SUGGESTIONS : SUGGESTIONS;
     list.forEach((term) => {
       const chip = document.createElement("button");
       chip.type = "button";
@@ -647,6 +661,7 @@
   function historyKeyForMode() {
     if (state.mode === "icons") return ICON_HISTORY_KEY;
     if (state.mode === "video") return VIDEO_HISTORY_KEY;
+    if (state.mode === "colors") return COLOR_HISTORY_KEY;
     return HISTORY_KEY;
   }
   function loadHistory() {
@@ -2659,6 +2674,176 @@
   }, { rootMargin: "800px" });
   videoInfiniteScrollObserver.observe(el.videoLoadMoreWrap);
 
+  // ---------- Цвета (как picular.co, см. js/colors.js) ----------
+  // По запросу берём первые фото из выбранных источников фото и вместо самих
+  // фото показываем их главный цвет; клик по плитке копирует код цвета.
+  // Без подгрузки: каждая плитка — скачанное превью, одной палитры хватает.
+  const MAX_COLORS = 36;
+  const COLOR_CONCURRENCY = 6;
+  const SAME_COLOR_DISTANCE = 16;
+  let colorSearchGeneration = 0;
+  async function runColorSearch(opts = {}) {
+    const raw = el.input.value.trim();
+    if (!raw) { resetColorToEmpty(); return; }
+    const myGeneration = ++colorSearchGeneration;
+    const signal = abortCurrentSearch();
+    addToHistory(raw);
+    recordSearch();
+    updateUrlQuery(raw);
+    el.spellHint.hidden = true;
+
+    let query = raw;
+    if (opts.forceOriginal) {
+      el.translatedHint.hidden = true;
+    } else {
+      const result = await withTimeout(window.translateQuery(raw, { signal }), TRANSLATE_TIMEOUT_MS)
+        .catch(() => ({ translated: raw, wasTranslated: false }));
+      query = result.translated;
+      el.translatedHintText.textContent = result.translated;
+      el.translatedHint.hidden = !result.wasTranslated;
+    }
+    if (myGeneration !== colorSearchGeneration) return;
+
+    el.colorGrid.innerHTML = "";
+    for (let i = 0; i < 12; i++) {
+      const s = document.createElement("div");
+      s.className = "color-tile color-tile-skeleton";
+      s.dataset.skeleton = "1";
+      el.colorGrid.appendChild(s);
+    }
+    el.colorGrid.hidden = false;
+    el.emptyState.hidden = true;
+    el.colorNoResults.hidden = true;
+    el.resultsCount.textContent = "";
+    el.providerWarnings.textContent = "";
+    loadColors(query, myGeneration, signal);
+  }
+
+  // Порядок по очереди из каждого источника — чтобы палитру не занял один,
+  // ответивший первым.
+  function interleave(a, b) {
+    const out = [];
+    for (let i = 0; i < Math.max(a.length, b.length); i++) {
+      if (i < a.length) out.push(a[i]);
+      if (i < b.length) out.push(b[i]);
+    }
+    return out;
+  }
+
+  function loadColors(query, generation, signal) {
+    const now = Date.now();
+    const providers = (window.PROVIDERS || []).filter(
+      (p) => state.activeSources.has(p.id) && p.enabled() && !(state.cooldownUntil[p.id] > now)
+    );
+    const isCurrent = () => generation === colorSearchGeneration;
+    const seenThumbs = new Set();
+    const shownHex = [];
+    let queue = [];
+    let active = 0;
+    let shown = 0;
+    let providersLeft = providers.length;
+
+    function finishIfDone() {
+      if (!isCurrent() || providersLeft > 0 || active > 0 || (queue.length > 0 && shown < MAX_COLORS)) return;
+      el.colorGrid.querySelectorAll('[data-skeleton="1"]').forEach((s) => s.remove());
+      if (shown === 0) {
+        el.colorGrid.hidden = true;
+        el.colorNoResults.hidden = false;
+      }
+      el.resultsCount.textContent = shown ? I18N.t("results_colors_found", { n: shown }) : "";
+    }
+    function pump() {
+      while (active < COLOR_CONCURRENCY && queue.length > 0 && shown + active < MAX_COLORS) {
+        const item = queue.shift();
+        active++;
+        window.PictaColors.colorFromImageUrl(item.thumb, { signal })
+          .then((hex) => {
+            if (!isCurrent() || shown >= MAX_COLORS) return;
+            if (shownHex.some((h) => window.PictaColors.distance(h, hex) < SAME_COLOR_DISTANCE)) return;
+            shownHex.push(hex);
+            addColorTile(hex, item);
+            shown++;
+          })
+          .catch(() => { /* превью не скачалось — просто без этой плитки */ })
+          .finally(() => {
+            active--;
+            if (isCurrent()) { pump(); finishIfDone(); }
+          });
+      }
+    }
+
+    providers.forEach((p) => {
+      withTimeout(p.search(query, { page: 1, signal }), PROVIDER_TIMEOUT_MS)
+        .then((result) => {
+          if (!isCurrent()) return;
+          const fresh = (result.items || []).filter((it) => {
+            if (!it.thumb || seenThumbs.has(it.thumb)) return false;
+            seenThumbs.add(it.thumb);
+            return true;
+          });
+          queue = interleave(queue, fresh);
+        })
+        .catch((err) => {
+          if (err.name !== "AbortError") console.warn(`[${p.label}]`, err);
+        })
+        .finally(() => {
+          providersLeft--;
+          if (isCurrent()) { pump(); finishIfDone(); }
+        });
+    });
+    finishIfDone();
+  }
+
+  function addColorTile(hex, item) {
+    const tile = document.createElement("button");
+    tile.type = "button";
+    tile.className = "color-tile";
+    tile.classList.toggle("is-light", window.PictaColors.isLight(hex));
+    tile.dataset.hex = hex;
+    tile.style.setProperty("--tile-color", hex);
+    tile.style.setProperty("--tile-photo", `url("${String(item.thumb).replace(/["\\\n]/g, encodeURIComponent)}")`);
+    tile.title = I18N.t("color_tile_title");
+    const label = document.createElement("span");
+    label.className = "color-tile-hex";
+    label.textContent = hex;
+    tile.appendChild(label);
+    tile.addEventListener("click", () => copyColor(hex, tile, label));
+    const skeleton = el.colorGrid.querySelector('[data-skeleton="1"]');
+    if (skeleton) skeleton.replaceWith(tile);
+    else el.colorGrid.appendChild(tile);
+  }
+
+  async function copyColor(hex, tile, label) {
+    try {
+      await navigator.clipboard.writeText(hex);
+    } catch {
+      showToast(I18N.t("toast_copy_failed"));
+      return;
+    }
+    vibrate(10);
+    showToast(I18N.t("toast_color_copied", { hex }));
+    tile.classList.add("is-copied");
+    label.textContent = I18N.t("color_copied");
+    clearTimeout(tile._copiedTimer);
+    tile._copiedTimer = setTimeout(() => {
+      tile.classList.remove("is-copied");
+      label.textContent = hex;
+    }, 1200);
+  }
+
+  function resetColorToEmpty() {
+    colorSearchGeneration++;
+    abortCurrentSearch();
+    updateUrlQuery("");
+    el.translatedHint.hidden = true;
+    el.colorGrid.hidden = true;
+    el.colorGrid.innerHTML = "";
+    el.colorNoResults.hidden = true;
+    el.resultsCount.textContent = "";
+    el.providerWarnings.textContent = "";
+    el.emptyState.hidden = false;
+  }
+
   function formatDuration(sec) {
     if (!sec || !isFinite(sec) || sec <= 0) return null;
     const m = Math.floor(sec / 60);
@@ -3531,20 +3716,20 @@
   loadFavorites();
   initTheme();
 
-  // ---------- Сохранённый режим (Фото/Иконки/Видео) ----------
+  // ---------- Сохранённый режим (Фото/Иконки/Видео/Цвета) ----------
   (function initSavedMode() {
     let saved = null;
     try { saved = localStorage.getItem(MODE_KEY); } catch { /* игнорируем */ }
-    if (saved === "icons" || saved === "video") applyModeUI(saved);
+    if (saved === "icons" || saved === "video" || saved === "colors") applyModeUI(saved);
   })();
 
-  // ---------- Открытие по ссылке ?q=...&mode=icons|video ----------
+  // ---------- Открытие по ссылке ?q=...&mode=icons|video|colors ----------
   const initialParams = new URLSearchParams(location.search);
   const initialQuery = initialParams.get("q") || (PAGE && PAGE.q) || null;
   const initialMode = initialParams.get("mode") || (PAGE && PAGE.mode) || null;
   // mode=photos тоже учитываем: иначе ссылка на фото открывалась бы в режиме,
   // который посетитель выбрал в прошлый раз (например, «Иконки»).
-  if (initialMode === "photos" || initialMode === "icons" || initialMode === "video") applyModeUI(initialMode);
+  if (["photos", "icons", "video", "colors"].includes(initialMode)) applyModeUI(initialMode);
   updateHomeSourcesList();
   if (initialQuery) {
     el.input.value = initialQuery;
