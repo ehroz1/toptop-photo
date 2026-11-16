@@ -236,6 +236,10 @@
       ai_generated_title: "Изображение сгенерировано ИИ, это не фотография",
 
       results_found: "Найдено фото: {n}",
+      ad_label: "Реклама",
+      ad_atlas_title: "133 полезных сайта для дизайнеров",
+      ad_atlas_text: "Шрифты, ИИ, стоки, галереи — подборка вручную, без спонсорских мест.",
+      ad_atlas_cta: "Открыть Atlas →",
       results_icons_found: "Найдено иконок: {n}",
       results_videos_found: "Найдено видео: {n}",
       results_colors_found: "Цветов: {n} · нажмите на цвет, чтобы скопировать код",
@@ -503,6 +507,10 @@
       ai_generated_title: "This image was AI-generated, not a photograph",
 
       results_found: "Photos found: {n}",
+      ad_label: "Ad",
+      ad_atlas_title: "133 useful sites for designers",
+      ad_atlas_text: "Fonts, AI, stock, galleries — hand-picked, no sponsored spots.",
+      ad_atlas_cta: "Open Atlas →",
       results_icons_found: "Icons found: {n}",
       results_videos_found: "Videos found: {n}",
       results_colors_found: "Colors: {n} · click a color to copy its code",
