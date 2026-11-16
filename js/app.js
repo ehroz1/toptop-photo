@@ -1727,14 +1727,15 @@
       // просит картинка — так и получался порочный круг "высота 4px, значит
       // и оставим 4px". У <img> же реальная высота считается независимо
       // (через aspect-ratio), поэтому измеряем её и назначаем span карточке.
-      const target = entry.target.tagName === "IMG" ? entry.target.closest(".card") : entry.target;
+      const isInner = entry.target.tagName === "IMG" || entry.target.classList.contains("card-ad-inner");
+      const target = isInner ? entry.target.closest(".card, .card-ad") : entry.target;
       if (!target) continue;
       // Округляем ВНИЗ: карточка выходит на 0–11 px короче картинки и чуть
       // подрезает её низ (overflow:hidden). С округлением вверх было
       // наоборот — под фото оставалась полоска фона карточки, будто фото
       // съехало. Скелетоны (у них своя явная высота) — по-прежнему вверх,
       // чтобы не залезали на соседа снизу.
-      const round = entry.target.tagName === "IMG" ? Math.floor : Math.ceil;
+      const round = isInner ? Math.floor : Math.ceil;
       target.style.gridRowEnd = gridSpan(entry.contentRect.height, round);
     }
   });
@@ -1866,7 +1867,9 @@
         while (idx > 0 && pageLiveItems[idx - 1].score < scored.score) idx--;
         pageLiveItems.splice(idx, 0, scored);
         if (isSearchView) {
-          const refNode = el.grid.children[pageStartIndex + idx] || null;
+          // Рекламную карточку (.card-ad) в счёт позиции не берём.
+          const photoNodes = Array.from(el.grid.children).filter((n) => !n.classList.contains("card-ad"));
+          const refNode = photoNodes[pageStartIndex + idx] || null;
           el.grid.insertBefore(buildCard(scored.item), refNode);
         }
       }
@@ -1928,6 +1931,7 @@
         el.providerWarnings.textContent = formatWarnings(warnings, networkFailed);
       }
       finishLoading();
+      if (isSearchView && isFirst) insertAdCard();
 
       // Дедупликация уровня 2 (perceptual hash) качает байты каждого
       // превью — запускаем в фоне уже после того, как страница показана,
@@ -3118,6 +3122,45 @@
       imageObserver?.unobserve(img);
       if (img.getAttribute("src")) img.removeAttribute("src");
     });
+  }
+
+  // ---------- Рекламная карточка Atlas ----------
+  // Одна карточка на поиск, случайно на месте фото №1–10 (индексы фото
+  // считаем без неё — см. insertScored). Не фото: в лайтбокс не открывается.
+  const AD_URL = "https://atlas.ehroz.pro/";
+  function buildAdCard() {
+    const card = document.createElement("a");
+    card.className = "card-ad";
+    card.href = AD_URL;
+    card.target = "_blank";
+    card.rel = "noopener sponsored";
+    card.addEventListener("click", (e) => e.stopPropagation());
+    card.innerHTML = `
+      <div class="card-ad-inner">
+        <span class="card-ad-label"></span>
+        <svg class="card-ad-globe" viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+          <circle cx="32" cy="32" r="26"/><ellipse cx="32" cy="32" rx="11" ry="26"/>
+          <path d="M6 32h52M10 18h44M10 46h44"/>
+        </svg>
+        <div class="card-ad-name">Atlas</div>
+        <div class="card-ad-title"></div>
+        <div class="card-ad-text"></div>
+        <span class="card-ad-cta"></span>
+      </div>`;
+    card.querySelector(".card-ad-label").textContent = I18N.t("ad_label");
+    card.querySelector(".card-ad-title").textContent = I18N.t("ad_atlas_title");
+    card.querySelector(".card-ad-text").textContent = I18N.t("ad_atlas_text");
+    card.querySelector(".card-ad-cta").textContent = I18N.t("ad_atlas_cta");
+    return card;
+  }
+  function insertAdCard() {
+    if (el.grid.querySelector(".card-ad")) return;
+    const photos = Array.from(el.grid.children).filter((n) => n.classList.contains("card"));
+    if (photos.length < 2) return;
+    const pos = Math.min(1 + Math.floor(Math.random() * 10), photos.length);
+    const ad = buildAdCard();
+    el.grid.insertBefore(ad, photos[pos] || null);
+    masonryObserver.observe(ad.querySelector(".card-ad-inner"));
   }
 
   function appendCards(items) {

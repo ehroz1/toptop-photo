@@ -2243,3 +2243,42 @@ body.magic-cursor-on * { cursor: none !important; }
 }
 .magic-cursor.is-touch .magic-cursor-dot { transform: scale(2.2); }
 .magic-cursor.is-touch.is-down .magic-cursor-dot { transform: scale(1.7); }
+
+/* Рекламная карточка Atlas: в сетке как фото 4:5, свой градиент */
+.card-ad { position: relative; border-radius: 4px; overflow: hidden; cursor: pointer; display: block; color: #fff; text-decoration: none; background: #14142b; }
+.card-ad-inner {
+  position: relative;
+  aspect-ratio: 4 / 5;
+  min-height: 240px;
+  box-sizing: border-box;
+  padding: 18px;
+  display: flex; flex-direction: column; justify-content: flex-end; gap: 6px;
+  background:
+    radial-gradient(120% 70% at 85% 0%, rgba(120, 90, 255, 0.55), transparent 60%),
+    radial-gradient(90% 60% at 0% 100%, rgba(0, 200, 190, 0.35), transparent 60%),
+    linear-gradient(160deg, #1b1b3a, #0d0d1c);
+  transition: transform 0.4s ease;
+}
+.card-ad:hover .card-ad-inner { transform: scale(1.03); }
+.card-ad-label {
+  position: absolute; top: 12px; left: 12px;
+  font-size: 11px; padding: 2px 8px; border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.16);
+}
+.card-ad-globe {
+  position: absolute; top: 18%; right: 14px; width: 46%; max-width: 120px;
+  color: rgba(255, 255, 255, 0.35);
+}
+.card-ad-name { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
+.card-ad-title { font-size: 15px; font-weight: 600; line-height: 1.25; }
+.card-ad-text { font-size: 12px; line-height: 1.35; opacity: 0.75; }
+.card-ad-cta {
+  margin-top: 8px; align-self: flex-start;
+  font-size: 13px; font-weight: 600; padding: 7px 14px;
+  border-radius: var(--radius-pill); background: #fff; color: #14142b;
+}
+@media (max-width: 680px) {
+  .card-ad-inner { padding: 12px; min-height: 200px; }
+  .card-ad-name { font-size: 22px; }
+  .card-ad-text { display: none; }
+}
