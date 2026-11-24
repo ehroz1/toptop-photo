@@ -104,6 +104,10 @@
     colorMenu: document.getElementById("colorMenu"),
     resultsCount: document.getElementById("resultsCount"),
     providerWarnings: document.getElementById("providerWarnings"),
+    searchProgress: document.getElementById("searchProgress"),
+    searchProgressBar: document.getElementById("searchProgressBar"),
+    searchStatus: document.getElementById("searchStatus"),
+    searchStatusText: document.getElementById("searchStatusText"),
     emptyState: document.getElementById("emptyState"),
     favoritesEmpty: document.getElementById("favoritesEmpty"),
     suggestions: document.getElementById("suggestions"),
@@ -1578,6 +1582,39 @@
     } catch { /* недоступно (например, в песочнице без истории) — не критично */ }
   }
 
+  // ---------- Лайтовый статус-бар поиска ----------
+  let statusHideTimer = null;
+  function setSearchStatus(text, ratio) {
+    clearTimeout(statusHideTimer);
+    if (el.searchStatus && el.searchStatusText) {
+      el.searchStatusText.textContent = text;
+      el.searchStatus.hidden = !text;
+    }
+    if (el.searchProgress && el.searchProgressBar) {
+      el.searchProgress.classList.add("is-active");
+      el.searchProgressBar.style.transform = `scaleX(${Math.max(0.06, Math.min(1, ratio))})`;
+    }
+  }
+  function clearSearchStatus(completed = false) {
+    clearTimeout(statusHideTimer);
+    if (el.searchStatus) el.searchStatus.hidden = true;
+    if (!el.searchProgress || !el.searchProgressBar) return;
+    if (completed && el.searchProgress.classList.contains("is-active")) {
+      el.searchProgressBar.style.transform = "scaleX(1)";
+      statusHideTimer = setTimeout(() => {
+        el.searchProgress.classList.remove("is-active");
+        statusHideTimer = setTimeout(() => {
+          if (!el.searchProgress.classList.contains("is-active")) {
+            el.searchProgressBar.style.transform = "scaleX(0)";
+          }
+        }, 260);
+      }, 180);
+    } else {
+      el.searchProgress.classList.remove("is-active");
+      el.searchProgressBar.style.transform = "scaleX(0)";
+    }
+  }
+
   // ---------- Search orchestration ----------
   // Токен поколения поиска: если пока шёл перевод/спеллчек одного поиска
   // (fill + debounce) успел стартовать другой (Enter сразу следом), результат
@@ -1619,6 +1656,8 @@
       el.translatedHint.hidden = true;
       state.queryMatcher = window.buildQueryMatcher(parsed, new Map());
     } else {
+      el.resultsCount.textContent = "";
+      setSearchStatus(I18N.t("status_translating"), 0.14);
       // Основной перевод и перевод терминов операторов (-слово/"фраза"/ИЛИ)
       // друг от друга не зависят — идут одним Promise.all, а не по очереди,
       // чтобы не ждать два похода к MyMemory подряд. Перевод — best-effort
@@ -1699,6 +1738,7 @@
     el.emptyState.hidden = state.view === "favorites";
     el.resultsCount.textContent = "";
     el.providerWarnings.textContent = "";
+    clearSearchStatus(false);
     if (state.view === "favorites") renderFavoritesView();
   }
 
@@ -1832,6 +1872,7 @@
       state.loading = false;
       el.loadMoreBtn.disabled = false;
       el.loadMoreBtn.textContent = I18N.t("load_more");
+      if (isFirst && generation === searchGeneration) clearSearchStatus(true);
     }
 
     if (activeProviders.length === 0) {
@@ -1846,6 +1887,11 @@
       el.providerWarnings.textContent = warnings.join("  ·  ");
       finishLoading();
       return;
+    }
+
+    if (isFirst && state.view === "search") {
+      el.resultsCount.textContent = "";
+      setSearchStatus(I18N.t("status_searching", { total: activeProviders.length }), 0.22);
     }
 
     const queryTerms = (state.searchQuery || "").toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
@@ -1967,6 +2013,10 @@
         if (settled) return;
         settled = true;
         settledCount++;
+        if (isFirst && generation === searchGeneration && state.view === "search" && settledCount < activeProviders.length) {
+          const ratio = 0.22 + (settledCount / activeProviders.length) * 0.72;
+          setSearchStatus(I18N.t("status_progress_photos", { done: settledCount, total: activeProviders.length, n: state.items.length }), ratio);
+        }
         finalizeIfDone();
       };
 
@@ -2152,6 +2202,10 @@
     state.iconLoading = true;
     el.iconLoadMoreBtn.disabled = true;
     el.iconLoadMoreBtn.textContent = I18N.t("loading");
+    if (isFirst) {
+      el.resultsCount.textContent = "";
+      setSearchStatus(I18N.t("status_searching_icons"), 0.35);
+    }
 
     const page = state.iconPage + 1;
     const prefixes = Array.from(state.activeIconSources);
@@ -2229,10 +2283,12 @@
     state.iconLoading = false;
     el.iconLoadMoreBtn.disabled = false;
     el.iconLoadMoreBtn.textContent = I18N.t("load_more");
+    if (isFirst) clearSearchStatus(true);
   }
 
   function resetIconToEmpty() {
     iconSearchGeneration++; // отменяем любой поиск, который мог быть в процессе
+    clearSearchStatus(false);
     state.iconQuery = "";
     state.iconSearchQuery = "";
     state.iconItems = [];
@@ -2534,6 +2590,7 @@
       state.videoLoading = false;
       el.videoLoadMoreBtn.disabled = false;
       el.videoLoadMoreBtn.textContent = I18N.t("load_more");
+      if (isFirst && generation === videoSearchGeneration) clearSearchStatus(true);
     }
 
     if (activeProviders.length === 0) {
@@ -2548,6 +2605,11 @@
       el.providerWarnings.textContent = warnings.join("  ·  ");
       finishLoading();
       return;
+    }
+
+    if (isFirst) {
+      el.resultsCount.textContent = "";
+      setSearchStatus(I18N.t("status_searching", { total: activeProviders.length }), 0.22);
     }
 
     const queryTerms = (state.videoSearchQuery || "").toLowerCase().split(/\s+/).filter((t) => t.length >= 2);
@@ -2617,6 +2679,10 @@
         if (settled) return;
         settled = true;
         settledCount++;
+        if (isFirst && generation === videoSearchGeneration && settledCount < activeProviders.length) {
+          const ratio = 0.22 + (settledCount / activeProviders.length) * 0.72;
+          setSearchStatus(I18N.t("status_progress_videos", { done: settledCount, total: activeProviders.length, n: state.videoItems.length }), ratio);
+        }
         finalizeIfDone();
       };
 
@@ -2724,6 +2790,7 @@
     el.colorNoResults.hidden = true;
     el.resultsCount.textContent = "";
     el.providerWarnings.textContent = "";
+    setSearchStatus(I18N.t("status_searching_colors"), 0.3);
     loadColors(query, myGeneration, signal);
   }
 
@@ -2759,6 +2826,7 @@
         el.colorNoResults.hidden = false;
       }
       el.resultsCount.textContent = shown ? I18N.t("results_colors_found", { n: shown }) : "";
+      clearSearchStatus(true);
     }
     function pump() {
       while (active < COLOR_CONCURRENCY && queue.length > 0 && shown + active < MAX_COLORS) {
@@ -3064,6 +3132,7 @@
     el.loadMoreWrap.hidden = true;
     el.noResults.hidden = true;
     el.providerWarnings.textContent = "";
+    clearSearchStatus(false);
     el.resultsCount.textContent = state.favoritesList.length
       ? I18N.t("results_favorites", { n: state.favoritesList.length })
       : "";

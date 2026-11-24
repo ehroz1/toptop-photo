@@ -1004,6 +1004,51 @@ body:not(.is-home) .bg-photo { transition: opacity 0.4s ease, filter 0.4s ease, 
 .results-count { color: var(--text-muted); font-size: 13.5px; }
 .provider-warnings { color: var(--danger); font-size: 13px; }
 
+/* Лайтовый статус-бар поиска: тонкая полоска сверху экрана + строка прогресса */
+.search-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 900;
+  pointer-events: none;
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.search-progress.is-active { opacity: 1; }
+.search-progress-bar {
+  height: 100%;
+  width: 100%;
+  background: var(--accent);
+  transform-origin: left center;
+  transform: scaleX(0);
+  transition: transform 0.35s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.search-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13.5px;
+  color: var(--text-muted);
+}
+.search-status[hidden] { display: none; }
+.search-status-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  flex-shrink: 0;
+  animation: statusPulse 1.1s ease-in-out infinite;
+}
+@keyframes statusPulse {
+  0%, 100% { opacity: 0.28; transform: scale(0.85); }
+  50% { opacity: 1; transform: scale(1.1); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .search-status-dot { animation: none; }
+}
+
 /* ---------- Empty state / hero ---------- */
 .empty-state {
   position: relative;

@@ -62,6 +62,7 @@ else document.body.classList.add("is-home", "home-pending");
 </script>
 
 <div id="bgPhoto" class="bg-photo" aria-hidden="true"></div>
+<div id="searchProgress" class="search-progress" aria-hidden="true"><div id="searchProgressBar" class="search-progress-bar"></div></div>
 
 <!-- «Жидкий» фильтр для строки поиска на главной (.goo-layer в styles.css):
      размывает формы и снова делает края резкими — близкие круги и полоски
@@ -461,6 +462,7 @@ else document.body.classList.add("is-home", "home-pending");
     </div>
 
     <div class="toolbar-row toolbar-status">
+      <span id="searchStatus" class="search-status" role="status" aria-live="polite" hidden><span class="search-status-dot" aria-hidden="true"></span><span id="searchStatusText"></span></span>
       <span id="resultsCount" class="results-count"></span>
       <span id="providerWarnings" class="provider-warnings"></span>
     </div>
