@@ -2244,41 +2244,119 @@ body.magic-cursor-on * { cursor: none !important; }
 .magic-cursor.is-touch .magic-cursor-dot { transform: scale(2.2); }
 .magic-cursor.is-touch.is-down .magic-cursor-dot { transform: scale(1.7); }
 
-/* Рекламная карточка Atlas: в сетке как фото 4:5, свой градиент */
-.card-ad { position: relative; border-radius: 4px; overflow: hidden; cursor: pointer; display: block; color: #fff; text-decoration: none; background: #14142b; }
+/* Рекламная карточка Atlas: фон и глобус в отдельном слое .card-ad-bg,
+   чтобы при наведении не мылился текст, а высота считалась по полному .card-ad-inner */
+.card-ad {
+  position: relative;
+  border-radius: 4px;
+  overflow: hidden;
+  cursor: pointer;
+  display: block;
+  color: #fff;
+  text-decoration: none;
+  background: #121226;
+}
+.card-ad-bg {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  overflow: hidden;
+  background:
+    radial-gradient(115% 70% at 90% 0%, rgba(124, 92, 255, 0.52), transparent 62%),
+    radial-gradient(95% 65% at 0% 100%, rgba(0, 198, 188, 0.3), transparent 60%),
+    linear-gradient(160deg, #1b1b3a 0%, #0d0d1c 100%);
+  transition: transform 0.45s ease;
+}
+.card-ad:hover .card-ad-bg { transform: scale(1.04); }
+.card-ad-globe {
+  position: absolute;
+  top: -18px;
+  right: -22px;
+  width: 136px;
+  height: 136px;
+  color: rgba(255, 255, 255, 0.14);
+  transition: transform 0.45s ease, color 0.3s ease;
+}
+.card-ad:hover .card-ad-globe {
+  transform: rotate(10deg) scale(1.04);
+  color: rgba(255, 255, 255, 0.22);
+}
 .card-ad-inner {
   position: relative;
-  aspect-ratio: 4 / 5;
-  min-height: 240px;
+  z-index: 1;
+  min-height: 260px;
   box-sizing: border-box;
-  padding: 18px;
-  display: flex; flex-direction: column; justify-content: flex-end; gap: 6px;
-  background:
-    radial-gradient(120% 70% at 85% 0%, rgba(120, 90, 255, 0.55), transparent 60%),
-    radial-gradient(90% 60% at 0% 100%, rgba(0, 200, 190, 0.35), transparent 60%),
-    linear-gradient(160deg, #1b1b3a, #0d0d1c);
-  transition: transform 0.4s ease;
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  gap: 28px;
 }
-.card-ad:hover .card-ad-inner { transform: scale(1.03); }
+.card-ad-top {
+  display: flex;
+  align-items: center;
+}
 .card-ad-label {
-  position: absolute; top: 12px; left: 12px;
-  font-size: 11px; padding: 2px 8px; border-radius: var(--radius-pill);
-  background: rgba(255, 255, 255, 0.16);
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 500;
+  line-height: 1.2;
+  padding: 3px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(255, 255, 255, 0.14);
+  color: rgba(255, 255, 255, 0.85);
 }
-.card-ad-globe {
-  position: absolute; top: 18%; right: 14px; width: 46%; max-width: 120px;
-  color: rgba(255, 255, 255, 0.35);
+.card-ad-body {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
 }
-.card-ad-name { font-size: 28px; font-weight: 700; letter-spacing: -0.02em; }
-.card-ad-title { font-size: 15px; font-weight: 600; line-height: 1.25; }
-.card-ad-text { font-size: 12px; line-height: 1.35; opacity: 0.75; }
+.card-ad-name {
+  font-size: 26px;
+  font-weight: 700;
+  line-height: 1.1;
+  letter-spacing: -0.025em;
+}
+.card-ad-title {
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.3;
+  color: #fff;
+}
+.card-ad-text {
+  font-size: 12px;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.72);
+}
 .card-ad-cta {
-  margin-top: 8px; align-self: flex-start;
-  font-size: 13px; font-weight: 600; padding: 7px 14px;
-  border-radius: var(--radius-pill); background: #fff; color: #14142b;
+  margin-top: 8px;
+  align-self: flex-start;
+  display: inline-flex;
+  align-items: center;
+  font-size: 12.5px;
+  font-weight: 600;
+  line-height: 1;
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  background: #fff;
+  color: #14142b;
+  transition: transform 0.2s ease, background-color 0.2s ease;
 }
+.card-ad:hover .card-ad-cta {
+  background: #f0f0ff;
+  transform: translateY(-1px);
+}
+:root[data-grid="3"] .card-ad-inner { padding: 14px; gap: 20px; min-height: 220px; }
+:root[data-grid="3"] .card-ad-globe { width: 110px; height: 110px; top: -14px; right: -18px; }
+:root[data-grid="3"] .card-ad-name { font-size: 22px; }
+:root[data-grid="3"] .card-ad-title { font-size: 13px; }
+:root[data-grid="3"] .card-ad-text { font-size: 11.5px; }
+:root[data-grid="3"] .card-ad-cta { font-size: 12px; padding: 7px 12px; }
 @media (max-width: 680px) {
-  .card-ad-inner { padding: 12px; min-height: 200px; }
-  .card-ad-name { font-size: 22px; }
+  .card-ad-inner { padding: 12px; gap: 18px; min-height: 200px; }
+  .card-ad-globe { width: 100px; height: 100px; top: -14px; right: -16px; }
+  .card-ad-name { font-size: 20px; }
+  .card-ad-title { font-size: 13px; }
   .card-ad-text { display: none; }
+  .card-ad-cta { font-size: 12px; padding: 6px 11px; margin-top: 4px; }
 }
