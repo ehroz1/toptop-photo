@@ -2267,6 +2267,15 @@ body.magic-cursor-on * { cursor: none !important; }
     linear-gradient(160deg, #1b1b3a 0%, #0d0d1c 100%);
   transition: transform 0.45s ease;
 }
+.card-ad--ehroz { background: #141210; }
+.card-ad--ehroz .card-ad-bg {
+  background:
+    radial-gradient(115% 70% at 90% 0%, rgba(255, 160, 64, 0.44), transparent 62%),
+    radial-gradient(95% 65% at 0% 100%, rgba(232, 102, 74, 0.28), transparent 60%),
+    linear-gradient(160deg, #211c17 0%, #0f0e0d 100%);
+}
+.card-ad--ehroz .card-ad-cta { color: #1a1510; }
+.card-ad--ehroz:hover .card-ad-cta { background: #fff6ec; }
 .card-ad:hover .card-ad-bg { transform: scale(1.04); }
 .card-ad-globe {
   position: absolute;

@@ -3128,39 +3128,62 @@
     });
   }
 
-  // ---------- Рекламная карточка Atlas ----------
-  // Одна карточка на поиск, случайно на месте фото №1–10 (индексы фото
+  // ---------- Рекламные карточки (Atlas и Ehroz) ----------
+  // Одна случайная карточка на поиск, на месте фото №1–10 (индексы фото
   // считаем без неё — см. insertScored). Не фото: в лайтбокс не открывается.
-  const AD_URL = "https://atlas.ehroz.pro/";
-  function buildAdCard() {
+  const AD_CARDS = [
+    {
+      id: "atlas",
+      url: "https://atlas.ehroz.pro/",
+      name: "Atlas",
+      titleKey: "ad_atlas_title",
+      textKey: "ad_atlas_text",
+      ctaKey: "ad_atlas_cta",
+      icon: `<svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+          <circle cx="32" cy="32" r="26"/><ellipse cx="32" cy="32" rx="11" ry="26"/>
+          <path d="M6 32h52M10 18h44M10 46h44"/>
+        </svg>`,
+    },
+    {
+      id: "ehroz",
+      url: "https://ehroz.pro/",
+      name: "Ehroz",
+      titleKey: "ad_ehroz_title",
+      textKey: "ad_ehroz_text",
+      ctaKey: "ad_ehroz_cta",
+      icon: `<svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="8" y="8" width="21" height="21" rx="5"/>
+          <rect x="35" y="8" width="21" height="21" rx="5"/>
+          <rect x="8" y="35" width="21" height="21" rx="5"/>
+          <rect x="35" y="35" width="21" height="21" rx="5"/>
+        </svg>`,
+    },
+  ];
+  function buildAdCard(ad) {
     const card = document.createElement("a");
-    card.className = "card-ad";
-    card.href = AD_URL;
+    card.className = `card-ad card-ad--${ad.id}`;
+    card.href = ad.url;
     card.target = "_blank";
     card.rel = "noopener sponsored";
     card.addEventListener("click", (e) => e.stopPropagation());
     card.innerHTML = `
-      <div class="card-ad-bg" aria-hidden="true">
-        <svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-          <circle cx="32" cy="32" r="26"/><ellipse cx="32" cy="32" rx="11" ry="26"/>
-          <path d="M6 32h52M10 18h44M10 46h44"/>
-        </svg>
-      </div>
+      <div class="card-ad-bg" aria-hidden="true">${ad.icon}</div>
       <div class="card-ad-inner">
         <div class="card-ad-top">
           <span class="card-ad-label"></span>
         </div>
         <div class="card-ad-body">
-          <div class="card-ad-name">Atlas</div>
+          <div class="card-ad-name"></div>
           <div class="card-ad-title"></div>
           <div class="card-ad-text"></div>
           <span class="card-ad-cta"></span>
         </div>
       </div>`;
     card.querySelector(".card-ad-label").textContent = I18N.t("ad_label");
-    card.querySelector(".card-ad-title").textContent = I18N.t("ad_atlas_title");
-    card.querySelector(".card-ad-text").textContent = I18N.t("ad_atlas_text");
-    card.querySelector(".card-ad-cta").textContent = I18N.t("ad_atlas_cta");
+    card.querySelector(".card-ad-name").textContent = ad.name;
+    card.querySelector(".card-ad-title").textContent = I18N.t(ad.titleKey);
+    card.querySelector(".card-ad-text").textContent = I18N.t(ad.textKey);
+    card.querySelector(".card-ad-cta").textContent = I18N.t(ad.ctaKey);
     return card;
   }
   function insertAdCard() {
@@ -3168,7 +3191,8 @@
     const photos = Array.from(el.grid.children).filter((n) => n.classList.contains("card"));
     if (photos.length < 2) return;
     const pos = Math.min(1 + Math.floor(Math.random() * 10), photos.length);
-    const ad = buildAdCard();
+    const promo = AD_CARDS[Math.floor(Math.random() * AD_CARDS.length)];
+    const ad = buildAdCard(promo);
     el.grid.insertBefore(ad, photos[pos] || null);
     const inner = ad.querySelector(".card-ad-inner");
     if (inner.offsetHeight) ad.style.gridRowEnd = gridSpan(inner.offsetHeight, Math.ceil);
