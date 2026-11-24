@@ -1727,16 +1727,20 @@
       // просит картинка — так и получался порочный круг "высота 4px, значит
       // и оставим 4px". У <img> же реальная высота считается независимо
       // (через aspect-ratio), поэтому измеряем её и назначаем span карточке.
-      const isInner = entry.target.tagName === "IMG" || entry.target.classList.contains("card-ad-inner");
-      const target = isInner ? entry.target.closest(".card, .card-ad") : entry.target;
+      const isImg = entry.target.tagName === "IMG";
+      const isAdInner = entry.target.classList.contains("card-ad-inner");
+      const target = isImg || isAdInner ? entry.target.closest(".card, .card-ad") : entry.target;
       if (!target) continue;
-      // Округляем ВНИЗ: карточка выходит на 0–11 px короче картинки и чуть
+      // Округляем ВНИЗ для <img>: карточка выходит на 0–11 px короче картинки и чуть
       // подрезает её низ (overflow:hidden). С округлением вверх было
       // наоборот — под фото оставалась полоска фона карточки, будто фото
-      // съехало. Скелетоны (у них своя явная высота) — по-прежнему вверх,
-      // чтобы не залезали на соседа снизу.
-      const round = isInner ? Math.floor : Math.ceil;
-      target.style.gridRowEnd = gridSpan(entry.contentRect.height, round);
+      // съехало. Для рекламной карточки и скелетонов округляем ВВЕРХ и берём
+      // полную высоту с учётом padding (border-box), чтобы низ с кнопкой не обрезался.
+      const height = isAdInner
+        ? (entry.borderBoxSize?.[0]?.blockSize || entry.target.offsetHeight || entry.contentRect.height)
+        : entry.contentRect.height;
+      const round = isImg ? Math.floor : Math.ceil;
+      target.style.gridRowEnd = gridSpan(height, round);
     }
   });
   function gridSpan(height, round) {
@@ -3136,16 +3140,22 @@
     card.rel = "noopener sponsored";
     card.addEventListener("click", (e) => e.stopPropagation());
     card.innerHTML = `
-      <div class="card-ad-inner">
-        <span class="card-ad-label"></span>
-        <svg class="card-ad-globe" viewBox="0 0 64 64" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round">
+      <div class="card-ad-bg" aria-hidden="true">
+        <svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
           <circle cx="32" cy="32" r="26"/><ellipse cx="32" cy="32" rx="11" ry="26"/>
           <path d="M6 32h52M10 18h44M10 46h44"/>
         </svg>
-        <div class="card-ad-name">Atlas</div>
-        <div class="card-ad-title"></div>
-        <div class="card-ad-text"></div>
-        <span class="card-ad-cta"></span>
+      </div>
+      <div class="card-ad-inner">
+        <div class="card-ad-top">
+          <span class="card-ad-label"></span>
+        </div>
+        <div class="card-ad-body">
+          <div class="card-ad-name">Atlas</div>
+          <div class="card-ad-title"></div>
+          <div class="card-ad-text"></div>
+          <span class="card-ad-cta"></span>
+        </div>
       </div>`;
     card.querySelector(".card-ad-label").textContent = I18N.t("ad_label");
     card.querySelector(".card-ad-title").textContent = I18N.t("ad_atlas_title");
@@ -3160,7 +3170,9 @@
     const pos = Math.min(1 + Math.floor(Math.random() * 10), photos.length);
     const ad = buildAdCard();
     el.grid.insertBefore(ad, photos[pos] || null);
-    masonryObserver.observe(ad.querySelector(".card-ad-inner"));
+    const inner = ad.querySelector(".card-ad-inner");
+    if (inner.offsetHeight) ad.style.gridRowEnd = gridSpan(inner.offsetHeight, Math.ceil);
+    masonryObserver.observe(inner);
   }
 
   function appendCards(items) {
