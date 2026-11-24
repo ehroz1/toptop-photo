@@ -3128,41 +3128,71 @@
     });
   }
 
-  // ---------- Рекламные карточки (Atlas и Ehroz) ----------
+  // ---------- Рекламные карточки (Atlas и Ehroz — по 3 варианта) ----------
   // Одна случайная карточка на поиск, на месте фото №1–10 (индексы фото
   // считаем без неё — см. insertScored). Не фото: в лайтбокс не открывается.
+  // В ссылки добавляются UTM-метки (источник picta, кампания atlas/ehroz,
+  // utm_content = конкретный вариант дизайна и текста).
+  const AD_ICONS = {
+    globe: `<svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
+      <circle cx="32" cy="32" r="26"/><ellipse cx="32" cy="32" rx="11" ry="26"/>
+      <path d="M6 32h52M10 18h44M10 46h44"/>
+    </svg>`,
+    compass: `<svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="32" cy="32" r="26"/>
+      <polygon points="41,23 35,35 23,41 29,29"/>
+      <circle cx="32" cy="32" r="2.2" fill="currentColor"/>
+    </svg>`,
+    layers: `<svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <polygon points="32,10 56,22 32,34 8,22"/>
+      <polyline points="8,32 32,44 56,32"/>
+      <polyline points="8,42 32,54 56,42"/>
+    </svg>`,
+    apps: `<svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="8" y="8" width="21" height="21" rx="5"/>
+      <rect x="35" y="8" width="21" height="21" rx="5"/>
+      <rect x="8" y="35" width="21" height="21" rx="5"/>
+      <rect x="35" y="35" width="21" height="21" rx="5"/>
+    </svg>`,
+    sliders: `<svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+      <line x1="10" y1="18" x2="54" y2="18"/><circle cx="24" cy="18" r="4.5" fill="currentColor"/>
+      <line x1="10" y1="32" x2="54" y2="32"/><circle cx="42" cy="32" r="4.5" fill="currentColor"/>
+      <line x1="10" y1="46" x2="54" y2="46"/><circle cx="28" cy="46" r="4.5" fill="currentColor"/>
+    </svg>`,
+    spark: `<svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M32 6 L37.5 26.5 L58 32 L37.5 37.5 L32 58 L26.5 37.5 L6 32 L26.5 26.5 Z"/>
+      <circle cx="50" cy="14" r="3"/>
+    </svg>`,
+  };
   const AD_CARDS = [
-    {
-      id: "atlas",
-      url: "https://atlas.ehroz.pro/",
-      name: "Atlas",
-      titleKey: "ad_atlas_title",
-      textKey: "ad_atlas_text",
-      ctaKey: "ad_atlas_cta",
-      icon: `<svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round">
-          <circle cx="32" cy="32" r="26"/><ellipse cx="32" cy="32" rx="11" ry="26"/>
-          <path d="M6 32h52M10 18h44M10 46h44"/>
-        </svg>`,
-    },
-    {
-      id: "ehroz",
-      url: "https://ehroz.pro/",
-      name: "Ehroz",
-      titleKey: "ad_ehroz_title",
-      textKey: "ad_ehroz_text",
-      ctaKey: "ad_ehroz_cta",
-      icon: `<svg class="card-ad-globe" viewBox="0 0 64 64" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="8" y="8" width="21" height="21" rx="5"/>
-          <rect x="35" y="8" width="21" height="21" rx="5"/>
-          <rect x="8" y="35" width="21" height="21" rx="5"/>
-          <rect x="35" y="35" width="21" height="21" rx="5"/>
-        </svg>`,
-    },
+    { id: "atlas_1", theme: "atlas-1", campaign: "atlas", url: "https://atlas.ehroz.pro/", name: "Atlas", icon: AD_ICONS.globe, titleKey: "ad_atlas_1_title", textKey: "ad_atlas_1_text", ctaKey: "ad_atlas_1_cta" },
+    { id: "atlas_2", theme: "atlas-2", campaign: "atlas", url: "https://atlas.ehroz.pro/", name: "Atlas", icon: AD_ICONS.compass, titleKey: "ad_atlas_2_title", textKey: "ad_atlas_2_text", ctaKey: "ad_atlas_2_cta" },
+    { id: "atlas_3", theme: "atlas-3", campaign: "atlas", url: "https://atlas.ehroz.pro/", name: "Atlas", icon: AD_ICONS.layers, titleKey: "ad_atlas_3_title", textKey: "ad_atlas_3_text", ctaKey: "ad_atlas_3_cta" },
+    { id: "ehroz_1", theme: "ehroz-1", campaign: "ehroz", url: "https://ehroz.pro/", name: "Ehroz", icon: AD_ICONS.apps, titleKey: "ad_ehroz_1_title", textKey: "ad_ehroz_1_text", ctaKey: "ad_ehroz_1_cta" },
+    { id: "ehroz_2", theme: "ehroz-2", campaign: "ehroz", url: "https://ehroz.pro/", name: "Ehroz", icon: AD_ICONS.sliders, titleKey: "ad_ehroz_2_title", textKey: "ad_ehroz_2_text", ctaKey: "ad_ehroz_2_cta" },
+    { id: "ehroz_3", theme: "ehroz-3", campaign: "ehroz", url: "https://ehroz.pro/", name: "Ehroz", icon: AD_ICONS.spark, titleKey: "ad_ehroz_3_title", textKey: "ad_ehroz_3_text", ctaKey: "ad_ehroz_3_cta" },
   ];
+  function adCardUrl(ad) {
+    const u = new URL(ad.url);
+    u.searchParams.set("utm_source", "picta");
+    u.searchParams.set("utm_medium", "ad_card");
+    u.searchParams.set("utm_campaign", ad.campaign);
+    u.searchParams.set("utm_content", ad.id);
+    return u.toString();
+  }
+  function pickAdCard() {
+    let lastId = "";
+    try { lastId = sessionStorage.getItem("photoseek-last-ad") || ""; } catch {}
+    const pool = AD_CARDS.filter((c) => c.id !== lastId);
+    const list = pool.length ? pool : AD_CARDS;
+    const picked = list[Math.floor(Math.random() * list.length)];
+    try { sessionStorage.setItem("photoseek-last-ad", picked.id); } catch {}
+    return picked;
+  }
   function buildAdCard(ad) {
     const card = document.createElement("a");
-    card.className = `card-ad card-ad--${ad.id}`;
-    card.href = ad.url;
+    card.className = `card-ad card-ad--${ad.theme}`;
+    card.href = adCardUrl(ad);
     card.target = "_blank";
     card.rel = "noopener sponsored";
     card.addEventListener("click", (e) => e.stopPropagation());
@@ -3191,8 +3221,7 @@
     const photos = Array.from(el.grid.children).filter((n) => n.classList.contains("card"));
     if (photos.length < 2) return;
     const pos = Math.min(1 + Math.floor(Math.random() * 10), photos.length);
-    const promo = AD_CARDS[Math.floor(Math.random() * AD_CARDS.length)];
-    const ad = buildAdCard(promo);
+    const ad = buildAdCard(pickAdCard());
     el.grid.insertBefore(ad, photos[pos] || null);
     const inner = ad.querySelector(".card-ad-inner");
     if (inner.offsetHeight) ad.style.gridRowEnd = gridSpan(inner.offsetHeight, Math.ceil);
