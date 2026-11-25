@@ -1655,6 +1655,14 @@
       state.searchQuery = parsed.apiQuery;
       el.translatedHint.hidden = true;
       state.queryMatcher = window.buildQueryMatcher(parsed, new Map());
+    } else if (PAGE && PAGE.qEn && raw === PAGE.q && state.mode === (PAGE.mode || "photos")) {
+      // На страницах подборок перевод уже задан в PICTA_PAGE.qEn — сразу
+      // запускаем поиск без ожидания внешнего переводчика (быстрее и для
+      // пользователей, и для поисковых роботов).
+      state.searchQuery = PAGE.qEn;
+      el.translatedHintText.textContent = PAGE.qEn;
+      el.translatedHint.hidden = false;
+      state.queryMatcher = window.buildQueryMatcher(parsed, new Map());
     } else {
       el.resultsCount.textContent = "";
       setSearchStatus(I18N.t("status_translating"), 0.14);

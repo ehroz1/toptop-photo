@@ -61,7 +61,8 @@ function buildPage(index, page) {
   html = replaceRe(html, /<meta property="og:title" content="[^"]*">/, `<meta property="og:title" content="${esc(page.title)}">`, "og:title");
   html = replaceRe(html, /<meta property="og:description" content="[^"]*">/, `<meta property="og:description" content="${esc(page.description)}">`, "og:description");
 
-  // Разметка для поисковиков: вместо WebSite/FAQ главной — «хлебные крошки».
+  // Разметка для поисковиков: вместо WebSite/FAQ главной — «хлебные крошки»
+  // и карточка подборки (CollectionPage), чтобы поисковик видел тематическую страницу.
   const crumbs = {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -70,17 +71,27 @@ function buildPage(index, page) {
       { "@type": "ListItem", position: 2, name: page.h1, item: url },
     ],
   };
+  const collection = {
+    "@context": "https://schema.org",
+    "@type": "CollectionPage",
+    name: page.h1,
+    description: page.description,
+    url,
+    inLanguage: "ru",
+    isPartOf: { "@type": "WebSite", name: "Picta", url: `${SITE}/` },
+  };
   const ldRe = /<script type="application\/ld\+json">[\s\S]*?<\/script>\n/g;
   if (!ldRe.test(html)) throw new Error("seo/build.js: в index.html нет JSON-LD");
   let first = true;
   html = html.replace(ldRe, () => {
     if (!first) return "";
     first = false;
-    return `<script type="application/ld+json">\n${JSON.stringify(crumbs)}\n</script>\n`;
+    return `<script type="application/ld+json">\n${JSON.stringify(crumbs)}\n</script>\n<script type="application/ld+json">\n${JSON.stringify(collection)}\n</script>\n`;
   });
 
   // В <head>: его читает и встроенный скрипт главной (до первой отрисовки).
   const pageCfg = { q: page.q || "", mode: page.mode || "photos" };
+  if (page.qEn) pageCfg.qEn = page.qEn;
   html = replaceOnce(html, "</head>",
     `<script>window.PICTA_PAGE = ${JSON.stringify(pageCfg)};</script>\n</head>`, "PICTA_PAGE");
 
