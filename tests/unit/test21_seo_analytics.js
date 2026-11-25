@@ -31,6 +31,46 @@ const words = about ? about.textContent.replace(/\s+/g, " ").trim().split(" ").l
 console.log("Слов в тексте о сервисе:", words);
 if (words < 150) fail("текста о сервисе слишком мало для поисковиков");
 
+// 1б. Sitemap, robots, .nojekyll, защита от ложных 404 (?q= -> noindex), подборки, admin.html
+if (!fs.existsSync(path.join(ROOT, ".nojekyll"))) fail("нет файла .nojekyll для GitHub Pages");
+const robotsTxt = fs.readFileSync(path.join(ROOT, "robots.txt"), "utf8");
+if (!robotsTxt.includes("Sitemap: https://picta.cc/sitemap.xml")) fail("в robots.txt нет ссылки на sitemap.xml");
+
+const sitemapXml = fs.readFileSync(path.join(ROOT, "sitemap.xml"), "utf8");
+const locs = [...sitemapXml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+if (locs.length < 20) fail(`в sitemap.xml слишком мало страниц (${locs.length})`);
+for (const loc of locs) {
+  if (!loc.startsWith("https://picta.cc/") || !loc.endsWith("/")) {
+    fail(`некорректный URL в sitemap.xml: ${loc}`);
+    continue;
+  }
+  const relPath = loc.slice("https://picta.cc/".length);
+  const filePath = relPath ? path.join(ROOT, relPath, "index.html") : path.join(ROOT, "index.html");
+  if (!fs.existsSync(filePath)) fail(`sitemap.xml ссылается на несуществующую страницу: ${loc}`);
+}
+
+// ?q=... должен ставить noindex, follow; главная и /foto/priroda/ — без noindex
+const noindexCheck = (file, url) => {
+  const src = fs.readFileSync(path.join(ROOT, file), "utf8");
+  const head = src.match(/<head>([\s\S]*?)<\/head>/)[1];
+  const dom = new JSDOM(`<!doctype html><html><head>${head}</head><body></body></html>`, { runScripts: "dangerously", url });
+  return dom.window.document.querySelector('meta[name="robots"]')?.getAttribute("content") || null;
+};
+if (noindexCheck("index.html", "https://picta.cc/") !== null) fail("на главной не должно быть meta robots=noindex");
+if (noindexCheck("index.html", "https://picta.cc/?q=test") !== "noindex, follow") fail("поисковая ссылка ?q= должна получать meta robots=noindex, follow");
+if (noindexCheck("foto/priroda/index.html", "https://picta.cc/foto/priroda/") !== null) fail("на странице подборки не должно быть meta robots=noindex");
+
+const prirodaHtml = fs.readFileSync(path.join(ROOT, "foto/priroda/index.html"), "utf8");
+const prirodaDoc = new JSDOM(prirodaHtml).window.document;
+const prirodaLd = [...prirodaDoc.querySelectorAll('script[type="application/ld+json"]')].map((s) => JSON.parse(s.textContent));
+if (!prirodaLd.some((x) => x["@type"] === "BreadcrumbList")) fail("на подборке пропала разметка BreadcrumbList");
+if (!prirodaLd.some((x) => x["@type"] === "CollectionPage")) fail("на подборке нет разметки CollectionPage");
+if (!/"qEn":"nature"/.test(prirodaHtml)) fail("на подборке нет предпереведённого qEn");
+
+const adminDoc = new JSDOM(fs.readFileSync(path.join(ROOT, "admin.html"), "utf8")).window.document;
+if (adminDoc.querySelectorAll('meta[name="robots"]').length !== 1) fail("в admin.html должен быть ровно один тег meta robots");
+if (adminDoc.querySelector(".admin-brand")?.getAttribute("href") !== "/") fail("ссылка из admin.html должна вести на /");
+
 // 2. Счётчики
 function runAnalytics(analyticsCfg) {
   const dom = new JSDOM("<!doctype html><html><head></head><body></body></html>", { runScripts: "outside-only", url: "https://picta.cc/" });

@@ -10,6 +10,14 @@
 <!-- SEO: главный адрес сайта (www и старый github.io — его копии) и карточка
      для ссылок в соцсетях и мессенджерах (картинка — og-image.jpg). -->
 <link rel="canonical" href="https://picta.cc/foto/more/">
+<script>
+if (new URLSearchParams(location.search).has("q")) {
+  var m = document.createElement("meta");
+  m.name = "robots";
+  m.content = "noindex, follow";
+  document.head.appendChild(m);
+}
+</script>
 <meta property="og:type" content="website">
 <meta property="og:site_name" content="Picta">
 <meta property="og:url" content="https://picta.cc/foto/more/">
@@ -22,6 +30,9 @@
 <meta name="twitter:card" content="summary_large_image">
 <script type="application/ld+json">
 {"@context":"https://schema.org","@type":"BreadcrumbList","itemListElement":[{"@type":"ListItem","position":1,"name":"Picta","item":"https://picta.cc/"},{"@type":"ListItem","position":2,"name":"Фото моря и пляжей","item":"https://picta.cc/foto/more/"}]}
+</script>
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"CollectionPage","name":"Фото моря и пляжей","description":"Бесплатные фото моря, океана, пляжей и волн в высоком качестве. Pixabay, Pexels, Unsplash и другие стоки в одном поиске.","url":"https://picta.cc/foto/more/","inLanguage":"ru","isPartOf":{"@type":"WebSite","name":"Picta","url":"https://picta.cc/"}}
 </script>
 <meta name="theme-color" content="#0b0b0f">
 <link rel="manifest" href="manifest.webmanifest">
@@ -49,7 +60,7 @@
      лишнего сервера и работают офлайн. Без preload специально: так текст
      появляется раньше (сначала системным шрифтом, через мгновение — Manrope). -->
 <link rel="stylesheet" href="css/styles.css">
-<script>window.PICTA_PAGE = {"q":"море","mode":"photos"};</script>
+<script>window.PICTA_PAGE = {"q":"море","mode":"photos","qEn":"sea"};</script>
 </head>
 <body>
 <!-- Режим главной включаем до отрисовки шапки. home-pending — пока
@@ -78,7 +89,7 @@ else document.body.classList.add("is-home", "home-pending");
 <div class="app">
 
   <header class="topbar" id="topbar">
-    <a class="brand" href="./" data-i18n-title="brand_home_title">
+    <a class="brand" href="/" data-i18n-title="brand_home_title">
       <span class="brand-mark" aria-hidden="true"></span>
     </a>
 
@@ -149,7 +160,7 @@ else document.body.classList.add("is-home", "home-pending");
           </div>
           <div id="authLoggedIn" hidden>
             <p id="authEmailLabel" class="auth-email-label"></p>
-            <a id="authAdminLink" href="admin.html" class="btn btn-ghost auth-admin-link" hidden data-i18n="auth_admin_link">Админка</a>
+            <a id="authAdminLink" href="admin.html" rel="nofollow" class="btn btn-ghost auth-admin-link" hidden data-i18n="auth_admin_link">Админка</a>
           </div>
         </div>
       </div>
